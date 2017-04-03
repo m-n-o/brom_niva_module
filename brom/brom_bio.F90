@@ -44,17 +44,11 @@ module fabm_niva_brom_bio
     real(rk):: K_DON_ox,K_PON_ox,K_PON_DON,Tda,beta_da,K_omox_o2
     !----Phy  ----------!
     real(rk):: K_phy_gro,k_Erlov,Iopt
-    real(rk):: K_phy_mrt,K_phy_exc,LatLight, phy_t_dependence
+    real(rk):: K_phy_mrt,K_phy_exc,LatLight
+    integer :: phy_t_dependence
     !----Het -----------!
     real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim
     real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
-    !---- O2--------!
-    !Upper boundary, for oxygen flux calculations
-    !SY - pvel?
-    real(rk):: pvel = 5._rk ! wind speed [m/s]
-    real(rk):: a0 = 31.25_rk !oxygen saturation [uM]
-    real(rk):: a1 = 14.603_rk !oxygen saturation [-]
-    real(rk):: a2 = 0.4025_rk !oxygen saturation [1/degC]
     !---- N, P, Si--!
     real(rk):: K_nox_lim,K_nh4_lim,K_psi,K_nfix,K_po4_lim,K_si_lim
     !---- Sinking---!
@@ -65,6 +59,7 @@ module fabm_niva_brom_bio
     procedure :: initialize
     procedure :: do
     procedure :: do_surface
+    procedure :: f_t
   end type
 contains
   !
@@ -116,6 +111,10 @@ contains
     call self%get_parameter(&
          self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
          default=0.01_rk)
+    call self%get_parameter(&
+         self%phy_t_dependence,'Switcher','1',&
+         'Turn on 2 for ice algae version',&
+         default=2)
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
@@ -405,7 +404,7 @@ contains
       !Influence of the Irradiance on photosynthesis
       LimLight = Iz/self%Iopt*exp(1._rk-Iz/self%Iopt)
       !Influence of Temperature on photosynthesis
-      LimT = f_t(temp)
+      LimT = self%f_t(temp)
       !dependence of photosynthesis on P
       LimP = yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10_rk))
       !dependence of photosynthesis on Si
@@ -511,7 +510,7 @@ contains
       _SET_ODE_(self%id_PON,d_PON)
 
       OSAT = oxygen_saturation_concentration(temp,salt)
-      
+
       _SET_DIAGNOSTIC_(self%id_osat,OSAT)
       _SET_DIAGNOSTIC_(self%id_eO2mO2,max(0.0_rk,O2/OSAT))
       _SET_DIAGNOSTIC_(self%id_DcPM_O2,DcPM_O2)
@@ -577,50 +576,37 @@ contains
   !
   !Phy temperature limiter
   !
-  elemental real(rk) function f_t(temperature)
-    real(rk),intent(in):: temperature
-    integer   :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
-!    case (1) ! Old
+  real(rk) function f_t(self,temperature)
+    class (type_niva_brom_bio),intent(in) :: self
+    real(rk)                  ,intent(in):: temperature
+
     real(rk):: bm
     real(rk):: cm
-!    case (2) ! for Arctic
-    real(rk):: t_0 !reference temperature
+    real(rk):: t_0           !reference temperature
     real(rk):: temp_aug_rate !temperature augmentation rate
-!    case (3) ! ERSEM
-    real(rk):: q10 !Coefficient for uptake rate dependence on t
-    real(rk):: t_upt_min !Low t limit for uptake rate dependence on t
+    real(rk):: q10       !Coefficient for uptake rate dependence on t
+    real(rk):: t_upt_min !Low  t limit for uptake rate dependence on t
     real(rk):: t_upt_max !High t limit for uptake rate dependence on t
 
-!    phy_t_dependence = get_brom_par("phy_t_dependence", 1.0_rk)
-     phy_t_dependence= 1  ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
-!    case (1) ! Old
+    !Old
     bm = 0.12_rk
     cm = 1.4_rk
-!    case (2) ! for Arctic   !(Moore et al.,2002;Jin et al.,2008)
+    !for Arctic (Moore et al.,2002; Jin et al.,2008)
     t_0           = 0._rk
     temp_aug_rate = 0.0663_rk
-!    case (3) ! ERSEM
+    !ERSEM
     q10       = 2.0_rk
     t_upt_min = 10.0_rk
     t_upt_max = 32.0_rk
-!   Some others:
- !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
- !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)  
- !  LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
- !  LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
- !  LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM)
- !  LimT     =q10*(T-20)/10 !Q10=1.88 (Gregoire, 2000)       
 
-    select case (phy_t_dependence)
-     case (1) ! Old
-      f_t = exp(bm*temperature-cm) !Influence of T photosynthesis
-     case (2) ! for Arctic
+    if (self%phy_t_dependence == 1) then
+      f_t = exp(bm*temperature-cm)
+    else if (self%phy_t_dependence == 2) then
       f_t = exp(temp_aug_rate*(temperature-t_0))
-     case (3) ! ERSEM
-      f_t = q10**((temperature-t_upt_min)/10.)-q10**((temperature-t_upt_max)/3.)
-    end select
-
-
+    else if (self%phy_t_dependence == 3) then
+      f_t = q10**((temperature-t_upt_min)/10._rk)-&
+            q10**((temperature-t_upt_max)/3._rk)
+    end if
   end function f_t
   !
   !adapted from ersem
