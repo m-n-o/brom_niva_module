@@ -36,7 +36,6 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_eO2mO2,id_osat
 
     type(type_dependency_id):: id_temp,id_salt,id_par,id_pres
-    type(type_dependency_id):: id_Hplus
     type(type_horizontal_dependency_id):: id_windspeed
 
     !Model parameters
@@ -243,9 +242,6 @@ contains
          self%id_Baan,'Baan','mmol/m**3','anaerobic aurotrophic bacteria')
     call self%register_state_dependency(&
          self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
-    !diagnostic dependency
-    call self%register_dependency(&
-         self%id_Hplus,'Hplus','mmol/m**3','H+ hydrogen')
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPM_O2,'DcPM_O2','mmol/m**3',&
@@ -349,7 +345,7 @@ contains
     _DECLARE_ARGUMENTS_DO_
     real(rk):: temp,salt,pres,Iz
     real(rk):: NH4,NO2,NO3,PO4,Phy,Het,H2S,O2,Baae,Baan,Bhae,Bhan
-    real(rk):: PON,DON,Si,Sipart,Alk,Hplus
+    real(rk):: PON,DON,Si,Sipart,Alk
     real(rk):: LimLight,LimT,LimP,LimNO3,LimNH4,LimN,LimSi
     real(rk):: GrowthPhy,MortPhy,ExcrPhy,dAlk,N_fixation
     real(rk):: GrazPhy,GrazPOP,GrazBaae,GrazBaan,GrazBhae
@@ -368,9 +364,7 @@ contains
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! temperature
       _GET_(self%id_pres,pres) ! pressure in dbar
-      ! Retrieve current (local) state variable values.
-      !diagnostic
-      _GET_(self%id_Hplus,Hplus)
+      ! Retrieve current (local) state variable values
       !state variables
       _GET_(self%id_NO2,NO2)
       _GET_(self%id_NO3,NO3)
