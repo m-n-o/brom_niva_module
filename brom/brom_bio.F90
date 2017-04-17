@@ -69,8 +69,6 @@ contains
     integer,                    intent(in)            :: configunit
 
     call self%get_parameter(&
-         self%LatLight,'LatLight','degree','Latitude',default=50.0_rk)
-    call self%get_parameter(&
          self%K_DON_ox,'K_DON_ox','[1/day]',&
          'Specific rate of oxidation of DON with O2',&
          default=0.01_rk)
@@ -203,7 +201,7 @@ contains
     !Register state variables
     call self%register_state_variable(&
          self%id_Phy,'Phy','mmol/m**3','Phy',&
-         minimum=0.01_rk,initial_value=0.01_rk,&
+         minimum=0.0_rk,initial_value=0.0_rk,&
          vertical_movement=-self%Wphy/86400._rk)
     call self%register_state_variable(&
          self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
