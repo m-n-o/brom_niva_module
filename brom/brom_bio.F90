@@ -409,7 +409,7 @@ contains
                (1._rk-exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk))))
       !dependence of photosynthesis on N
       LimN = min(1._rk,LimNO3+LimNH4)
-
+      LimN = max(0.001,LimN)
       !Grouth of Phy (gross primary production in uM N)
       GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*Phy
       !Rate of mortality of phy
