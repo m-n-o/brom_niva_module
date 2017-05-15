@@ -445,6 +445,7 @@ contains
 
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
+      PO4 = max(PO4,0.000001_rk)
       N_fixation = self%K_nfix*LimP*&
                    1._rk/(1._rk+((NO3+NO2+NH4)/PO4*16._rk)**4._rk)*GrowthPhy
 
