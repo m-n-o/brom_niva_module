@@ -22,13 +22,14 @@ module fabm_niva_brom_manganese
     type(type_state_variable_id):: id_H2S
     type(type_state_variable_id):: id_S0
     type(type_state_variable_id):: id_O2
-    type(type_state_variable_id):: id_PON,id_DON,id_PO4
+    type(type_state_variable_id):: id_PON,id_DON,id_PO4,id_NH4
     type(type_state_variable_id):: id_DIC,id_Alk
 
-    type(type_diagnostic_variable_id):: id_DcDM_Mn,id_DcPM_Mn
+    type(type_diagnostic_variable_id):: id_DcDM_Mn4,id_DcPM_Mn4
+    type(type_diagnostic_variable_id):: id_DcDM_Mn3,id_DcPM_Mn3
     type(type_diagnostic_variable_id):: id_mn_p_compl
     type(type_diagnostic_variable_id):: id_mn_ox2,id_mn_ox1,id_mn_rd1
-    type(type_diagnostic_variable_id):: id_mn_rd2,id_mns_diss,id_mns_form
+    type(type_diagnostic_variable_id):: id_mn_rd2,id_mns_diss,id_mns_form,id_mns_ox
     type(type_diagnostic_variable_id):: id_mnco3_diss,id_mnco3_form
     !diagnostic dependencies
     type(type_dependency_id):: id_Hplus
@@ -40,7 +41,7 @@ module fabm_niva_brom_manganese
     !specific rates of biogeochemical processes
     !----Mn---------!
     real(rk):: K_mn_ox1,K_mn_ox2,K_mn_rd1,K_mn_rd2,K_mns
-    real(rk):: K_mns_diss, K_mns_form
+    real(rk):: K_mns_diss, K_mns_form, K_mns_ox
     real(rk):: K_mnco3,K_mnco3_diss,K_mnco3_form,K_mnco3_ox
     real(rk):: K_DON_mn,K_PON_mn
     real(rk):: s_mnox_mn2,s_mnox_mn3,s_mnrd_mn4,s_mnrd_mn3
@@ -102,6 +103,10 @@ contains
     call self%get_parameter(&
          self%K_mns_form,'K_mns_form','[1/day]',&
          'Specific rate of formation of MnS from Mn2 with H2S',&
+         default=0.00001_rk)
+    call self%get_parameter(&
+         self%K_mns_ox,'K_mns_ox','[1/day]',&
+         'Specific rate of  MnS oxidation',&
          default=0.00001_rk)
     call self%get_parameter(&
          self%K_mnco3,'K_mnco3','[M]',&
@@ -205,7 +210,10 @@ contains
          standard_variables%alkalinity_expressed_as_mole_equivalent)
     call self%register_state_dependency(&
          self%id_po4,'PO4','mmol/m**3',&
-         'phosphate',required=.false.)
+         'PO4',required=.false.)
+    call self%register_state_dependency(&
+         self%id_nh4,'NH4','mmol/m**3',&
+         'NH4',required=.false.)
     call self%register_state_dependency(&
          self%id_O2, 'O2', 'mmol/m**3',&
          'dissolved oxygen')
@@ -218,11 +226,19 @@ contains
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-         self%id_DcPM_Mn,'DcPM_Mn','mmol/m**3',&
+         self%id_DcPM_Mn3,'DcPM_Mn3','mmol/m**3',&
+         'POM with Mn(III) mineralization ',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDM_Mn3,'DcDM_Mn3','mmol/m**3',&
+         'DOM with Mn(III) mineralization',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPM_Mn4,'DcPM_Mn4','mmol/m**3',&
          'POM with Mn(IV) mineralization ',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDM_Mn,'DcDM_Mn','mmol/m**3',&
+         self%id_DcDM_Mn4,'DcDM_Mn4','mmol/m**3',&
          'DOM with Mn(IV) mineralization',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
@@ -240,6 +256,10 @@ contains
     call self%register_diagnostic_variable(&
          self%id_mns_form,'mns_form','mmol/m**3',&
          'MnS formation',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_mns_ox,'mns_ox','mmol/m**3/d',&
+         'MnS oxidation',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_mnco3_diss,'mnco3_diss','mmol/m**3',&
@@ -290,12 +310,12 @@ contains
     !increments
     real(rk):: d_Mn2,d_Mn3,d_Mn4,d_MnS,d_MnCO3
     real(rk):: d_S0,d_H2S,d_O2,d_DON,d_PON
-    real(rk):: d_DIC,d_PO4,d_Alk
+    real(rk):: d_DIC,d_PO4,d_Alk,d_NH4
     !processes
-    real(rk):: mn_ox1,mn_ox2,mn_rd1,mn_rd2,Om_MnS,mns_form,mns_diss
+    real(rk):: mn_ox1,mn_ox2,mn_rd1,mn_rd2,Om_MnS,mns_form,mns_diss, mns_ox
     real(rk):: Om_MnCO3,mnco3_form,mnco3_diss,mnco3_ox
     real(rk):: mn_p_compl
-    real(rk):: DcDM_Mn,DcPM_Mn,Dc_OM_total
+    real(rk):: DcDM_Mn3,DcPM_Mn3,DcDM_Mn4,DcPM_Mn4,Dc_OM_Mn_total
 
     _LOOP_BEGIN_
       !Retrieve current (local) variable values.
@@ -335,7 +355,7 @@ contains
       !MnS(s) + H+ -> Mn2+ + HS-
       mns_diss = self%K_MnS_diss*MnS*max(0._rk,(1._rk-Om_MnS))
       !MnS + 2O2 -> Mn(2+) + SO4(2-)
-      !?
+      mns_ox = self%K_mns_ox*MnS*O2
       !MnCO3 precipitation/dissolution
       Om_MnCO3 = Mn2*CO3/(self%K_MnCO3)
       !Mn2+ + CO3-- <-> MnCO3 (vanCappelen,96)
@@ -345,31 +365,38 @@ contains
       mnco3_ox = self%K_mnco3_ox*MnCO3*O2
       !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
       !424HCO3- + 212Mn2+ +16NH3 +H3PO4  (Boudreau, 1996) !in N units
-      DcDM_Mn = max(0._rk,self%K_DON_mn*DON &
+      DcDM_Mn3 = max(0._rk,self%K_DON_mn*DON &
+               *Mn3/(Mn3+0.5_rk) &
+               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
+      DcPM_Mn3 = max(0._rk,self%K_PON_mn*PON &
+               *Mn3/(Mn3+0.5_rk) &
+               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
+      DcDM_Mn4 = max(0._rk,self%K_DON_mn*DON &
                *Mn4/(Mn4+0.5_rk) &
                *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcPM_Mn = max(0._rk,self%K_PON_mn*PON &
+      DcPM_Mn4 = max(0._rk,self%K_PON_mn*PON &
                *Mn4/(Mn4+0.5_rk) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
+               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))      
       !complexation of P with Mn(III)
       mn_p_compl = (mn_ox2+mn_rd2-mn_ox1-mn_rd1)/self%r_mn3_p
 
 
       !Summariazed OM mineralization
-      Dc_OM_total = DcDM_Mn+DcPM_Mn
+      Dc_OM_Mn_total = DcDM_Mn3+DcPM_Mn3+DcDM_Mn4+DcPM_Mn4
 
       !Set increments
       !Mn
-      d_Mn2 = -mn_ox1+mn_rd2-mns_form+mns_diss-mnco3_form+&
-                mnco3_diss+(DcDM_Mn+DcPM_Mn)*self%r_mn_n
+      d_Mn2 = -mn_ox1+mn_rd2-mns_form+mns_diss-mnco3_form+mns_ox+&
+                mnco3_diss+( DcDM_Mn3+DcPM_Mn3+DcDM_Mn4+DcPM_Mn4)*self%r_mn_n
       _SET_ODE_(self%id_Mn2,d_Mn2)
-      d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2
+      d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2-&
+              (DcDM_Mn3+DcPM_Mn3)*self%r_mn_n
       _SET_ODE_(self%id_Mn3,d_Mn3)
       !Mn solids
       d_Mn4 = mn_ox2-mn_rd1+mnco3_ox-&
-              (DcDM_Mn+DcPM_Mn)*self%r_mn_n
+              (DcDM_Mn4+DcPM_Mn4)*self%r_mn_n
       _SET_ODE_(self%id_Mn4,d_Mn4)
-      d_MnS = mns_form-mns_diss
+      d_MnS = mns_form-mns_diss-mns_ox
       _SET_ODE_(self%id_MnS,d_MnS)
       d_MnCO3 = mnco3_form-mnco3_diss-mnco3_ox
       _SET_ODE_(self%id_MnCO3,d_MnCO3)
@@ -380,21 +407,24 @@ contains
       d_H2S = -0.5_rk*mn_rd1-0.5_rk*mn_rd2-mns_form+mns_diss
       _SET_ODE_(self%id_H2S,d_H2S)
       !O2
-      d_O2 = -0.25_rk*mn_ox1-0.25_rk*mn_ox2-0.5_rk*mnco3_ox
+      d_O2 = -0.25_rk*mn_ox1-0.25_rk*mn_ox2-0.5_rk*mnco3_ox-2._rk*mns_ox
       _SET_ODE_(self%id_O2,d_O2)
       !organic matter
-      d_DON = -DcDM_Mn
+      d_DON = -DcDM_Mn3-DcDM_Mn4
       _SET_ODE_(self%id_DON,d_DON)
       !solid OM
-      d_PON = -DcPM_Mn
+      d_PON = -DcPM_Mn3-DcPM_Mn4
       _SET_ODE_(self%id_PON,d_PON)
       !DIC
-      d_DIC = (Dc_OM_total)*self%r_c_n&
+      d_DIC = (Dc_OM_Mn_total)*self%r_c_n&
                -mnco3_form+mnco3_diss+mnco3_ox
       _SET_ODE_(self%id_DIC,d_DIC)
       !P
-      d_PO4 = (Dc_OM_total/self%r_n_p)+mn_p_compl
+      d_PO4 = (Dc_OM_Mn_total/self%r_n_p)+mn_p_compl
       _SET_ODE_(self%id_PO4,d_PO4)
+      !NH4
+      d_NH4 = Dc_OM_Mn_total
+      _SET_ODE_(self%id_NH4,d_NH4)
       !Alkalinity changes due to redox reactions:
       d_Alk = (&
              +1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
@@ -406,20 +436,23 @@ contains
              +2._rk*mns_diss &
              -2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
              +2._rk*mnco3_diss &
-             !(CH(3PO4) + 212MnO2 + 318CO2 + 106H2O ->
+             !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
              ! 424HCO3- + 212Mn2+ + 16NH3 + H3PO4
-             +26.5_rk*(DcDM_Mn+DcPM_Mn) & !DcDM_Mn is in N-units,i.e.424/16
+             +26.5_rk*(Dc_OM_Mn_total) & !DcDM_Mn is in N-units,i.e.424/16
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 
-      _SET_DIAGNOSTIC_(self%id_DcPM_Mn,DcPM_Mn)
-      _SET_DIAGNOSTIC_(self%id_DcDM_Mn,DcDM_Mn)
+      _SET_DIAGNOSTIC_(self%id_DcPM_Mn3,DcPM_Mn3)
+      _SET_DIAGNOSTIC_(self%id_DcDM_Mn3,DcDM_Mn3)
+      _SET_DIAGNOSTIC_(self%id_DcPM_Mn4,DcPM_Mn4)
+      _SET_DIAGNOSTIC_(self%id_DcDM_Mn4,DcDM_Mn4)
       _SET_DIAGNOSTIC_(self%id_mn_ox1,mn_ox1)
       _SET_DIAGNOSTIC_(self%id_mn_ox2,mn_ox2)
       _SET_DIAGNOSTIC_(self%id_mn_rd1,mn_rd1)
       _SET_DIAGNOSTIC_(self%id_mn_rd2,mn_rd2)
       _SET_DIAGNOSTIC_(self%id_mns_form,mns_form)
       _SET_DIAGNOSTIC_(self%id_mns_diss,mns_diss)
+      _SET_DIAGNOSTIC_(self%id_mns_ox,mns_ox)
       _SET_DIAGNOSTIC_(self%id_mnco3_diss,mnco3_diss)
       _SET_DIAGNOSTIC_(self%id_mnco3_form,mnco3_form)
       _SET_DIAGNOSTIC_(self%id_mn_p_compl,mn_p_compl)

@@ -44,9 +44,10 @@ module fabm_niva_brom_bio
     real(rk):: K_DON_ox,K_PON_ox,K_PON_DON,Tda,beta_da,K_omox_o2
     !----Phy  ----------!
     real(rk):: K_phy_gro,k_Erlov,Iopt
-    real(rk):: K_phy_mrt,K_phy_exc,LatLight, phy_t_dependence
+    real(rk):: K_phy_mrt,K_phy_exc,LatLight
+!    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
     !----Het -----------!
-    real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim
+    real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_bac_gro
     real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
     !---- O2--------!
     !Upper boundary, for oxygen flux calculations
@@ -116,6 +117,9 @@ contains
     call self%get_parameter(&
          self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
          default=0.01_rk)
+    !call self%get_parameter(&
+    !     self%phy_t_dependence,'phy_t_dependence','-','T dependence fro Phy growth',&
+    !     default=1)
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
@@ -129,6 +133,10 @@ contains
          self%K_het_pom_gro,'K_het_pom_gro','mmol/m**3',&
          'Max.spec.rate of grazing of Het on POM',&
          default=0.70_rk)
+    call self%get_parameter(&
+         self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
+         'Max.spec.rate of grazing of Het on POM',&
+         default=0.70_rk) 
     call self%get_parameter(&
          self%K_het_pom_lim,'K_het_pom_lim','nd',&
          'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
@@ -405,7 +413,7 @@ contains
       !Influence of the Irradiance on photosynthesis
       LimLight = Iz/self%Iopt*exp(1._rk-Iz/self%Iopt)
       !Influence of Temperature on photosynthesis
-      LimT = f_t(temp)
+      LimT = f_t(temp) !, phy_t_dependence)
       !dependence of photosynthesis on P
       LimP = yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10_rk))
       !dependence of photosynthesis on Si
@@ -436,13 +444,13 @@ contains
       GrazPOP = self%K_het_pom_gro*Het*&
                 yy(self%K_het_pom_lim,PON/(Het+0.0001_rk))
       !Grazing of Het on  bacteria
-      GrazBaae = 1.0_rk*self%K_het_pom_gro*Het*&
+      GrazBaae = 1.0_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac,Baae/(Het+0.0001_rk))
-      GrazBaan = 0.5_rk*self%K_het_pom_gro*Het*&
+      GrazBaan = 0.5_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac,Baan/(Het+0.0001_rk))
-      GrazBhae = 1.0_rk*self%K_het_pom_gro*Het*&
+      GrazBhae = 1.0_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac, Bhae/(Het+0.0001_rk))
-      GrazBhan = 1.3_rk*self%K_het_pom_gro*Het*&
+      GrazBhan = 1.3_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac, Bhan/(Het+0.0001_rk))
       GrazBact =GrazBaae+GrazBaan+GrazBhae+GrazBhan
       !Total grazing of Het
@@ -470,7 +478,8 @@ contains
              +1._rk*GrowthPhy*(LimNO3/LimN)&
              !decrease of H+ to compensate NO3 consumption
              !and a decrease of alkalinity by 1 mole when ammonia is used"
-             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation
+             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation !&
+!             + Dc_OM_total
       _SET_ODE_(self%id_Alk,dAlk)
       d_NO2 = (-GrowthPhy*(LimNO3/LimN)*&
                (NO2/(0.00001_rk+NO2+NO3)))
@@ -480,7 +489,7 @@ contains
       _SET_ODE_(self%id_NO3,d_NO3)
       d_PO4 = ((Dc_OM_total-GrowthPhy+RespHet)/self%r_n_p)
       _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
+      d_Si = ((-GrowthPhy)*self%r_si_n)
       _SET_ODE_(self%id_Si,d_Si)
       d_DON = (Autolysis-DcDM_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
       _SET_ODE_(self%id_DON,d_DON)
@@ -492,7 +501,7 @@ contains
       d_NH4 = (Dc_OM_total+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
       _SET_ODE_(self%id_NH4,d_NH4)
       !solids
-      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
+      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n) !+ExcrPhy
       _SET_ODE_(self%id_Sipart,d_Sipart)
       d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
       _SET_ODE_(self%id_Phy,d_Phy)
@@ -577,9 +586,9 @@ contains
   !
   !Phy temperature limiter
   !
-  elemental real(rk) function f_t(temperature)
+  elemental real(rk) function f_t(temperature ) !, phy_t_dependence)
     real(rk),intent(in):: temperature
-    integer   :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
+    integer :: phy_t_dependence
 !    case (1) ! Old
     real(rk):: bm
     real(rk):: cm
@@ -591,8 +600,7 @@ contains
     real(rk):: t_upt_min !Low t limit for uptake rate dependence on t
     real(rk):: t_upt_max !High t limit for uptake rate dependence on t
 
-!    phy_t_dependence = get_brom_par("phy_t_dependence", 1.0_rk)
-     phy_t_dependence= 1  ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
+     phy_t_dependence= 3  ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
 !    case (1) ! Old
     bm = 0.12_rk
     cm = 1.4_rk

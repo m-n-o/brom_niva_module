@@ -37,7 +37,7 @@ module fabm_niva_brom_bact
     type(type_dependency_id):: id_s2o3_ox,id_fe_ox1
     type(type_dependency_id):: id_DcPM_NOX,id_DcDM_NOX
     type(type_dependency_id):: id_DcPM_SO4,id_DcDM_SO4
-    type(type_dependency_id):: id_DcDM_Mn,id_DcPM_Mn
+    type(type_dependency_id):: id_DcDM_Mn4,id_DcPM_Mn4
     type(type_dependency_id):: id_DcPM_Fe,id_DcDM_Fe
     type(type_dependency_id):: id_DcPM_ch4
 
@@ -215,10 +215,10 @@ contains
          (self%id_DcDM_SO4,'DcDM_SO4','mmol/m**3',&
          'DOM sulfatereduction (1+2 stage)')
     call self%register_dependency&
-         (self%id_DcPM_Mn,'DcPM_Mn','mmol/m**3',&
+         (self%id_DcPM_Mn4,'DcPM_Mn4','mmol/m**3',&
          'POM with Mn(IV) mineralization')
     call self%register_dependency&
-         (self%id_DcDM_Mn,'DcDM_Mn','mmol/m**3',&
+         (self%id_DcDM_Mn4,'DcDM_Mn4','mmol/m**3',&
          'DOM with Mn(IV) mineralization')
     call self%register_dependency&
          (self%id_DcPM_Fe,'DcPM_Fe','mmol/m**3',&
@@ -321,7 +321,7 @@ contains
     real(rk):: s2o3_ox,fe_ox1
     real(rk):: DcPM_NOX,DcDM_NOX
     real(rk):: DcPM_SO4,DcDM_SO4
-    real(rk):: DcDM_Mn,DcPM_Mn
+    real(rk):: DcDM_Mn4,DcPM_Mn4
     real(rk):: DcPM_Fe,DcDM_Fe
     real(rk):: DcPM_ch4
 
@@ -352,8 +352,8 @@ contains
       _GET_(self%id_DcDM_NOX,DcDM_NOX)
       _GET_(self%id_DcPM_SO4,DcPM_SO4)
       _GET_(self%id_DcDM_SO4,DcDM_SO4)
-      _GET_(self%id_DcDM_Mn,DcDM_Mn)
-      _GET_(self%id_DcPM_Mn,DcPM_Mn)
+      _GET_(self%id_DcDM_Mn4,DcDM_Mn4)
+      _GET_(self%id_DcPM_Mn4,DcPM_Mn4)
       _GET_(self%id_DcPM_Fe,DcPM_Fe)
       _GET_(self%id_DcDM_Fe,DcDM_Fe)
       _GET_(self%id_DcPM_ch4,DcPM_ch4)
@@ -386,7 +386,7 @@ contains
                 /(Baan+0.0001_rk)),yy(self%limBaan,PO4/(Baan+0.0001_rk)))
       MortBaan = self%K_Baan_mrt*Baan*Baan
       !anaerobic heterotroph
-      HetBhan = (DcPM_NOX+DcDM_NOX+DcPM_SO4+DcDM_SO4+DcDM_Mn+DcPM_Mn&
+      HetBhan = (DcPM_NOX+DcDM_NOX+DcPM_SO4+DcDM_SO4+DcDM_Mn4+DcPM_Mn4 &
                +DcPM_Fe+DcDM_Fe+DcPM_ch4)&
                *self%K_Bhan_gro*Bhan*yy(self%limBhan,DON/(Bhan+0.0001_rk))
       MortBhan = (self%K_Bhan_mrt+ self%K_Bhan_mrt_o2&

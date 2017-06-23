@@ -19,7 +19,7 @@ module fabm_niva_brom_methane
     !all descriptions are in the initialize subroutine
     type(type_state_variable_id):: id_CH4
     !state dependencies
-    type(type_state_variable_id):: id_DIC
+    type(type_state_variable_id):: id_DIC,id_NH4,id_PO4
     type(type_state_variable_id):: id_DON,id_PON
     type(type_state_variable_id):: id_O2,id_NO3,id_SO4
 
@@ -33,7 +33,7 @@ module fabm_niva_brom_methane
     real(rk):: K_DON_ch4,K_PON_ch4
     real(rk):: K_ch4_o2,K_ch4_so4
     !---- Stoichiometric coefficients ----!
-    real(rk):: r_c_n
+    real(rk):: r_c_n, r_n_p
 
   contains
     procedure :: initialize
@@ -80,10 +80,13 @@ contains
          default=0.0000274_rk)
     !----Stoichiometric coefficients----!
     call self%get_parameter(&
-         self%r_c_n,'r_c_n','[-]',&
+         self%r_c_n,   'r_c_n',  '[-]',&
          'C[uM]/N[uM]',&
          default=8.0_rk)
-
+    call self%get_parameter(&
+         self%r_n_p,   'r_n_p',  '[-]',&
+         'N[uM]/P[uM]',&
+         default=16.0_rk)
     !register state variables
     call self%register_state_variable(&
          self%id_CH4,'CH4','mmol/m**3','CH4',&
@@ -98,6 +101,12 @@ contains
     call self%register_state_dependency(&
          self%id_NO3,'NO3','mmol/m**3',&
          'nitrate')
+    call self%register_state_dependency(&
+         self%id_po4,'PO4','mmol/m**3',&
+         'phosphate',required=.false.)
+    call self%register_state_dependency(&
+         self%id_NH4,'NH4','mmol/m**3',&
+         'ammonium')
     call self%register_state_dependency(&
          self%id_PON,'PON','mmol/m**3',&
          'particulate organic nitrogen')
@@ -124,7 +133,7 @@ contains
 
     _DECLARE_ARGUMENTS_DO_
     !state variables
-    real(rk):: DIC,DON,SO4,NO3
+    real(rk):: DIC,DON,SO4,NO3,NH4,PO4
     real(rk):: O2,CH4
     real(rk):: PON
     !processes
@@ -132,13 +141,15 @@ contains
     real(rk):: ch4_o2,ch4_so4
     real(rk):: Dc_OM_total
     !increments
-    real(rk):: d_SO4,d_O2,d_DIC,d_CH4
+    real(rk):: d_SO4,d_O2,d_CH4,d_NH4,d_DIC,d_PO4
 
     _LOOP_BEGIN_
       !state variables
       _GET_(self%id_DON,DON)
       _GET_(self%id_SO4,SO4)
       _GET_(self%id_NO3,NO3)
+      _GET_(self%id_NH4,NH4)
+      _GET_(self%id_PO4,PO4)
       !gases
       _GET_(self%id_O2,O2)
       _GET_(self%id_CH4,CH4)
@@ -179,10 +190,16 @@ contains
       !DIC
       d_DIC = Dc_OM_total*self%r_c_n
       _SET_ODE_(self%id_DIC,d_DIC)
-      !Methan
+      !Methane
       d_CH4 = 0.5_rk*(DcDM_CH4+DcPM_CH4)-ch4_o2-ch4_so4
       _SET_ODE_(self%id_CH4,d_CH4)
-
+      !NH4
+      d_NH4 = Dc_OM_total
+      _SET_ODE_(self%id_NH4,d_NH4)
+      !P
+      d_PO4 = Dc_OM_total/self%r_n_p
+      _SET_ODE_(self%id_PO4,d_PO4)
+      
       _SET_DIAGNOSTIC_(self%id_DcPM_ch4,DcPM_ch4)
     _LOOP_END_
   end subroutine do

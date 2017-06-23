@@ -36,6 +36,7 @@ contains
       use fabm_niva_brom_salt
       use fabm_niva_brom_silicon
       use fabm_niva_brom_sulfur
+      use fabm_niva_brom_ba
       use fabm_niva_oxydep
       ! Add new NIVA models here
 
@@ -63,6 +64,7 @@ contains
          case ('brom_salt');          allocate(type_niva_brom_salt::model)
          case ('brom_silicon');       allocate(type_niva_brom_silicon::model)
          case ('brom_sulfur');        allocate(type_niva_brom_sulfur::model)
+         case ('brom_ba');            allocate(type_niva_brom_ba::model)
          case ('oxydep');             allocate(type_niva_oxydep::model)
          ! Add new NIVA models here
       end select
