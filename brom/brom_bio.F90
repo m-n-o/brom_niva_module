@@ -46,7 +46,7 @@ module fabm_niva_brom_bio
     real(rk):: K_phy_mrt,K_phy_exc,LatLight
     integer :: phy_t_dependence
     !----Het -----------!
-    real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim
+    real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_bac_gro
     real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
     !---- N, P, Si--!
     real(rk):: K_nox_lim,K_nh4_lim,K_psi,K_nfix,K_po4_lim,K_si_lim
@@ -123,6 +123,10 @@ contains
          default=1.1_rk)
     call self%get_parameter(&
          self%K_het_pom_gro,'K_het_pom_gro','mmol/m**3',&
+         'Max.spec.rate of grazing of Het on POM',&
+         default=0.70_rk)
+    call self%get_parameter(&
+         self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
          'Max.spec.rate of grazing of Het on POM',&
          default=0.70_rk)
     call self%get_parameter(&
@@ -427,13 +431,13 @@ contains
       GrazPOP = self%K_het_pom_gro*Het*&
                 yy(self%K_het_pom_lim,PON/(Het+0.0001_rk))
       !Grazing of Het on  bacteria
-      GrazBaae = 1.0_rk*self%K_het_pom_gro*Het*&
+      GrazBaae = 1.0_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac,Baae/(Het+0.0001_rk))
-      GrazBaan = 0.5_rk*self%K_het_pom_gro*Het*&
+      GrazBaan = 0.5_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac,Baan/(Het+0.0001_rk))
-      GrazBhae = 1.0_rk*self%K_het_pom_gro*Het*&
+      GrazBhae = 1.0_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac, Bhae/(Het+0.0001_rk))
-      GrazBhan = 1.3_rk*self%K_het_pom_gro*Het*&
+      GrazBhan = 1.3_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac, Bhan/(Het+0.0001_rk))
       GrazBact =GrazBaae+GrazBaan+GrazBhae+GrazBhan
       !Total grazing of Het
@@ -462,7 +466,8 @@ contains
              +1._rk*GrowthPhy*(LimNO3/LimN)&
              !decrease of H+ to compensate NO3 consumption
              !and a decrease of alkalinity by 1 mole when ammonia is used"
-             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation
+             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation !&
+!             + Dc_OM_total
       _SET_ODE_(self%id_Alk,dAlk)
       d_NO2 = (-GrowthPhy*(LimNO3/LimN)*&
                (NO2/(0.00001_rk+NO2+NO3)))
@@ -472,7 +477,7 @@ contains
       _SET_ODE_(self%id_NO3,d_NO3)
       d_PO4 = ((Dc_OM_total-GrowthPhy+RespHet)/self%r_n_p)
       _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
+      d_Si = ((-GrowthPhy)*self%r_si_n)
       _SET_ODE_(self%id_Si,d_Si)
       d_DON = (Autolysis-DcDM_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
       _SET_ODE_(self%id_DON,d_DON)
@@ -484,7 +489,7 @@ contains
       d_NH4 = (Dc_OM_total+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
       _SET_ODE_(self%id_NH4,d_NH4)
       !solids
-      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
+      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n) !+ExcrPhy
       _SET_ODE_(self%id_Sipart,d_Sipart)
       d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
       _SET_ODE_(self%id_Phy,d_Phy)

@@ -284,6 +284,7 @@ contains
              !3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 or
              !5 CH2O + 4 H+ + 4 NO3- -> 2 N2 + 5 CO2 + 7H2O
              +1._rk*(Denitr2_PM+Denitr2_DM) &
+             + Dc_OM_total &
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 

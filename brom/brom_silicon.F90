@@ -28,7 +28,8 @@ module fabm_niva_brom_silicon
     real(rk):: Wsed
     !specific rates of biogeochemical processes
     !----Si---------!
-    real(rk):: K_sipart_diss, K_sipart_to_minerals, Si_diss_max
+    real(rk):: K_sipart_diss, K_sipart_diss_limit
+    real(rk):: K_sipart_to_minerals, Si_diss_max
   contains
     procedure :: initialize
     procedure :: do
@@ -54,6 +55,11 @@ contains
          self%K_sipart_diss, 'K_sipart_diss', '[1/day]',&
          'Si dissollution rate constant',&
          default=0.10_rk)
+    
+    call self%get_parameter(&
+         self%K_sipart_diss_limit, 'K_sipart_diss_limit', '[uM]',&
+         ' Si particulate maximum concentration, that is biogenic and can be dissolved',&
+         default=30.0_rk)
     call self%get_parameter(&
          self%K_sipart_to_minerals, 'K_sipart_to_minerals',&
          '[1/day]','Si_part transformation into minerals not modeled here',&
@@ -106,17 +112,17 @@ contains
       !state
       _GET_(self%id_Si,Si)
       _GET_(self%id_Sipart,Sipart)
-! biogeonic silicate dissolution (Popova....)
-      Si_dissolution = self%K_sipart_diss*Sipart
+! biogeonic silicate dissolution possible for small concentrations of Sipart (i,e, biogenic)
+      Si_dissolution = self%K_sipart_diss*Sipart*(1._rk-0.5_rk*(1._rk+tanh(Sipart-self%K_sipart_diss_limit)))
 ! Formation of minerals with Al etc. (DeMaster, 2003, Treatise of Geochemistry, vol.7)
-    if (Sipart.gt.200000.0_rk) then
-      Si_clay_miner = self%K_sipart_to_minerals*(Sipart-200000.0_rk)
+    if (Sipart.gt.1000.0_rk) then
+      Si_clay_miner = self%K_sipart_to_minerals*(Sipart-1000.0_rk)
     else
       Si_clay_miner = 0.0_rk
     endif
 ! Precipitation of dissolved Si at high concentrations (Strakhov, 1978)
     if (Si.gt.self%Si_diss_max) then
-      Si_precip= Si-self%Si_diss_max
+      Si_precip= 0.1*(Si-self%Si_diss_max)
     else
       Si_precip= 0.0_rk
     endif

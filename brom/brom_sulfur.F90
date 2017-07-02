@@ -225,7 +225,7 @@ contains
     !state dependencies
     real(rk):: O2
     real(rk):: PON,DON
-    real(rk):: NO3
+    real(rk):: NO3,NH4,PO4
     !increments
     real(rk):: d_S2O3,d_SO4,d_S0,d_H2S
     real(rk):: d_O2,d_DON,d_PON
@@ -245,6 +245,8 @@ contains
       _GET_(self%id_S2O3,S2O3)
       _GET_(self%id_SO4,SO4)
       _GET_(self%id_NO3,NO3)
+      _GET_(self%id_NH4,NH4)
+      _GET_(self%id_PO4,PO4)
       !solids
       _GET_(self%id_PON,PON)
       _GET_(self%id_S0,S0)
@@ -329,8 +331,8 @@ contains
       !N - check hs_no3
       d_NO3 = -1.6_rk*hs_no3-0.75_rk*s0_no3-s2o3_no3
       _SET_ODE_(self%id_NO3,d_NO3)
-      !N gas
-      d_NH4 = 0.75_rk*s0_no3+s2o3_no3
+      !N 
+      d_NH4 = 0.75_rk*s0_no3+s2o3_no3+Dc_OM_total
       _SET_ODE_(self%id_NH4,d_NH4)
       !DIC
       d_DIC = Dc_OM_total*self%r_c_n
