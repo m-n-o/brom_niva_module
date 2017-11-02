@@ -31,7 +31,7 @@
       type (type_state_variable_id)         :: id_H2S, id_Mn4, id_FeS, id_FeS2
       type (type_state_variable_id)         :: id_Ni, id_NiS, id_Ni_biota, id_Ni_POM, id_Ni_DOM
       type (type_diagnostic_variable_id)    :: id_Ni_FeS, id_Ni_FeS2, id_Ni_Mn4, id_Ni_free, id_Ni_tot
-      type (type_diagnostic_variable_id)    :: id_NiS_diss,id_NiS_form
+      type (type_diagnostic_variable_id)    :: id_NiS_diss, id_NiS_form, id_Ni_tot_diss
 
       real(rk) ::  K_NiS, K_NiS_form, K_NiS_diss
       real(rk) ::  r_fes_ni, r_fes2_ni, r_mn4_ni
@@ -107,11 +107,15 @@
     call self%register_diagnostic_variable(&
          self%id_Ni_free,'Ni_free','mmol/m**3',&
          'Ni2+ free dissolved',&
-         output=output_time_step_integrated)
+         output=output_time_step_integrated) ! dissolved inorganic
     call self%register_diagnostic_variable(&
-         self%id_Ni_tot,'Ni_tot','mmol/m**3',&
+         self%id_Ni_tot_diss,'Ni_tot_diss','mmol/m**3',&
+         'Ni2+ free dissolved',&
+         output=output_time_step_integrated) ! dissolved organic and inorganic
+    call self%register_diagnostic_variable(&
+         self%id_Ni_tot,'Ni_total','mmol/m**3',&
          'Ni total',&
-         output=output_time_step_integrated)    
+         output=output_time_step_integrated) ! dissolved and particulate 
     call self%register_diagnostic_variable(&
          self%id_NiS_form,'NiS_form','mmol/m**3',&
          'NiS formation rate',&
@@ -146,7 +150,7 @@
 !
 ! !LOCAL VARIABLES:
    real(rk) ::  Ni, NiS, Ni_biota, Ni_POM, Ni_DOM, d_Ni
-   real(rk) ::  Ni_Mn4, Ni_FeS, Ni_FeS2, Ni_free, Ni_tot
+   real(rk) ::  Ni_Mn4, Ni_FeS, Ni_FeS2, Ni_free, Ni_tot, Ni_tot_diss
    real(rk) ::  temp, O2, Mn4, FeS, FeS2, depth, Hplus
 
    real(rk) ::   H2S 
@@ -181,7 +185,7 @@
       Ni_FeS2= min(FeS2/self%r_fes2_ni, Ni_free)
     Ni_free = max (0.0, Ni_free-Ni_FeS2)
 
-    Ni_tot=Ni_free+Ni_Mn4+Ni_FeS+Ni_FeS2+Ni_biota+Ni_POM+Ni_DOM
+    Ni_tot=Ni_free+Ni_Mn4+Ni_FeS+Ni_FeS2 !+Ni_biota+Ni_POM+Ni_DOM
 
 ! NiS  formation/dissollution (REF1) is calculated for Ni_free excuding aborbed Ni 
       Om_NiS=H2S*Ni_free/(self%K_NiS)
@@ -193,7 +197,7 @@
    _SET_ODE_(self%id_Ni,NiS_diss-NiS_form)  ! "Ni" includes Ni free and Ni adsorped
    _SET_ODE_(self%id_Ni_biota,0.0_rk)
    _SET_ODE_(self%id_Ni_DOM,0.0_rk)
-   _SET_ODE_(self%id_Ni_POM,0.0_rk)
+   !_SET_ODE_(self%id_Ni_POM,0.0_rk)
    _SET_ODE_(self%id_NiS,-NiS_diss+NiS_form)
    _SET_ODE_(self%id_H2S,NiS_diss-NiS_form)
 
@@ -202,6 +206,7 @@
       _SET_DIAGNOSTIC_(self%id_Ni_FeS2,Ni_FeS2)
       _SET_DIAGNOSTIC_(self%id_Ni_free,Ni_free)
       _SET_DIAGNOSTIC_(self%id_Ni_tot,Ni_tot)
+      _SET_DIAGNOSTIC_(self%id_Ni_tot_diss,Ni+Ni_DOM)
       _SET_DIAGNOSTIC_(self%id_NiS_form,NiS_form)
       _SET_DIAGNOSTIC_(self%id_NiS_diss,NiS_diss)
 
