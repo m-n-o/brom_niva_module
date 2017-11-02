@@ -109,9 +109,9 @@ contains
          self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
          default=0.01_rk)
     call self%get_parameter(&
-         self%phy_t_dependence,'Switcher','1',&
-         'Turn on 2 for ice algae version',&
-         default=2)
+         self%phy_t_dependence,'phy_t_dependence','-',&
+         'T dependence for Phy growth',&
+         default=3)
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
