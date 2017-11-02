@@ -45,7 +45,7 @@ module fabm_niva_brom_bio
     !----Phy  ----------!
     real(rk):: K_phy_gro,k_Erlov,Iopt
     real(rk):: K_phy_mrt,K_phy_exc,LatLight
-!    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
+    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
     !----Het -----------!
     real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_bac_gro
     real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
@@ -117,9 +117,9 @@ contains
     call self%get_parameter(&
          self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
          default=0.01_rk)
-    !call self%get_parameter(&
-    !     self%phy_t_dependence,'phy_t_dependence','-','T dependence fro Phy growth',&
-    !     default=1)
+    call self%get_parameter(&
+         self%phy_t_dependence,'phy_t_dependence','-','T dependence fro Phy growth',&
+         default=1)
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
@@ -213,7 +213,7 @@ contains
     !Register state variables
     call self%register_state_variable(&
          self%id_Phy,'Phy','mmol/m**3','Phy',&
-         minimum=0.01_rk,initial_value=0.01_rk,&
+         minimum=0.0001_rk,initial_value=0.0001_rk,&
          vertical_movement=-self%Wphy/86400._rk)
     call self%register_state_variable(&
          self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
@@ -365,6 +365,7 @@ contains
     real(rk):: GrazBhan,GrazBact,Grazing,RespHet,MortHet
     real(rk):: Autolysis,DcDM_O2,DcPM_O2,Dc_OM_total
     real(rk):: OSAT
+    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
     !increments
     real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4
     real(rk):: d_Sipart,d_Phy,d_Het,d_Baae,d_Baan,d_Bhae,d_Bhan
@@ -413,7 +414,7 @@ contains
       !Influence of the Irradiance on photosynthesis
       LimLight = Iz/self%Iopt*exp(1._rk-Iz/self%Iopt)
       !Influence of Temperature on photosynthesis
-      LimT = f_t(temp) !, phy_t_dependence)
+      LimT = f_t(temp,self%phy_t_dependence) !, phy_t_dependence)
       !dependence of photosynthesis on P
       LimP = yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10_rk))
       !dependence of photosynthesis on Si
@@ -426,7 +427,7 @@ contains
                (1._rk-exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk))))
       !dependence of photosynthesis on N
       LimN = min(1._rk,LimNO3+LimNH4)
-
+      LimN = max(0.0001,LimN)
       !Grouth of Phy (gross primary production in uM N)
       GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*Phy
       !Rate of mortality of phy
@@ -463,7 +464,7 @@ contains
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
       N_fixation = self%K_nfix*LimP*&
-                   1._rk/(1._rk+((NO3+NO2+NH4)/PO4*16._rk)**4._rk)*GrowthPhy
+                   1._rk/(1._rk+((NO3+NO2+NH4)/max(PO4,0.000001_rk)*16._rk)**4._rk)*GrowthPhy
 
       !Summariazed OM mineralization
       Dc_OM_total = DcPM_O2+DcDM_O2
@@ -489,7 +490,7 @@ contains
       _SET_ODE_(self%id_NO3,d_NO3)
       d_PO4 = ((Dc_OM_total-GrowthPhy+RespHet)/self%r_n_p)
       _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = ((-GrowthPhy)*self%r_si_n)
+      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
       _SET_ODE_(self%id_Si,d_Si)
       d_DON = (Autolysis-DcDM_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
       _SET_ODE_(self%id_DON,d_DON)
@@ -586,9 +587,9 @@ contains
   !
   !Phy temperature limiter
   !
-  elemental real(rk) function f_t(temperature ) !, phy_t_dependence)
+  elemental real(rk) function f_t(temperature,phy_t_dependence ) !, phy_t_dependence)
     real(rk),intent(in):: temperature
-    integer :: phy_t_dependence
+    integer,intent(in) :: phy_t_dependence
 !    case (1) ! Old
     real(rk):: bm
     real(rk):: cm
@@ -600,17 +601,19 @@ contains
     real(rk):: t_upt_min !Low t limit for uptake rate dependence on t
     real(rk):: t_upt_max !High t limit for uptake rate dependence on t
 
-     phy_t_dependence= 3  ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
-!    case (1) ! Old
-    bm = 0.12_rk
-    cm = 1.4_rk
-!    case (2) ! for Arctic   !(Moore et al.,2002;Jin et al.,2008)
-    t_0           = 0._rk
-    temp_aug_rate = 0.0663_rk
-!    case (3) ! ERSEM
-    q10       = 2.0_rk
-    t_upt_min = 10.0_rk
-    t_upt_max = 32.0_rk
+!    select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
+    select case (phy_t_dependence)
+     case (1) ! Old
+        bm = 0.12_rk
+        cm = 1.4_rk
+     case (2) ! for Arctic   !(Moore et al.,2002;Jin et al.,2008)
+        t_0           = 0._rk
+        temp_aug_rate = 0.0663_rk
+     case (3) ! ERSEM
+        q10       = 2.0_rk
+        t_upt_min = 10.0_rk
+        t_upt_max = 32.0_rk
+    end select
 !   Some others:
  !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
  !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)  
@@ -627,7 +630,6 @@ contains
      case (3) ! ERSEM
       f_t = q10**((temperature-t_upt_min)/10.)-q10**((temperature-t_upt_max)/3.)
     end select
-
 
   end function f_t
   !
