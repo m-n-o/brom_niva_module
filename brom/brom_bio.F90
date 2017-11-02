@@ -36,7 +36,6 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_eO2mO2,id_osat
 
     type(type_dependency_id):: id_temp,id_salt,id_par,id_pres
-    type(type_dependency_id):: id_Hplus
     type(type_horizontal_dependency_id):: id_windspeed
 
     !Model parameters
@@ -45,17 +44,10 @@ module fabm_niva_brom_bio
     !----Phy  ----------!
     real(rk):: K_phy_gro,k_Erlov,Iopt
     real(rk):: K_phy_mrt,K_phy_exc,LatLight
-!    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
+    integer :: phy_t_dependence
     !----Het -----------!
     real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_bac_gro
     real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
-    !---- O2--------!
-    !Upper boundary, for oxygen flux calculations
-    !SY - pvel?
-    real(rk):: pvel = 5._rk ! wind speed [m/s]
-    real(rk):: a0 = 31.25_rk !oxygen saturation [uM]
-    real(rk):: a1 = 14.603_rk !oxygen saturation [-]
-    real(rk):: a2 = 0.4025_rk !oxygen saturation [1/degC]
     !---- N, P, Si--!
     real(rk):: K_nox_lim,K_nh4_lim,K_psi,K_nfix,K_po4_lim,K_si_lim
     !---- Sinking---!
@@ -66,6 +58,7 @@ module fabm_niva_brom_bio
     procedure :: initialize
     procedure :: do
     procedure :: do_surface
+    procedure :: f_t
   end type
 contains
   !
@@ -75,8 +68,6 @@ contains
     class (type_niva_brom_bio), intent(inout), target :: self
     integer,                    intent(in)            :: configunit
 
-    call self%get_parameter(&
-         self%LatLight,'LatLight','degree','Latitude',default=50.0_rk)
     call self%get_parameter(&
          self%K_DON_ox,'K_DON_ox','[1/day]',&
          'Specific rate of oxidation of DON with O2',&
@@ -117,9 +108,10 @@ contains
     call self%get_parameter(&
          self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
          default=0.01_rk)
-    !call self%get_parameter(&
-    !     self%phy_t_dependence,'phy_t_dependence','-','T dependence fro Phy growth',&
-    !     default=1)
+    call self%get_parameter(&
+         self%phy_t_dependence,'Switcher','1',&
+         'Turn on 2 for ice algae version',&
+         default=2)
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
@@ -213,7 +205,7 @@ contains
     !Register state variables
     call self%register_state_variable(&
          self%id_Phy,'Phy','mmol/m**3','Phy',&
-         minimum=0.01_rk,initial_value=0.01_rk,&
+         minimum=0.0_rk,initial_value=0.0_rk,&
          vertical_movement=-self%Wphy/86400._rk)
     call self%register_state_variable(&
          self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
@@ -252,9 +244,6 @@ contains
          self%id_Baan,'Baan','mmol/m**3','anaerobic aurotrophic bacteria')
     call self%register_state_dependency(&
          self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
-    !diagnostic dependency
-    call self%register_dependency(&
-         self%id_Hplus,'Hplus','mmol/m**3','H+ hydrogen')
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPM_O2,'DcPM_O2','mmol/m**3',&
@@ -358,7 +347,7 @@ contains
     _DECLARE_ARGUMENTS_DO_
     real(rk):: temp,salt,pres,Iz
     real(rk):: NH4,NO2,NO3,PO4,Phy,Het,H2S,O2,Baae,Baan,Bhae,Bhan
-    real(rk):: PON,DON,Si,Sipart,Alk,Hplus
+    real(rk):: PON,DON,Si,Sipart,Alk
     real(rk):: LimLight,LimT,LimP,LimNO3,LimNH4,LimN,LimSi
     real(rk):: GrowthPhy,MortPhy,ExcrPhy,dAlk,N_fixation
     real(rk):: GrazPhy,GrazPOP,GrazBaae,GrazBaan,GrazBhae
@@ -377,9 +366,7 @@ contains
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! temperature
       _GET_(self%id_pres,pres) ! pressure in dbar
-      ! Retrieve current (local) state variable values.
-      !diagnostic
-      _GET_(self%id_Hplus,Hplus)
+      ! Retrieve current (local) state variable values
       !state variables
       _GET_(self%id_NO2,NO2)
       _GET_(self%id_NO3,NO3)
@@ -413,7 +400,7 @@ contains
       !Influence of the Irradiance on photosynthesis
       LimLight = Iz/self%Iopt*exp(1._rk-Iz/self%Iopt)
       !Influence of Temperature on photosynthesis
-      LimT = f_t(temp) !, phy_t_dependence)
+      LimT = self%f_t(temp)
       !dependence of photosynthesis on P
       LimP = yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10_rk))
       !dependence of photosynthesis on Si
@@ -426,7 +413,7 @@ contains
                (1._rk-exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk))))
       !dependence of photosynthesis on N
       LimN = min(1._rk,LimNO3+LimNH4)
-
+      LimN = max(0.001,LimN)
       !Grouth of Phy (gross primary production in uM N)
       GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*Phy
       !Rate of mortality of phy
@@ -462,6 +449,7 @@ contains
 
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
+      PO4 = max(PO4,0.000001_rk)
       N_fixation = self%K_nfix*LimP*&
                    1._rk/(1._rk+((NO3+NO2+NH4)/PO4*16._rk)**4._rk)*GrowthPhy
 
@@ -520,7 +508,7 @@ contains
       _SET_ODE_(self%id_PON,d_PON)
 
       OSAT = oxygen_saturation_concentration(temp,salt)
-      
+
       _SET_DIAGNOSTIC_(self%id_osat,OSAT)
       _SET_DIAGNOSTIC_(self%id_eO2mO2,max(0.0_rk,O2/OSAT))
       _SET_DIAGNOSTIC_(self%id_DcPM_O2,DcPM_O2)
@@ -586,49 +574,37 @@ contains
   !
   !Phy temperature limiter
   !
-  elemental real(rk) function f_t(temperature ) !, phy_t_dependence)
-    real(rk),intent(in):: temperature
-    integer :: phy_t_dependence
-!    case (1) ! Old
+  real(rk) function f_t(self,temperature)
+    class (type_niva_brom_bio),intent(in) :: self
+    real(rk)                  ,intent(in):: temperature
+
     real(rk):: bm
     real(rk):: cm
-!    case (2) ! for Arctic
-    real(rk):: t_0 !reference temperature
+    real(rk):: t_0           !reference temperature
     real(rk):: temp_aug_rate !temperature augmentation rate
-!    case (3) ! ERSEM
-    real(rk):: q10 !Coefficient for uptake rate dependence on t
-    real(rk):: t_upt_min !Low t limit for uptake rate dependence on t
+    real(rk):: q10       !Coefficient for uptake rate dependence on t
+    real(rk):: t_upt_min !Low  t limit for uptake rate dependence on t
     real(rk):: t_upt_max !High t limit for uptake rate dependence on t
 
-     phy_t_dependence= 3  ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
-!    case (1) ! Old
+    !Old
     bm = 0.12_rk
     cm = 1.4_rk
-!    case (2) ! for Arctic   !(Moore et al.,2002;Jin et al.,2008)
+    !for Arctic (Moore et al.,2002; Jin et al.,2008)
     t_0           = 0._rk
     temp_aug_rate = 0.0663_rk
-!    case (3) ! ERSEM
+    !ERSEM
     q10       = 2.0_rk
     t_upt_min = 10.0_rk
     t_upt_max = 32.0_rk
-!   Some others:
- !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
- !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)  
- !  LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
- !  LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
- !  LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM)
- !  LimT     =q10*(T-20)/10 !Q10=1.88 (Gregoire, 2000)       
 
-    select case (phy_t_dependence)
-     case (1) ! Old
-      f_t = exp(bm*temperature-cm) !Influence of T photosynthesis
-     case (2) ! for Arctic
+    if (self%phy_t_dependence == 1) then
+      f_t = exp(bm*temperature-cm)
+    else if (self%phy_t_dependence == 2) then
       f_t = exp(temp_aug_rate*(temperature-t_0))
-     case (3) ! ERSEM
-      f_t = q10**((temperature-t_upt_min)/10.)-q10**((temperature-t_upt_max)/3.)
-    end select
-
-
+    else if (self%phy_t_dependence == 3) then
+      f_t = q10**((temperature-t_upt_min)/10._rk)-&
+            q10**((temperature-t_upt_max)/3._rk)
+    end if
   end function f_t
   !
   !adapted from ersem
