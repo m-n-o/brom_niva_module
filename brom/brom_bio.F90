@@ -489,7 +489,7 @@ contains
       _SET_ODE_(self%id_NO3,d_NO3)
       d_PO4 = ((Dc_OM_total-GrowthPhy+RespHet)/self%r_n_p)
       _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = ((-GrowthPhy)*self%r_si_n)
+      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
       _SET_ODE_(self%id_Si,d_Si)
       d_DON = (Autolysis-DcDM_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
       _SET_ODE_(self%id_DON,d_DON)
