@@ -34,7 +34,7 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_minerals
 !     Variable identifiers
-      type (type_state_variable_id)        :: id_Mg, id_K, id_Br, id_Na, id_Cl, id_Ca, id_CO3, id_SO4
+      type (type_state_variable_id)        :: id_Mg, id_K, id_Br, id_Na, id_Cl, id_Ca_u, id_CO3, id_SO4
       type (type_state_variable_id)        :: id_Na2CaSO42, id_K2Ca2MgSO44, id_CaMgCO32, id_CaSO4
       type (type_state_variable_id)        :: id_KCl, id_MgSO4
       
@@ -109,7 +109,7 @@
    call self%get_parameter(self%K_Na2CaSO42_form,'K_Na2CaSO42_form','mmol/m**3/d',  'Specific rate of formation of Na2CaSO42')
    call self%get_parameter(self%w_NaCl,     'w_NaCl',     'm/d',          'Sedimentation rate for particulate NaCl',default=3._rk)
 
-   call self%register_state_variable(self%id_Ca,   'Ca',   'mmol/m**3','Ca', minimum=0.0_rk)
+   call self%register_state_variable(self%id_Ca_u,   'Ca_u',   'mmol/m**3','Ca_u', minimum=0.0_rk)
    call self%register_state_variable(self%id_Mg,   'Mg',   'mmol/m**3','Mg', minimum=0.0_rk)
    call self%register_state_variable(self%id_K,    'K',    'mmol/m**3','K',  minimum=0.0_rk)
    call self%register_state_variable(self%id_Br,   'Br',   'mmol/m**3','Br', minimum=0.0_rk)
@@ -155,7 +155,7 @@
 !  Original author(s):
 !
 ! !LOCAL VARIABLES:
-   real(rk) :: temp, Na, Mg, Ca, K, Cl, SO4
+   real(rk) :: temp, Na, Mg, Ca_u, K, Cl, SO4
    real(rk) :: CaSO4, Om_CaSO4,CaSO4_prec,CaSO4_diss
    real(rk) :: MgSO4, Om_MgSO4,MgSO4_prec,MgSO4_diss
    real(rk) :: KCl,   Om_KCl,  KCl_prec,  KCl_diss
@@ -169,7 +169,7 @@
    ! Environment
    _GET_(self%id_temp,temp)              ! temperature - not used yet
 
-   _GET_(self%id_Ca,Ca)
+   _GET_(self%id_Ca_u,Ca_u)
    _GET_(self%id_Mg,Mg)
    _GET_(self%id_K,K)
    _GET_(self%id_Na,Na)
@@ -181,7 +181,7 @@
    _GET_(self%id_Na2CaSO42,Na2CaSO42)
 
 ! CaSO4 saturation state (NB all units mmol/m**3)
-    Om_CaSO4=Ca*SO4/(self%K_CaSO4)*f_t_Ksp(temp)
+    Om_CaSO4=Ca_u*SO4/(self%K_CaSO4)*f_t_Ksp(temp)
    _SET_DIAGNOSTIC_(self%id_CaSO4_sat,Om_CaSO4)
    CaSO4_prec=max(0.0_rk,self%K_CaSO4_form*max(0._rk,(Om_CaSO4-1._rk)))
    CaSO4_diss=max(0.0_rk,self%K_CaSO4_diss*max(0._rk,(1._rk-Om_CaSO4))*CaSO4)
@@ -207,7 +207,7 @@
 
 ! resulting changes
    _SET_ODE_(self%id_Na,   -2*Na2CaSO42_prec+2*Na2CaSO42_diss)
-   _SET_ODE_(self%id_Ca,   -CaSO4_prec+CaSO4_diss)
+   _SET_ODE_(self%id_Ca_u,   -CaSO4_prec+CaSO4_diss)
    _SET_ODE_(self%id_Mg,   -MgSO4_prec+MgSO4_diss)
    _SET_ODE_(self%id_SO4,  -CaSO4_prec+CaSO4_diss-Na2CaSO42_prec+Na2CaSO42_diss-MgSO4_prec+MgSO4_diss)
    _SET_ODE_(self%id_K,    -KCl_prec+KCl_diss)
