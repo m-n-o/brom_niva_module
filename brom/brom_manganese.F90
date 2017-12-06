@@ -17,7 +17,7 @@ module fabm_niva_brom_manganese
   private
   type,extends(type_base_model),public :: type_niva_brom_manganese
     !all descriptions are in the initialize subroutine
-    type(type_state_variable_id):: id_Mn2,id_Mn3,id_Mn4,id_MnS,id_MnCO3
+    type(type_state_variable_id):: id_Mn2,id_Mn3,id_Mn4,id_MnS,id_MnCO3,id_PO4_Mn3
     !state variables dependnecies
     type(type_state_variable_id):: id_H2S
     type(type_state_variable_id):: id_S0
@@ -27,7 +27,6 @@ module fabm_niva_brom_manganese
 
     type(type_diagnostic_variable_id):: id_DcDM_Mn4,id_DcPM_Mn4
     type(type_diagnostic_variable_id):: id_DcDM_Mn3,id_DcPM_Mn3
-    type(type_diagnostic_variable_id):: id_mn_p_compl
     type(type_diagnostic_variable_id):: id_mn_ox2,id_mn_ox1,id_mn_rd1
     type(type_diagnostic_variable_id):: id_mn_rd2,id_mns_diss,id_mns_form,id_mns_ox
     type(type_diagnostic_variable_id):: id_mnco3_diss,id_mnco3_form
@@ -193,10 +192,13 @@ contains
          minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
     call self%register_state_variable(&
          self%id_MnS, 'MnS', 'mmol/m**3','MnS',&
-         minimum=0.0_rk)
+         minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
     call self%register_state_variable(&
          self%id_MnCO3, 'MnCO3', 'mmol/m**3','MnCO3',&
          minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
+    call self%register_state_variable(&
+         self%id_PO4_Mn3, 'PO4_Mn3', 'mmol/m**3','PO4_Mn3, PO4 complexed with Mn(III)',&
+         minimum=0.0_rk)
 
     !Register state dependencies
     call self%register_state_dependency(&
@@ -205,15 +207,15 @@ contains
          self%id_H2S,'H2S','mmol/m**3','H2S')
     call self%register_state_dependency(&
          self%id_DIC,'DIC','mmol/m**3',&
-         'total dissolved inorganic carbon',required=.false.)
+         'total dissolved inorganic carbon')
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
     call self%register_state_dependency(&
          self%id_po4,'PO4','mmol/m**3',&
-         'PO4',required=.false.)
+         'PO4')
     call self%register_state_dependency(&
          self%id_nh4,'NH4','mmol/m**3',&
-         'NH4',required=.false.)
+         'NH4')
     call self%register_state_dependency(&
          self%id_O2, 'O2', 'mmol/m**3',&
          'dissolved oxygen')
@@ -277,10 +279,6 @@ contains
          self%id_mn_rd2,'mn_rd2','mmol/m**3',&
          'Mn(III) with H2S reduction',&
          output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_mn_p_compl,'mn_p_compl','mmol/m**3',&
-         'complexation of P with Mn(III)',&
-         output=output_time_step_integrated)
 
     !Register diagnostic dependencies
     call self%register_dependency(self%id_Hplus,&
@@ -301,20 +299,19 @@ contains
 
     _DECLARE_ARGUMENTS_DO_
     !state variables
-    real(rk):: Mn2,Mn3,Mn4,MnS,MnCO3
+    real(rk):: Mn2,Mn3,Mn4,MnS,MnCO3,PO4_Mn3
     !dependencies
     !state dependencies
-    real(rk):: O2,PON,DON,H2S
+    real(rk):: O2,PON,DON,H2S,PO4,NH4
     !diagnostic variables dependencies
     real(rk):: Hplus,CO3
     !increments
-    real(rk):: d_Mn2,d_Mn3,d_Mn4,d_MnS,d_MnCO3
+    real(rk):: d_Mn2,d_Mn3,d_Mn4,d_MnS,d_MnCO3,d_PO4_Mn3
     real(rk):: d_S0,d_H2S,d_O2,d_DON,d_PON
     real(rk):: d_DIC,d_PO4,d_Alk,d_NH4
     !processes
     real(rk):: mn_ox1,mn_ox2,mn_rd1,mn_rd2,Om_MnS,mns_form,mns_diss, mns_ox
     real(rk):: Om_MnCO3,mnco3_form,mnco3_diss,mnco3_ox
-    real(rk):: mn_p_compl
     real(rk):: DcDM_Mn3,DcPM_Mn3,DcDM_Mn4,DcPM_Mn4,Dc_OM_Mn_total
 
     _LOOP_BEGIN_
@@ -324,8 +321,11 @@ contains
       _GET_(self%id_CO3,CO3)
       !state
       _GET_(self%id_DON,DON)
+      _GET_(self%id_PO4,PO4)
+      _GET_(self%id_NH4,NH4)
       _GET_(self%id_Mn2,Mn2)
       _GET_(self%id_Mn3,Mn3)
+      _GET_(self%id_PO4_Mn3,PO4_Mn3)
       !solids
       _GET_(self%id_PON,PON)
       _GET_(self%id_Mn4,Mn4)
@@ -377,21 +377,22 @@ contains
       DcPM_Mn4 = max(0._rk,self%K_PON_mn*PON &
                *Mn4/(Mn4+0.5_rk) &
                *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))      
-      !complexation of P with Mn(III)
-      mn_p_compl = (mn_ox2+mn_rd2-mn_ox1-mn_rd1)/self%r_mn3_p
-
-
       !Summariazed OM mineralization
       Dc_OM_Mn_total = DcDM_Mn3+DcPM_Mn3+DcDM_Mn4+DcPM_Mn4
 
       !Set increments
-      !Mn
+      !Mn dissolved
       d_Mn2 = -mn_ox1+mn_rd2-mns_form+mns_diss-mnco3_form+mns_ox+&
-                mnco3_diss+( DcDM_Mn3+DcPM_Mn3+DcDM_Mn4+DcPM_Mn4)*self%r_mn_n
+                mnco3_diss+(DcDM_Mn3+DcPM_Mn3+DcDM_Mn4+DcPM_Mn4)*self%r_mn_n
       _SET_ODE_(self%id_Mn2,d_Mn2)
       d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2-&
               (DcDM_Mn3+DcPM_Mn3)*self%r_mn_n
       _SET_ODE_(self%id_Mn3,d_Mn3)
+            !complexation of PO4 with Mn(III)
+      d_PO4_Mn3 = - PO4_Mn3 &  ! old (last time step) PO4_Mn3
+            + Mn3/self%r_mn3_p ! new PO4_Mn3 calculated for old Mn3
+      if (d_PO4_Mn3.ge.PO4) d_PO4_Mn3 = PO4
+      _SET_ODE_(self%id_PO4_Mn3,d_PO4_Mn3)
       !Mn solids
       d_Mn4 = mn_ox2-mn_rd1+mnco3_ox-&
               (DcDM_Mn4+DcPM_Mn4)*self%r_mn_n
@@ -420,7 +421,7 @@ contains
                -mnco3_form+mnco3_diss+mnco3_ox
       _SET_ODE_(self%id_DIC,d_DIC)
       !P
-      d_PO4 = (Dc_OM_Mn_total/self%r_n_p)+mn_p_compl
+      d_PO4 = (Dc_OM_Mn_total/self%r_n_p)-d_PO4_Mn3
       _SET_ODE_(self%id_PO4,d_PO4)
       !NH4
       d_NH4 = Dc_OM_Mn_total
@@ -455,7 +456,6 @@ contains
       _SET_DIAGNOSTIC_(self%id_mns_ox,mns_ox)
       _SET_DIAGNOSTIC_(self%id_mnco3_diss,mnco3_diss)
       _SET_DIAGNOSTIC_(self%id_mnco3_form,mnco3_form)
-      _SET_DIAGNOSTIC_(self%id_mn_p_compl,mn_p_compl)
     _LOOP_END_
   end subroutine do
 end module fabm_niva_brom_manganese

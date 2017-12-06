@@ -112,6 +112,11 @@ contains
          self%phy_t_dependence,'Switcher','1',&
          'Turn on 2 for ice algae version',&
          default=2)
+        !!=======
+        !     self%phy_t_dependence,'phy_t_dependence','-',&
+        !     'T dependence for Phy growth',&
+        !     default=3)
+
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
@@ -205,7 +210,7 @@ contains
     !Register state variables
     call self%register_state_variable(&
          self%id_Phy,'Phy','mmol/m**3','Phy',&
-         minimum=0.0_rk,initial_value=0.0_rk,&
+         minimum=0.0001_rk,initial_value=0.0001_rk,&
          vertical_movement=-self%Wphy/86400._rk)
     call self%register_state_variable(&
          self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
@@ -354,6 +359,7 @@ contains
     real(rk):: GrazBhan,GrazBact,Grazing,RespHet,MortHet
     real(rk):: Autolysis,DcDM_O2,DcPM_O2,Dc_OM_total
     real(rk):: OSAT
+    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
     !increments
     real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4
     real(rk):: d_Sipart,d_Phy,d_Het,d_Baae,d_Baan,d_Bhae,d_Bhan
@@ -451,7 +457,7 @@ contains
       !phytoplankton: N2 -> NH4 :
       PO4 = max(PO4,0.000001_rk)
       N_fixation = self%K_nfix*LimP*&
-                   1._rk/(1._rk+((NO3+NO2+NH4)/PO4*16._rk)**4._rk)*GrowthPhy
+                   1._rk/(1._rk+((NO3+NO2+NH4)/max(PO4,0.000001_rk)*16._rk)**4._rk)*GrowthPhy
 
       !Summariazed OM mineralization
       Dc_OM_total = DcPM_O2+DcDM_O2
@@ -477,7 +483,7 @@ contains
       _SET_ODE_(self%id_NO3,d_NO3)
       d_PO4 = ((Dc_OM_total-GrowthPhy+RespHet)/self%r_n_p)
       _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = ((-GrowthPhy)*self%r_si_n)
+      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
       _SET_ODE_(self%id_Si,d_Si)
       d_DON = (Autolysis-DcDM_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
       _SET_ODE_(self%id_DON,d_DON)
@@ -605,6 +611,13 @@ contains
       f_t = q10**((temperature-t_upt_min)/10._rk)-&
             q10**((temperature-t_upt_max)/3._rk)
     end if
+!   Some others:
+ !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
+ !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)  
+ !  LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
+ !  LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
+ !  LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM)
+ !  LimT     =q10*(T-20)/10 !Q10=1.88 (Gregoire, 2000)       
   end function f_t
   !
   !adapted from ersem
