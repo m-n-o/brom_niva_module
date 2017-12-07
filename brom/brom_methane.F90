@@ -164,8 +164,17 @@ contains
       b2 = 0.041674_rk ! #0.043970 
       b3 = -0.0064603_rk ! #-0.0068672
       
-      bunsen = 2.718281828459_rk  ** (a1 + a2*(100._rk / abs_temp) + a3 * log(abs_temp / 100._rk) + (salt * & 
-                                    ( b1 + b2 * (abs_temp / 100._rk)  + b3 * (abs_temp / 100._rk **2._rk))))       
+      bunsen = 2.718281828459_rk  **             &
+        (a1 + a2*(100._rk / abs_temp) +          &
+         a3 * log(abs_temp / 100._rk) +          &
+          (                                      &
+            salt *                               &
+            ( b1 + b2 * (abs_temp / 100._rk)  +  &
+              b3 * (abs_temp / 100._rk **2._rk)  &
+            )                                    &
+           )                                     &
+        )                                          
+          
       pCH4a = 1.8 !E-6_rk 
       pCH4w = CH4 * 0.080206 * abs_temp ![uatm]
 
@@ -173,9 +182,13 @@ contains
       Sc = 2073.1_rk-125.62_rk*temp+3.6276_rk*temp**2._rk-0.043219_rk*&
            temp**3.0_rk
       !k is the transfer velocity
-      k_660 = 0.24_rk * windspeed**2.0_rk
-      k_CH4_660 = k_660 * (Sc / 660._rk)**(-0.5_rk)
-      k_CH4_660 = k_CH4_660 * 24._rk/100._rk !convert to m/day
+      !k_660 = 0.24_rk * windspeed**2.0_rk
+      !k_CH4_660 = k_660 * (Sc / 660._rk)**(-0.5_rk)
+      !k_CH4_660 = k_CH4_660 * 24._rk/100._rk !convert to m/day
+      
+      k_CH4_660 = (0.222_rk*windspeed**2_rk+0.333_rk*windspeed)*&
+              (Sc/660._rk)**(-0.5_rk)
+      k_CH4_660 = k_CH4_660*24._rk/100._rk !convert to m/day 
       
       Q_pCH4 = k_CH4_660 * (pCH4a - max(0e0,pCH4w))
       Q_CH4 = Q_pCH4 * bunsen/86400._rk
