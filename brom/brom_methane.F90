@@ -125,7 +125,8 @@ contains
          self%id_temp,standard_variables%temperature)
     call self%register_dependency(&
          self%id_salt,standard_variables%practical_salinity)
-    
+    call self%register_dependency(&
+         self%id_windspeed,standard_variables%wind_speed)    
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPM_ch4,'DcPM_ch4','mmol/m**3',&
@@ -148,7 +149,7 @@ contains
     real(rk):: Sc,k_660,k_CH4_660
     real(rk):: pCH4a, pCH4w !pCO2w, pCO2a
     real(rk):: windspeed
-    real(rk):: a1,a2,a3,b1,b2,b3,bunsen
+    real(rk):: a1,a2,a3,b1,b2,b3,bunsen,s
 
     _HORIZONTAL_LOOP_BEGIN_
       _GET_(self%id_temp,temp) !temperature
@@ -173,25 +174,24 @@ contains
               b3 * (abs_temp / 100._rk **2._rk)  &
             )                                    &
            )                                     &
-        )                                          
-          
+        )    
+      ! solubility     
+      s = bunsen / 22.4  !# mole /l what with  atm?     
       pCH4a = 1.8 !E-6_rk 
-      pCH4w = CH4 * 0.080206 * abs_temp ![uatm]
+      pCH4w = CH4 * 0.082057 * abs_temp ![uatm] if ch4 in uM
 
       !calculate the scmidt number and unit conversions
-      Sc = 2073.1_rk-125.62_rk*temp+3.6276_rk*temp**2._rk-0.043219_rk*&
-           temp**3.0_rk
-      !k is the transfer velocity
-      !k_660 = 0.24_rk * windspeed**2.0_rk
-      !k_CH4_660 = k_660 * (Sc / 660._rk)**(-0.5_rk)
-      !k_CH4_660 = k_CH4_660 * 24._rk/100._rk !convert to m/day
+      !Sc = 2073.1_rk-125.62_rk*temp+3.6276_rk*temp**2._rk-0.043219_rk*&
+      !     temp**3.0_rk
       
-      k_CH4_660 = (0.222_rk*windspeed**2_rk+0.333_rk*windspeed)*&
-              (Sc/660._rk)**(-0.5_rk)
-      k_CH4_660 = k_CH4_660*24._rk/100._rk !convert to m/day 
-      
+      ! Sc corrected for CH4 
+      Sc = 2101.2_rk - 131.54_rk * temp + & 
+          4.4931_rk * temp **2_rk - 0.08676_rk * temp **3 + &
+         0.00070663_rk * temp ** 4_rk 
+            
+      k_CH4_660 = (24._rk/100._rk)*(0.24_rk * windspeed**2._rk)*(Sc/ 660._rk)**-0.5_rk !m/d
       Q_pCH4 = k_CH4_660 * (pCH4a - max(0e0,pCH4w))
-      Q_CH4 = Q_pCH4 * bunsen/86400._rk
+      Q_CH4 = Q_pCH4 * s/86400._rk
        
       _SET_SURFACE_EXCHANGE_(self%id_CH4,Q_CH4)
     _HORIZONTAL_LOOP_END_
