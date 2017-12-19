@@ -147,7 +147,7 @@ contains
     real(rk):: Q_CH4, Q_pCH4, CH4
     real(rk):: temp, salt, abs_temp
     real(rk):: Sc,k_660,k_CH4_660
-    real(rk):: pCH4a, pCH4w !pCO2w, pCO2a
+    real(rk):: pCH4a, pCH4w
     real(rk):: windspeed
     real(rk):: a1,a2,a3,b1,b2,b3,bunsen,s
 
@@ -176,7 +176,7 @@ contains
            )                                     &
         )    
       ! solubility     
-      s = bunsen / 22.4  !# mole /l what with  atm?     
+      s = bunsen / 22.4  !# mole /l     
       pCH4a = 1.8 !E-6_rk 
       pCH4w = CH4 * 0.082057 * abs_temp ![uatm] if ch4 in uM
 
