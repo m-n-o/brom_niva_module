@@ -1,12 +1,14 @@
 !-----------------------------------------------------------------------
-! BROM2 is free software: you can redistribute it and/or modify it under
+! fabm_niva_brom_ph
+! is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the BROM2 distribution.
+! the COPYING file at the root of the FABM distribution.
 !-----------------------------------------------------------------------
+! Original author(s): Shamil Yakubov
 
 #include "fabm_driver.h"
 
@@ -47,11 +49,11 @@ contains
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
     call self%register_state_dependency(&
-         self%id_po4,'PO4','mmol/m**3','phosphate',required=.false.)
+         self%id_po4,'PO4','mmol/m**3','phosphate')
     call self%register_state_dependency(&
-         self%id_Si, 'Si', 'mmol/m**3','silicate',required=.false.)
+         self%id_Si, 'Si', 'mmol/m**3','silicate')
     call self%register_state_dependency(&
-         self%id_NH4,'NH4','mmol/m**3','ammonium',required=.false.)
+         self%id_NH4,'NH4','mmol/m**3','ammonium')
     call self%register_state_dependency(&
          self%id_H2S,'H2S','mmol/m**3','hydrogen sulfide',required=.false.)
     call self%register_state_dependency(&
@@ -116,10 +118,23 @@ contains
       _GET_(self%id_DIC,DIC)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_Si,Si)
-      _GET_(self%id_SO4,SO4)
+      if (_AVAILABLE_(self%id_SO4)) then
+        _GET_(self%id_SO4,SO4)
+      else
+        !returns total sulfate concentration in mol/kg-SW
+        !References:
+        ! Morris A.W. and Riley, J.P. (1966) quoted in Dickson et al. (2007)
+        ! pH scale  : N/A
+        SO4 = (0.1400_rk/96.062_rk)*(salt/1.80655_rk)
+        SO4 = SO4*(1027._rk/1000._rk)*1.e6_rk !mmol/m3
+      end if
       !gases
       _GET_(self%id_NH4,NH4)
-      _GET_(self%id_H2S,H2S)
+      if (_AVAILABLE_(self%id_H2S)) then
+        _GET_(self%id_H2S,H2S)
+      else
+        H2S = 0._rk
+      end if
       ! Equilibrium constants
       _GET_(self%id_Kc1,  Kc1)
       _GET_(self%id_Kc2,  Kc2)
@@ -142,13 +157,6 @@ contains
       !pH scale  : N/A
       Bt = 0.000416_rk*(salt/35._rk)
       Bt = Bt*(1027._rk/1000._rk)*1.e6_rk !mmol/m3
-
-      !returns total sulfate concentration in mol/kg-SW
-      !References:
-      ! Morris A.W. and Riley, J.P. (1966) quoted in Dickson et al. (2007)
-      ! pH scale  : N/A
-      !SO4 = (0.1400_rk/96.062_rk)*(salt/1.80655_rk)
-      !SO4 = SO4*(1027._rk/1000._rk)*1.e6_rk !mmol/m3
 
       !returns total fluoride concentration in mol/kg-SW
       !References: Culkin (1965) (???)

@@ -1,5 +1,6 @@
 !-----------------------------------------------------------------------
-! BROM is free software: you can redistribute it and/or modify it under
+! fabm_niva_brom_salt
+! is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
