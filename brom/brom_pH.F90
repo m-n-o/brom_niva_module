@@ -97,7 +97,7 @@ contains
          self%id_tot_free,'tot_free','-','ratio H_Tot/H_free')
   end subroutine initialize
   !
-  !does we need to recalculate concentrations from mmol/m3 to mol/kg?
+  !
   !
   subroutine do(self,_ARGUMENTS_DO_)
     class (type_niva_brom_ph),intent(in) :: self
