@@ -370,6 +370,12 @@ contains
       !Bacteria
       !OXIC CONDITIONS
       !aerobic autotrophs
+      !Check for 0s 
+      Baae = max(1.e-15_rk, Baae)
+      Bhae = max(1.e-15_rk, Bhae)
+      Baan = max(1.e-15_rk, Baan)
+      Bhan = max(1.e-15_rk, Bhan)
+      
       ChemBaae = (Nitrif1+Nitrif2+mn_ox1+fe_ox1+s2o3_ox+s0_ox+Anammox)&
                 *self%K_Baae_gro*Baae*min(yy(self%limBaae,NH4&
                 /(Baae+0.0001_rk)),yy(self%limBaae,PO4/(Baae+0.0001_rk)))

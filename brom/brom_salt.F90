@@ -16,7 +16,7 @@
 !-----------------------------------------------------------------------
 !BOP
 !
-! !MODULE:
+! !MODULE: 
 !
 ! !INTERFACE:
    module fabm_niva_brom_salt

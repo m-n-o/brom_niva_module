@@ -26,7 +26,10 @@ module fabm_niva_brom_methane
 
     !diagnostic variables by bacteria needed
     type(type_diagnostic_variable_id):: id_DcPM_ch4
-
+    
+    !for do_surface
+    type(type_dependency_id):: id_temp,id_salt
+    type(type_horizontal_dependency_id):: id_windspeed
     !Model parameters
     !specific rates of biogeochemical processes
     !Methan
@@ -38,6 +41,7 @@ module fabm_niva_brom_methane
 
   contains
     procedure :: initialize
+    procedure :: do_surface
     procedure :: do
   end type
 contains
@@ -116,7 +120,14 @@ contains
          'dissolved organic nitrogen')
     call self%register_state_dependency(&
          self%id_SO4,'SO4','mmol/m**3','sulphate')
-
+    
+    !for do_surface
+    call self%register_dependency(&
+         self%id_temp,standard_variables%temperature)
+    call self%register_dependency(&
+         self%id_salt,standard_variables%practical_salinity)
+    call self%register_dependency(&
+         self%id_windspeed,standard_variables%wind_speed)    
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPM_ch4,'DcPM_ch4','mmol/m**3',&
@@ -129,6 +140,66 @@ contains
   !
   !do we need to add OM, Alk, ammonium and PO4?
   !
+  
+  subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+    class (type_niva_brom_methane),intent(in) :: self
+
+    _DECLARE_ARGUMENTS_DO_SURFACE_
+    real(rk):: Q_CH4, Q_pCH4, CH4
+    real(rk):: temp, salt, abs_temp
+    real(rk):: Sc,k_660,k_CH4_660
+    real(rk):: pCH4a, pCH4w
+    real(rk):: windspeed
+    real(rk):: a1,a2,a3,b1,b2,b3,bunsen,s
+
+    _HORIZONTAL_LOOP_BEGIN_
+      _GET_(self%id_temp,temp) !temperature
+      _GET_(self%id_salt,salt) !salinity
+      _GET_(self%id_CH4, CH4) !previous CH4 which calculates here in the subroutine do
+      _GET_HORIZONTAL_(self%id_windspeed,windspeed)    
+
+      abs_temp = temp + 273._rk ![k]
+      a1 = -67.1962_rk  ! #-68.8862 
+      a2 = 99.1624_rk  ! #101.4956
+      a3 = 27.9015_rk ! #28.7314 
+      b1 = -0.072909_rk ! #0.076146
+      b2 = 0.041674_rk ! #0.043970 
+      b3 = -0.0064603_rk ! #-0.0068672
+      
+      bunsen = 2.718281828459_rk  **             &
+        (a1 + a2*(100._rk / abs_temp) +          &
+         a3 * log(abs_temp / 100._rk) +          &
+          (                                      &
+            salt *                               &
+            ( b1 + b2 * (abs_temp / 100._rk)  +  &
+              b3 * (abs_temp / 100._rk **2._rk)  &
+            )                                    &
+           )                                     &
+        )    
+      ! solubility     
+      s = bunsen / 22.4  !# mole /l     
+      pCH4a = 1.8 !E-6_rk 
+      pCH4w = CH4 * 0.082057 * abs_temp ![uatm] if ch4 in uM
+
+      !calculate the scmidt number and unit conversions
+      !Sc = 2073.1_rk-125.62_rk*temp+3.6276_rk*temp**2._rk-0.043219_rk*&
+      !     temp**3.0_rk
+      
+      ! Sc corrected for CH4 
+      Sc = 2101.2_rk - 131.54_rk * temp + & 
+          4.4931_rk * temp **2_rk - 0.08676_rk * temp **3 + &
+         0.00070663_rk * temp ** 4_rk 
+            
+      k_CH4_660 = (24._rk/100._rk)*(0.24_rk * windspeed**2._rk)*(Sc/ 660._rk)**-0.5_rk !m/d
+      Q_pCH4 = k_CH4_660 * (pCH4a - max(0e0,pCH4w))
+      Q_CH4 = Q_pCH4 * s/86400._rk
+       
+      _SET_SURFACE_EXCHANGE_(self%id_CH4,Q_CH4)
+    _HORIZONTAL_LOOP_END_
+  end subroutine do_surface
+  
+  
+  
   subroutine do(self,_ARGUMENTS_DO_)
     class (type_niva_brom_methane),intent(in) :: self
 
