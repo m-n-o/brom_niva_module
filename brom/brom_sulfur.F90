@@ -102,7 +102,7 @@ contains
     call self%get_parameter(&
          self%r_c_n,   'r_c_n',  '[-]',&
          'C[uM]/N[uM]',&
-         default=8.0_rk)
+         default=6.625_rk)
     call self%get_parameter(&
          self%r_n_p,   'r_n_p',  '[-]',&
          'N[uM]/P[uM]',&

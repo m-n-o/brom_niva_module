@@ -140,7 +140,7 @@ contains
     call self%get_parameter(&
          self%r_c_n,   'r_c_n',  '[-]',&
          'C[uM]/N[uM]',&
-         default=8.0_rk)
+         default=6.625_rk)
 
     !Register state variables
     call self%register_state_variable(&
@@ -393,8 +393,8 @@ contains
                 *(0.5_rk+0.5_rk*(tanh(1._rk-O2))))*Bhan
 
       !Alkalinity changes due to redox reactions:
-      d_Alk = -ChemBaae-ChemBaan !+/- NH3
-      _SET_ODE_(self%id_Alk,d_Alk)
+!      d_Alk = -ChemBaae-ChemBaan !+/- NH3
+!      _SET_ODE_(self%id_Alk,d_Alk)
       !Bacteria
       d_Baae = ChemBaae-MortBaae
       _SET_ODE_(self%id_Baae,d_Baae)

@@ -19,7 +19,7 @@ module fabm_niva_brom_calcium
     !all descriptions are in initialize subroutine
     type(type_state_variable_id):: id_CaCO3
     !state variables dependencies
-    type(type_state_variable_id):: id_DIC,id_Alk,id_Ca_u
+    type(type_state_variable_id):: id_DIC,id_Alk
 
     type(type_diagnostic_variable_id):: id_Om_Ca,id_Om_Ar,id_Ca
 
@@ -71,10 +71,7 @@ contains
          'total dissolved inorganic carbon',required=.false.)
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
-    call self%register_state_dependency(&
-         self%id_Ca_u,'Ca_u','mmol/m**3',&
-         'Ca_u given as concentrtaions',required=.false.)
-    
+
     !diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_Ca,'Ca','mmol/m**3','Ca++')
@@ -107,7 +104,7 @@ contains
 
     _DECLARE_ARGUMENTS_DO_
     !standard variables
-    real(rk):: temp,salt,pres, Ca_u
+    real(rk):: temp,salt,pres
     !state variables
     real(rk):: CaCO3
     !diagnostic variables
@@ -129,12 +126,6 @@ contains
       _GET_(self%id_CO3,CO3)
       !state variable
       _GET_(self%id_CaCO3,CaCO3)
-    if (_AVAILABLE_(self%id_Ca_u)) then
-      _GET_(self%id_Ca_u,Ca_u)
-        Ca = Ca_u !in mol/kg-SW
-    else
-        Ca = 0.02128_rk/40.087_rk*(salt/1.80655_rk)!in mol/kg-SW
-    end if
 
       !
       call CaCO3solub(temp,salt,0.1_rk*pres,&
@@ -198,13 +189,13 @@ contains
       !      boric acid, and the pHi of seawater, Limnology and Oceanography
       !      13:403-417, 1968.
       !*********************************************************************
-      real(rk),intent(in) :: temp, salt, Pbar, Ca
-      real(rk),intent(out):: KCal, KAra
+      real(rk),intent(in) :: temp, salt, Pbar
+      real(rk),intent(out):: Ca, KCal, KAra
       real(rk):: tempK, logKCal, logKAra, RT, &
                  deltaVKCal,KappaKCal,lnKCalfac,deltaVKAra, &
                  KappaKAra, lnKArafac, RGasConstant
 
-!      Ca      = 0.02128_rk/40.087_rk*(salt/1.80655_rk)!in mol/kg-SW
+      Ca      = 0.02128_rk/40.087_rk*(salt/1.80655_rk)!in mol/kg-SW
       tempK   = temp+273.15_rk
 
       !CalciteSolubility:
