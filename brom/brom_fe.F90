@@ -32,7 +32,7 @@ module fabm_niva_brom_fe
     type(type_diagnostic_variable_id):: id_DcDM_Fe,id_DcPM_Fe
     type(type_diagnostic_variable_id):: id_fe_ox1
     type(type_diagnostic_variable_id):: id_fe_ox2,id_fe_ox3,id_feco3_diss
-    type(type_diagnostic_variable_id):: id_feco3_form
+    type(type_diagnostic_variable_id):: id_feco3_form, id_feco3_ox
     type(type_diagnostic_variable_id):: id_fe_rd
     type(type_diagnostic_variable_id):: id_fe_p_compl
     type(type_diagnostic_variable_id):: id_fe_p_diss
@@ -287,6 +287,10 @@ contains
          'FeCO3 formation ',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
+         self%id_feco3_ox,'feco3_ox','mmol/m**3',&
+         'FeCO3 oxidation',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
          self%id_fe_p_compl,'fe_p_compl','mmol/m**3',&
          'complexation of P with Fe(III)',&
          output=output_time_step_integrated)
@@ -468,7 +472,10 @@ contains
       !        -fe_rd-(DcDM_Fe+DcPM_Fe)*self%r_fe_n)/self%r_fe3_p 
       fe_p_compl = ((0.0006_rk*(fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox &
               -fe_rd-(DcDM_Fe+DcPM_Fe)*self%r_fe_n))/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
-!      fe_p_diss = ((0.0006_rk*fe_rd)/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
+!      Kad_Hg2=self%KHg2_Fe3*self%Sad_Fe3*Fe3/(Hplus*1000000._rk+self%KHg2_Fe3*Hg2_free)
+    !    hg2_fe3_compl= min (Kad_Hg2*Hg2_free/(1.0_rk+Kad_Hg2), Hg2_free)
+      
+      fe_p_diss = 0.0_rk !((0.0006_rk*fe_rd)/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
       !!!complexation of Si with Fe(III)
       !!fe_si_compl = (fe_rd-fe_ox1-fe_ox2+4._rk*DcDM_Fe+4._rk*DcPM_Fe)/&
       !!               self%r_fe3_si
@@ -563,6 +570,7 @@ contains
       _SET_DIAGNOSTIC_(self%id_fe_ox2,fe_ox2)
       _SET_DIAGNOSTIC_(self%id_fe_ox3,fe_ox3)
       _SET_DIAGNOSTIC_(self%id_feco3_diss,feco3_diss)
+      _SET_DIAGNOSTIC_(self%id_feco3_ox,feco3_ox)
       _SET_DIAGNOSTIC_(self%id_feco3_form,feco3_form)
       _SET_DIAGNOSTIC_(self%id_fe3po42_diss,fe3po42_diss)
       _SET_DIAGNOSTIC_(self%id_fe3po42_form,fe3po42_form)

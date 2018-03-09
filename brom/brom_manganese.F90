@@ -339,7 +339,7 @@ contains
       !Mn
       !Mn2 oxidation: 4Mn(2+)+O2+4H(+)->4Mn(3+)+2H2O (Canfield,2005)
       mn_ox1 = max(0._rk, 0.5_rk*(1._rk+tanh(Mn2-self%s_mnox_mn2))*&
-               self%K_mn_ox1*Mn2*o2/(o2+self%K_mnox_o2) )
+               self%K_mn_ox1*Mn2*o2*o2/(o2+self%K_mnox_o2) )
       !Mn3 oxidation: 2Mn3+ + 0.5O2 + 3H20 -> 2MnO2 + 6H+ (Tebo,1997)
       mn_ox2 = max(0._rk, 0.5_rk*(1._rk+tanh(Mn3-self%s_mnox_mn3))*&
                self%K_mn_ox2*Mn3*o2/(o2+self%K_mnox_o2) )
