@@ -1,12 +1,11 @@
 !-----------------------------------------------------------------------
-! fabm_niva_brom_calcium
-! is free software: you can redistribute it and/or modify it under
+! BROM2 is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the FABM distribution.
+! the COPYING file at the root of the BROM2 distribution.
 !-----------------------------------------------------------------------
 
 #include "fabm_driver.h"
@@ -20,9 +19,10 @@ module fabm_niva_brom_calcium
     !all descriptions are in initialize subroutine
     type(type_state_variable_id):: id_CaCO3
     !state variables dependencies
-    type(type_state_variable_id):: id_DIC,id_Alk,id_Ca_u
+    type(type_state_variable_id):: id_DIC,id_Alk
 
     type(type_diagnostic_variable_id):: id_Om_Ca,id_Om_Ar,id_Ca
+    type(type_diagnostic_variable_id):: id_CaCO3_form,id_CaCO3_diss
 
     !standard variables dependencies
     type(type_dependency_id):: id_temp,id_salt,id_pres
@@ -47,7 +47,7 @@ contains
         !Sinking
     call self%get_parameter(&
          self%Wsed,'Wsed','[1/day]',&
-         'Rate of sinking of detritus (POP, PON)',&
+         'Rate of sinking of detritus (POP, POM)',&
          default=5.00_rk)
     !Calcium
     call self%get_parameter(&
@@ -72,10 +72,7 @@ contains
          'total dissolved inorganic carbon',required=.false.)
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
-    call self%register_state_dependency(&
-         self%id_Ca_u,'Ca_u','mmol/m**3',&
-         'Ca_u given as concentrtaions',required=.false.)
-    
+
     !diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_Ca,'Ca','mmol/m**3','Ca++')
@@ -84,6 +81,11 @@ contains
     call self%register_diagnostic_variable(&
          self%id_Om_Ar,'Om_Ar','-','CaCO3-Aragonite saturation')
 
+    call self%register_diagnostic_variable(&
+         self%id_CaCO3_form,'CaCO3_form','-','CaCO3 formation')
+    call self%register_diagnostic_variable(&
+         self%id_CaCO3_diss,'CaCO3_diss','-','CaCO3 formation')
+    
     !Register environmental dependencies
     call self%register_dependency(self%id_temp,&
          standard_variables%temperature)
@@ -108,7 +110,7 @@ contains
 
     _DECLARE_ARGUMENTS_DO_
     !standard variables
-    real(rk):: temp,salt,pres, Ca_u
+    real(rk):: temp,salt,pres
     !state variables
     real(rk):: CaCO3
     !diagnostic variables
@@ -117,7 +119,7 @@ contains
     !increments
     real(rk):: d_DIC,d_CaCO3,d_Alk
     !processes
-    real(rk):: caco3_form,caco3_diss
+    real(rk):: CaCO3_form,CaCO3_diss
     !auxiliary
     real(rk):: K_Cal,K_Ara
 
@@ -130,27 +132,17 @@ contains
       _GET_(self%id_CO3,CO3)
       !state variable
       _GET_(self%id_CaCO3,CaCO3)
-    if (_AVAILABLE_(self%id_Ca_u)) then
-      _GET_(self%id_Ca_u,Ca_u)
-        Ca = Ca_u !in mol/kg-SW
-    else
-        Ca = 0.02128_rk/40.087_rk*(salt/1.80655_rk)!in mol/kg-SW
-    end if
 
       !
       call CaCO3solub(temp,salt,0.1_rk*pres,&
                       Ca,K_Cal,K_Ara)
       Om_Ca=(co3/1000000._rk)*Ca/K_Cal !Saturation (Omega) for calcite
       Om_Ar=(co3/1000000._rk)*Ca/K_Ara !Saturation (Omega) for aragonite
-      _SET_DIAGNOSTIC_(self%id_Ca,Ca)
-      _SET_DIAGNOSTIC_(self%id_Om_Ca,Om_Ca)
-      _SET_DIAGNOSTIC_(self%id_Om_Ar,Om_Ar)
-
       !Ca
       !CaCO3 precipitation/dissolution (Luff et al., 2001)
-      caco3_form = self%K_caco3_form*max(0._rk& !Ca2+ + CO32- -> CaCO3
+      caco3_form = self%K_caco3_form*max(0._rk & !Ca2+ + CO32- -> CaCO3
                   ,(Om_Ar-1._rk))
-      caco3_diss = CaCO3*self%K_caco3_diss& !CaCO3 -> Ca2+ + CO32-
+      caco3_diss = CaCO3*self%K_caco3_diss & !CaCO3 -> Ca2+ + CO32-
                   *(max(0._rk,(1._rk-Om_Ar)))**4.5_rk
       !DIC
       d_DIC = -caco3_form+caco3_diss
@@ -164,6 +156,12 @@ contains
              +2._rk*caco3_diss & !CaCO3 -> Ca2+ + CO32-
              )
       _SET_ODE_(self%id_Alk,d_Alk)
+      
+      _SET_DIAGNOSTIC_(self%id_Ca,Ca)
+      _SET_DIAGNOSTIC_(self%id_Om_Ca,Om_Ca)
+      _SET_DIAGNOSTIC_(self%id_Om_Ar,Om_Ar)
+      _SET_DIAGNOSTIC_(self%id_caco3_diss,caco3_diss)
+      _SET_DIAGNOSTIC_(self%id_caco3_form,caco3_form)
     _LOOP_END_
   contains
     !
@@ -199,13 +197,13 @@ contains
       !      boric acid, and the pHi of seawater, Limnology and Oceanography
       !      13:403-417, 1968.
       !*********************************************************************
-      real(rk),intent(in) :: temp, salt, Pbar, Ca
-      real(rk),intent(out):: KCal, KAra
+      real(rk),intent(in) :: temp, salt, Pbar
+      real(rk),intent(out):: Ca, KCal, KAra
       real(rk):: tempK, logKCal, logKAra, RT, &
                  deltaVKCal,KappaKCal,lnKCalfac,deltaVKAra, &
                  KappaKAra, lnKArafac, RGasConstant
 
-!      Ca      = 0.02128_rk/40.087_rk*(salt/1.80655_rk)!in mol/kg-SW
+      Ca      = 0.02128_rk/40.087_rk*(salt/1.80655_rk)!in mol/kg-SW
       tempK   = temp+273.15_rk
 
       !CalciteSolubility:
