@@ -1,12 +1,11 @@
 !-----------------------------------------------------------------------
-! fabm_niva_brom_ph
-! is free software: you can redistribute it and/or modify it under
+! BROM is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the FABM distribution.
+! the COPYING file at the root of the BROM distribution.
 !-----------------------------------------------------------------------
 ! Original author(s): Shamil Yakubov
 
@@ -49,11 +48,11 @@ contains
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
     call self%register_state_dependency(&
-         self%id_po4,'PO4','mmol/m**3','phosphate')
+         self%id_po4,'PO4','mmol/m**3','phosphate',required=.false.)
     call self%register_state_dependency(&
-         self%id_Si, 'Si', 'mmol/m**3','silicate')
+         self%id_Si, 'Si', 'mmol/m**3','silicate',required=.false.)
     call self%register_state_dependency(&
-         self%id_NH4,'NH4','mmol/m**3','ammonium')
+         self%id_NH4,'NH4','mmol/m**3','ammonium',required=.false.)
     call self%register_state_dependency(&
          self%id_H2S,'H2S','mmol/m**3','hydrogen sulfide',required=.false.)
     call self%register_state_dependency(&
