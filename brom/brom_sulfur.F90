@@ -1,12 +1,11 @@
 !-----------------------------------------------------------------------
-! fabm_niva_brom_sulfur
-! is free software: you can redistribute it and/or modify it under
+! BROM2 is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the FABM distribution.
+! the COPYING file at the root of the BROM2 distribution.
 !-----------------------------------------------------------------------
 
 #include "fabm_driver.h"
@@ -21,25 +20,26 @@ module fabm_niva_brom_sulfur
     type(type_state_variable_id):: id_H2S
     type(type_state_variable_id):: id_S0,id_S2O3,id_SO4
     !state variables dependencies
-    type(type_state_variable_id):: id_O2,id_NO3,id_NH4
-    type(type_state_variable_id):: id_PON,id_DON,id_PO4
+    type(type_state_variable_id):: id_O2,id_NO3,id_NH4,id_PO4
+    type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_DOMR
     type(type_state_variable_id):: id_DIC,id_Alk
 
-    type(type_diagnostic_variable_id):: id_DcPM_SO4,id_DcDM_SO4
-    type(type_diagnostic_variable_id):: id_s2o3_rd_DM,id_s2o3_rd_PM
-    type(type_diagnostic_variable_id):: id_s2o3_no3,id_s0_no3,id_so4_rd_PM
-    type(type_diagnostic_variable_id):: id_so4_rd_DM,id_s0_ox,id_s2o3_ox
+    type(type_diagnostic_variable_id):: id_DcPOMR_S2O3,id_DcDOMR_S2O3,id_DcPOML_s2o3,id_DcDOML_s2o3
+    type(type_diagnostic_variable_id):: id_DcPOMR_SO4, id_DcDOMR_SO4, id_DcPOML_so4, id_DcDOML_so4
+    type(type_diagnostic_variable_id):: id_s2o3_no3,id_s0_no3,id_DcTOM_SOX
+    type(type_diagnostic_variable_id):: id_s0_ox,id_s2o3_ox
     type(type_diagnostic_variable_id):: id_s0_disp,id_hs_ox
-    type(type_diagnostic_variable_id):: id_hs_no3,id_so4_rd,id_s2o3_rd
+    type(type_diagnostic_variable_id):: id_hs_no3,id_s2o3_rd,id_so4_rd
     !Model parameters
     !specific rates of biogeochemical processes
-    !---- S---------!
     real(rk):: K_s0_disp,K_hs_ox,K_s0_ox,K_s0_no3
-    real(rk):: K_s2o3_ox,K_s2o3_no3,K_hs_no3,K_so4_rd,K_s2o3_rd
-    !---- O--------!
-    real(rk):: s_omso_o2,s_omso_no3
+    real(rk):: K_POMR_so4,K_POMR_s2o3,K_POML_so4,K_POML_s2o3
+    real(rk):: K_DOMR_so4,K_DOMR_s2o3,K_DOML_so4,K_DOML_s2o3
+    real(rk):: K_s2o3_ox,K_s2o3_no3,K_hs_no3
+    !---- Switches-------!
+    real(rk):: s_omso_o2,s_omso_no3,s_OM_refr
     !---- Stoichiometric coefficients ----!
-    real(rk):: r_c_n,r_n_p
+    real(rk):: r_c_n,r_n_p,r_n_s
   contains
     procedure :: initialize
     procedure :: do
@@ -83,14 +83,38 @@ contains
          'Spec.rate of thiodenitrification.',&
          default=0.8_rk)
     call self%get_parameter(&
-         self%K_so4_rd,'K_so4_rd','[1/day]',&
+         self%K_POML_so4,'K_POML_so4','[1/day]',&
          'Specific rate of OM sulfate reduction with sulfate',&
          default=0.000005_rk)
     call self%get_parameter(&
-         self%K_s2o3_rd,'K_s2o3_rd','[1/day]',&
+         self%K_POMR_so4,'K_POMR_so4','[1/day]',&
+         'Specific rate of POMR sulfate reduction with sulfate',&
+         default=0.000005_rk)
+    call self%get_parameter(&
+         self%K_POML_s2o3,'K_POML_s2o3','[1/day]',&
          'Specific rate of OM sulfate reduction with thiosulfate',&
          default=0.001_rk)
-    !----O2--------!
+    call self%get_parameter(&
+         self%K_POMR_s2o3,'K_POMR_s2o3','[1/day]',&
+         'Specific rate of POMR sulfate reduction with sulfate',&
+         default=0.000005_rk)
+    call self%get_parameter(&
+         self%K_DOML_so4,'K_DOML_so4','[1/day]',&
+         'Specific rate of DOML sulfate reduction with sulfate',&
+         default=0.000005_rk)
+    call self%get_parameter(&
+         self%K_DOMR_so4,'K_DOMR_so4','[1/day]',&
+         'Specific rate of DOMR sulfate reduction with sulfate',&
+         default=0.000005_rk)
+    call self%get_parameter(&
+         self%K_DOML_s2o3,'K_DOML_s2o3','[1/day]',&
+         'Specific rate of DOML sulfate reduction with thiosulfate',&
+         default=0.001_rk)
+    call self%get_parameter(&
+         self%K_DOMR_s2o3,'K_DOMR_s2o3','[1/day]',&
+         'Specific rate of DOMR sulfate reduction with thiosulfate',&
+         default=0.000005_rk)
+    !----Switches----!
     call self%get_parameter(&
          self%s_omso_o2, 's_omso_o2', '[uM O]',&
          'threshold of o2 for OM sulfate reduction',&
@@ -99,15 +123,23 @@ contains
          self%s_omso_no3, 's_omso_no3', '[uM N]',&
          'threshold of noX for OM sulfate reduction',&
          default=5.0_rk)
+    call self%get_parameter(&
+         self%s_OM_refr, 's_OM_refr', '[uM N]',&
+         'threshold of decay of refractory OM',&
+         default=5.0_rk)
     !----Stoichiometric coefficients----!
     call self%get_parameter(&
          self%r_c_n,   'r_c_n',  '[-]',&
          'C[uM]/N[uM]',&
-         default=8.0_rk)
+         default=6.625_rk)
     call self%get_parameter(&
          self%r_n_p,   'r_n_p',  '[-]',&
          'N[uM]/P[uM]',&
          default=16.0_rk)
+    call self%get_parameter(&
+         self%r_n_s,   'r_n_s',  '[-]',&
+         'N[uM]/S[uM]',&
+         default=0.302_rk)
 
     !Register state variables
     call self%register_state_variable(&
@@ -142,28 +174,62 @@ contains
          self%id_NO3,'NO3','mmol/m**3',&
          'nitrate')
     call self%register_state_dependency(&
-         self%id_PON,'PON','mmol/m**3',&
+         self%id_POML,'POML','mmol/m**3',&
          'particulate organic nitrogen')
     call self%register_state_dependency(&
-         self%id_DON,'DON','mmol/m**3',&
+         self%id_POMR,'POMR','mmol/m**3',&
+         'POM refractory')
+    call self%register_state_dependency(&
+         self%id_DOMR,'DOMR','mmol/m**3',&
+         'POM refractory')
+    call self%register_state_dependency(&
+         self%id_DOML,'DOML','mmol/m**3',&
          'dissolved organic nitrogen')
 
     !Register diagnostic variables
+    !call self%register_diagnostic_variable(&
+    !     self%id_DcPM_SO4,'DcPM_SO4','mmol/m**3',&
+    !     'POM sulfatereduction (1+2 stage)',&
+    !     output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_DcDM_SO4,'DcDM_SO4','mmol/m**3',&
+    !     'DOM sulfatereduction (1+2 stage)',&
+    !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcPM_SO4,'DcPM_SO4','mmol/m**3',&
-         'POM sulfatereduction (1+2 stage)',&
+         self%id_DcPOMR_SO4,'DcPOMR_SO4','mmol/m**3',&
+         'POMR sulfatereduction with SO4 ',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDM_SO4,'DcDM_SO4','mmol/m**3',&
-         'DOM sulfatereduction (1+2 stage)',&
+         self%id_DcPOMR_S2O3,'DcPOMR_S2O3','mmol/m**3',&
+         'POMR sulfatereduction wirh S2O3',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_s2o3_rd_PM,'s2o3_rd_PM','mmol/m**3',&
+         self%id_DcDOMR_SO4,'DcDOMR_SO4','mmol/m**3',&
+         'DOMR sulfatereduction with SO4 ',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOMR_S2O3,'DcDOMR_S2O3','mmol/m**3',&
+         'DOMR sulfatereduction wirh S2O3',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPOML_s2o3,'DcPOML_s2o3','mmol/m**3',&
          'POM sulfatereduction 2d stage',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_s2o3_rd_DM,'s2o3_rd_DM','mmol/m**3',&
+         self%id_DcDOML_s2o3,'DcDOML_s2o3','mmol/m**3',&
          'DOM sulfatereduction 2d stage',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPOML_SO4,'DcPOML_SO4','mmol/m**3',&
+         'POML sulfatereduction 1st stage',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOML_SO4,'DcDOML_SO4','mmol/m**3',&
+         'DOML sulfatereduction 1st stage',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcTOM_SOX,'DcTOM_SOX','mmol/m**3',&
+         'Total OM sulfatereduction all stages',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_s2o3_no3,'s2o3_no3','mmol/m**3',&
@@ -201,14 +267,6 @@ contains
          self%id_hs_no3,'hs_no3','mmol/m**3',&
          'H2S with NO3 oxidation',&
          output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_so4_rd_PM,'so4_rd_PM','mmol/m**3',&
-         'POM sulfatereduction 1st stage',&
-         output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_so4_rd_DM,'so4_rd_DM','mmol/m**3',&
-         'DOM sulfatereduction 1st stage',&
-         output=output_time_step_integrated)
 
     !Specify that are rates computed in this module are per day
     !(default: per second)
@@ -225,31 +283,33 @@ contains
     real(rk):: H2S,S0,S2O3,SO4
     !state dependencies
     real(rk):: O2
-    real(rk):: PON,DON
+    real(rk):: POML,POMR,DOML,DOMR
     real(rk):: NO3,NH4,PO4
     !increments
     real(rk):: d_S2O3,d_SO4,d_S0,d_H2S
-    real(rk):: d_O2,d_DON,d_PON
+    real(rk):: d_O2,d_DOML,d_POML,d_POMR,d_DOMR
     real(rk):: d_NO3,d_NH4,d_DIC,d_PO4
     real(rk):: d_Alk
     !processess
     real(rk):: s0_disp,hs_ox,s0_ox,s0_no3,s2o3_ox,s2o3_no3,hs_no3
-    real(rk):: so4_rd_PM,so4_rd_DM,s2o3_rd_PM,s2o3_rd_DM,so4_rd,s2o3_rd
-    real(rk):: DcPM_SO4,DcDM_SO4
+    real(rk):: DcPOML_so4,DcDOML_so4,DcPOML_s2o3,DcDOML_s2o3,s2o3_rd,so4_rd
+    real(rk):: DcPOMR_SO4,DcPOMR_S2O3,DcDOMR_SO4,DcDOMR_S2O3
     !Summariazed OM mineralization in N units
-    real(rk):: Dc_OM_total
+    real(rk):: DcTOM_SOX
 
     _LOOP_BEGIN_
       !Retrieve current state variable values
       !state
-      _GET_(self%id_DON,DON)
+      _GET_(self%id_DOML,DOML)
+      _GET_(self%id_DOMR,DOMR)
       _GET_(self%id_S2O3,S2O3)
       _GET_(self%id_SO4,SO4)
       _GET_(self%id_NO3,NO3)
       _GET_(self%id_NH4,NH4)
       _GET_(self%id_PO4,PO4)
       !solids
-      _GET_(self%id_PON,PON)
+      _GET_(self%id_POML,POML)
+      _GET_(self%id_POMR,POMR)
       _GET_(self%id_S0,S0)
       !gases
       _GET_(self%id_O2,O2)
@@ -275,77 +335,86 @@ contains
       !OM sulfatereduction (Boudreau, 1996)
       !(CH2O)106(NH3)16H3PO4 + 53SO42- = 106HCO3- + 16NH3 + H3PO4 + 53H2S
       !POM sulfatereduction (1st stage):
-      so4_rd_PM = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+      DcPOML_so4 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                 *self%K_so4_rd*SO4*PON
+                 *self%K_POML_so4*SO4*POML
       !DOM sulfatereduction (1st stage):
-      so4_rd_DM = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+      DcDOML_so4 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                 *self%K_so4_rd*SO4*DON
+                 *self%K_DOML_so4*SO4*DOML
       if (o2.gt.10._rk) then
-        so4_rd_PM=0._rk
-        so4_rd_DM=0._rk
+        DcPOML_so4=0._rk
+        DcDOML_so4=0._rk
       endif
       !POM sulfatereduction (2d stage):
-      s2o3_rd_PM = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+      DcPOML_s2o3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
                   *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                  *self%K_s2o3_rd*S2O3*PON
-      !DOM sulfatereduction (2d stage):
-      s2o3_rd_DM = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+                  *self%K_POML_s2o3*S2O3*POML
+      !DOML sulfatereduction (2d stage):
+      DcDOML_s2o3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
                   *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                  *self%K_s2o3_rd*S2O3*DON
+                  *self%K_DOML_s2o3*S2O3*DOML
       if (o2.gt.10._rk) then
-        s2o3_rd_PM=0._rk
-        s2o3_rd_DM=0._rk
+        DcPOML_s2o3=0._rk
+        DcDOML_s2o3=0._rk
       endif
-      so4_rd   = so4_rd_PM+so4_rd_DM  !in S units
-      s2o3_rd  = s2o3_rd_PM+s2o3_rd_DM
-      DcPM_SO4 = 16._rk/53._rk*(so4_rd_PM+s2o3_rd_PM) !in N units
-      DcDM_SO4 = 16._rk/53._rk*(so4_rd_DM+s2o3_rd_DM)
-
-      !Summariazed OM mineralization
-      Dc_OM_total = DcDM_SO4+DcPM_SO4
+      so4_rd   = (DcPOML_so4+DcDOML_so4)/self%r_n_s  !in S units
+      s2o3_rd  = (DcPOML_s2o3+DcDOML_s2o3)/self%r_n_s
+      ! POMR mineralization with SO4 and S2O3
+      DcPOMR_SO4  = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+                  *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
+                  *self%K_POMR_so4 *SO4 *POMR
+      DcPOMR_S2O3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+                  *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
+                  *self%K_POMR_s2o3*S2O3*POMR
+      ! DOMR mineralization with SO4 and S2O3
+      DcDOMR_SO4  = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+                  *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
+                  *self%K_DOMR_so4 *SO4 *DOMR
+      DcDOMR_S2O3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
+                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+                  *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
+                  *self%K_DOMR_s2o3*S2O3*DOMR
+      !Summariazed total SO4 and S2O3 reduction for total OM in N units
+      DcTOM_SOX=DcPOMR_SO4+DcPOMR_S2O3+DcDOMR_SO4+DcDOMR_S2O3
 
       !Set increments
-      !S
-      d_S2O3 = 0.5_rk*s0_ox-s2o3_ox+0.25_rk*s0_disp+0.5_rk*&
-               so4_rd-0.5_rk*s2o3_rd-s2o3_no3
-      _SET_ODE_(self%id_S2O3,d_S2O3)
-      d_SO4 = hs_no3-so4_rd+0.5_rk*s2o3_ox+s0_no3+2._rk*&
-              s2o3_no3
+   d_SO4 = hs_no3+0.5_rk*s2o3_ox+s0_no3+2._rk*s2o3_no3 &
+           +(-DcPOMR_SO4-DcDOMR_SO4)/self%r_n_s 
       _SET_ODE_(self%id_SO4,d_SO4)
-      !S solid
-      d_S0 = hs_ox-s0_ox-s0_disp-s0_no3
+   d_S2O3 = 0.5_rk*s0_ox-s2o3_ox+0.25_rk*s0_disp-s2o3_no3 &
+           +0.5_rk*((DcPOMR_SO4+DcDOMR_SO4-DcDOMR_S2O3-DcPOMR_S2O3))/self%r_n_s
+      _SET_ODE_(self%id_S2O3,d_S2O3)
+   d_S0 = hs_ox-s0_ox-s0_disp-s0_no3
       _SET_ODE_(self%id_S0,d_S0)
-      !S gas
-      d_H2S = -hs_ox+0.5_rk*s0_disp-hs_no3+s2o3_rd
+   d_H2S = -hs_ox+0.5_rk*s0_disp-hs_no3 &
+           +(DcDOMR_S2O3+DcPOMR_S2O3)/self%r_n_s
       _SET_ODE_(self%id_H2S,d_H2S)
-      !O2 - check s2o3_ox
-      d_O2 = -0.5_rk*hs_ox-0.5_rk*s0_ox-0.5_rk*s2o3_ox
+   d_O2 = -0.5_rk*hs_ox-0.5_rk*s0_ox-0.5_rk*s2o3_ox
       _SET_ODE_(self%id_O2,d_O2)
-      !organic matter
-      d_DON = -DcDM_SO4
-      _SET_ODE_(self%id_DON,d_DON)
-      !solid OM
-      d_PON = -DcPM_SO4
-      _SET_ODE_(self%id_PON,d_PON)
-      !N - check hs_no3
-      d_NO3 = -1.6_rk*hs_no3-0.75_rk*s0_no3-s2o3_no3
+   d_DOML = -DcDOML_so4-DcDOML_s2o3
+      _SET_ODE_(self%id_DOML,d_DOML)
+   d_POML = -DcPOML_so4-DcPOML_s2o3
+      _SET_ODE_(self%id_POML,d_POML)
+   d_POMR=  DcPOML_so4+DcPOML_s2o3-DcPOMR_SO4-DcPOMR_S2O3
+      _SET_ODE_(self%id_POMR,d_POMR)
+   d_DOMR=  DcPOML_so4+DcPOML_s2o3-DcDOMR_SO4-DcDOMR_s2o3
+      _SET_ODE_(self%id_DOMR,d_DOMR)
+   d_NO3 = -1.6_rk*hs_no3-0.75_rk*s0_no3-s2o3_no3
       _SET_ODE_(self%id_NO3,d_NO3)
-      !N 
-      d_NH4 = 0.75_rk*s0_no3+s2o3_no3+Dc_OM_total
+   d_NH4 = 0.75_rk*s0_no3+s2o3_no3+DcPOML_so4+DcDOML_so4+DcPOML_s2o3+DcDOML_s2o3
       _SET_ODE_(self%id_NH4,d_NH4)
-      !DIC
-      d_DIC = Dc_OM_total*self%r_c_n
+   d_DIC =(DcDOMR_so4+DcDOMR_s2o3+DcPOMR_SO4+DcPOMR_S2O3)*self%r_c_n
       _SET_ODE_(self%id_DIC,d_DIC)
-      !P
-      d_PO4 = Dc_OM_total/self%r_n_p
+   d_PO4 = (DcPOML_so4+DcDOML_so4+DcPOML_s2o3+DcDOML_s2o3)/self%r_n_p
       _SET_ODE_(self%id_PO4,d_PO4)
-      !Alkalinity changes due to redox reactions:
-      d_Alk = (&
+   d_Alk = (&
              !(CH2O)106(NH3)16H3PO4 + 53SO42- =
              !106HCO3- + 16NH3 + H3PO4 + 53H2S (Boudreau, 1996)
-             +2._rk*(so4_rd+s2o3_rd) &
+!             +2._rk*(DcPM_SO4 +DcDM_SO4) &
              -0.5_rk*s0_disp & !4S0 + 3H2O -> 2H2S + S2O3-- + 2H+
              -1._rk*(-s0_ox) & !2S0 + O2 + H2O -> S2O3-- + 2H+
              -0.5_rk*s0_no3 &  !4S0 + 3NO3- + 7H2O -> 4SO4-- + 3NH4+ + 2H+
@@ -354,16 +423,19 @@ contains
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 
-      _SET_DIAGNOSTIC_(self%id_DcDM_SO4,DcPM_SO4)
-      _SET_DIAGNOSTIC_(self%id_DcPM_SO4,DcPM_SO4)
       _SET_DIAGNOSTIC_(self%id_s2o3_no3,s2o3_no3)
       _SET_DIAGNOSTIC_(self%id_s0_no3,s0_no3)
       _SET_DIAGNOSTIC_(self%id_s2o3_ox,s2o3_ox)
       _SET_DIAGNOSTIC_(self%id_s0_ox,s0_ox)
-      _SET_DIAGNOSTIC_(self%id_s2o3_rd_PM,s2o3_rd_PM)
-      _SET_DIAGNOSTIC_(self%id_s2o3_rd_DM,s2o3_rd_DM)
-      _SET_DIAGNOSTIC_(self%id_so4_rd_PM,so4_rd_PM)
-      _SET_DIAGNOSTIC_(self%id_so4_rd_DM,so4_rd_DM)
+      _SET_DIAGNOSTIC_(self%id_DcPOML_s2o3,DcPOML_s2o3)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_s2o3,DcDOML_s2o3)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_s2o3,DcPOMR_s2o3)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_s2o3,DcDOMR_s2o3)
+      _SET_DIAGNOSTIC_(self%id_DcPOML_so4,DcPOML_so4)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_so4,DcDOML_so4)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_so4,DcPOMR_so4)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_so4,DcDOMR_so4)
+      _SET_DIAGNOSTIC_(self%id_DcTOM_SOX,DcTOM_SOX)
       _SET_DIAGNOSTIC_(self%id_so4_rd,so4_rd)
       _SET_DIAGNOSTIC_(self%id_s2o3_rd,s2o3_rd)
       _SET_DIAGNOSTIC_(self%id_s0_disp,s0_disp)
