@@ -69,7 +69,7 @@
 !BOC
 !-----------------------------------------------------------------------   
 ! Parameters, i.e. rate constants  
-   call self%get_parameter(self%Wsed, 'Wsed', '[m/day]',  'Rate of sinking of detritus (POP, PON)',       default=5.00_rk)     
+   call self%get_parameter(self%Wsed, 'Wsed', '[m/day]',  'Rate of sinking of detritus (POP, POM)',       default=5.00_rk)     
    call self%get_parameter(self%Wphy, 'Wphy', '[m/day]',  'Rate of sinking of Phy',                       default=0.10_rk)
    call self%get_parameter(self%Wm,   'Wm','   [m/day]',  'Rate of accelerated sinking of metals',        default=7.0_rk)
     
