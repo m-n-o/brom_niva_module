@@ -1,12 +1,11 @@
 !-----------------------------------------------------------------------
-! fabm_niva_brom_fe 
-! is free software: you can redistribute it and/or modify it under
+! BROM2 is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the FABM distribution.
+! the COPYING file at the root of the BROM2 distribution.
 !-----------------------------------------------------------------------
 
 #include "fabm_driver.h"
@@ -26,17 +25,17 @@ module fabm_niva_brom_fe
     type(type_state_variable_id):: id_H2S
     type(type_state_variable_id):: id_S0,id_SO4
     type(type_state_variable_id):: id_O2
-    type(type_state_variable_id):: id_PON,id_DON,id_PO4,id_Si,id_NH4
-    type(type_state_variable_id):: id_DIC,id_Alk
+    type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_PO4,id_Si,id_NH4
+    type(type_state_variable_id):: id_DIC,id_Alk,id_DOMR
 
-    type(type_diagnostic_variable_id):: id_DcDM_Fe,id_DcPM_Fe
-    type(type_diagnostic_variable_id):: id_fe_ox1
+    type(type_diagnostic_variable_id):: id_DcDOML_Fe,id_DcPOML_Fe,id_DcPOMR_Fe,id_DcDOMR_Fe
+    type(type_diagnostic_variable_id):: id_DcTOM_Fe, id_fe_ox1
     type(type_diagnostic_variable_id):: id_fe_ox2,id_fe_ox3,id_feco3_diss
     type(type_diagnostic_variable_id):: id_feco3_form, id_feco3_ox
     type(type_diagnostic_variable_id):: id_fe_rd
-    type(type_diagnostic_variable_id):: id_fe_p_compl
-    type(type_diagnostic_variable_id):: id_fe_p_diss
-    type(type_diagnostic_variable_id):: id_fe_si_compl
+    type(type_diagnostic_variable_id):: id_fe_p_compl,id_Kad_PO4
+    !type(type_diagnostic_variable_id):: id_fe_p_diss
+    !type(type_diagnostic_variable_id):: id_fe_si_compl
     type(type_diagnostic_variable_id):: id_fe3po42_diss,id_fe3po42_form,id_fe3po42_hs
     type(type_diagnostic_variable_id):: id_fes_form,id_fes_diss,id_fes_ox,id_feS2_form
     !diagnostic dependencies
@@ -49,14 +48,14 @@ module fabm_niva_brom_fe
     !specific rates of biogeochemical processes
     !---- Fe--------!
     real(rk):: K_fe_ox1,K_fe_ox2,K_fe_rd,K_fes,K_fes_form
-    real(rk):: K_fes_diss,K_fes_ox,K_DON_fe,K_PON_fe
+    real(rk):: K_fes_diss,K_fes_ox,K_DOML_fe,K_POML_fe,K_POMR_fe,K_DOMR_fe
     real(rk):: K_fes2_form,K_fes2_ox,s_feox_fe2,s_ferd_fe3,K_feco3
-    real(rk):: K_feco3_diss,K_feco3_form,K_feco3_ox
+    real(rk):: K_feco3_diss,K_feco3_form,K_feco3_ox, Sad_Fe3, K_PO4_Fe3
     real(rk):: K_fe3po42, K_fe3po42_diss, K_fe3po42_form, K_fe3po42_ox
     !---- S---------!
     real(rk):: K_ferd_hs
     !---- N--------!
-    real(rk):: K_omno_no3
+    real(rk):: K_omno_no3, s_OM_refr
     !---- O--------!
     real(rk):: O2s_dn
     !---- Stoichiometric coefficients ----!
@@ -114,12 +113,20 @@ contains
          'Specific rate of oxidation of FeS with O2',&
          default=0.001_rk)
     call self%get_parameter(&
-         self%K_DON_fe,'K_DON_fe','[1/day]',&
-         'Specific rate of oxidation of DON with Fe3',&
+         self%K_DOML_fe,'K_DOML_fe','[1/day]',&
+         'Specific rate of oxidation of DOML with Fe3',&
          default=0.00005_rk)
     call self%get_parameter(&
-         self%K_PON_fe,'K_PON_fe','[1/day]',&
-         'Specific rate of oxidation of PON with Fe3',&
+         self%K_POML_fe,'K_POML_fe','[1/day]',&
+         'Specific rate of oxidation of POML with Fe3',&
+         default=0.00001_rk)
+    call self%get_parameter(&
+         self%K_POMR_fe,'K_POMR_fe','[1/day]',&
+         'Specific rate of oxidation of POMR with Fe3',&
+         default=0.00001_rk)
+    call self%get_parameter(&
+         self%K_DOMR_fe,'K_DOMR_fe','[1/day]',&
+         'Specific rate of oxidation of DOMR with Fe3',&
          default=0.00001_rk)
     call self%get_parameter(&
          self%K_fes2_form,'K_fes2_form','[1/day]',&
@@ -153,25 +160,23 @@ contains
          self%K_feco3_ox,'K_feco3_ox','[1/day]',&
          'Specific rate of oxidation of FeCO3 with O2',&
          default=0.0027_rk)
+    call self%register_diagnostic_variable(&
+         self%id_Kad_PO4,'Kad_PO4','-',&
+         'Kad_PO4',&
+         output=output_time_step_integrated) ! conditional partitioning coef
    call self%get_parameter(self%K_fe3po42,    'K_fe3po42',      '[M]',      'Conditional equilibrium constant %  1.8e-11 ',     default=10000.0_rk)
    call self%get_parameter(self%K_fe3po42_diss, 'K_fe3po42_diss', '[1/day]', 'Specific rate of dissolution of Fe3PO42',   default=2.7e-7_rk)
    call self%get_parameter(self%K_fe3po42_form, 'K_fe3po42_form', '[1/day]', 'Specific rate of formation of Fe3PO42',    default=2.7e-7_rk)
    call self%get_parameter(self%K_fe3po42_ox, 'K_fe3po42_ox',   '[1/day]',  'Specific rate of oxidation of Fe3PO42 with O2',      default=0.0027_rk)
-    !---- S---------!
-    call self%get_parameter(&
-         self%K_ferd_hs,'K_ferd_hs','[uM S]',&
-         'half sat. of Fe reduction',&
-         default=1.0_rk)
-    !---- N--------!
-    call self%get_parameter(&
-         self%K_omno_no3, 'K_omno_no3', '[uM N]',&
-         'half sat. of no3 for OM denitr.',&
-         default=0.001_rk)
-    !----O2--------!
-    call self%get_parameter(&
-         self%O2s_dn, 'O2s_dn', '[uM O]',&
-         'half saturation for denitrification',&
-         default=10.0_rk)
+   call self%get_parameter(self%K_ferd_hs,'K_ferd_hs','[uM S]', 'half sat. of Fe reduction',       default=1.0_rk)
+   call self%get_parameter(self%K_omno_no3, 'K_omno_no3', '[uM N]','half sat. of no3 for OM denitr.',   default=0.001_rk)
+   call self%get_parameter(self%O2s_dn, 'O2s_dn', '[uM O]','half saturation for denitrification',     default=10.0_rk)
+   call self%get_parameter(self%K_PO4_Fe3, 'K_PO4_Fe3', '[-]',  'partitioning coeff. for  PO4 on Fe3',   default=100000.0_rk)
+   call self%get_parameter(self%Sad_Fe3,   'Sad_Fe3', '[-]',    'adsorbtion sites on Fe3',                default=0.01_rk)
+       call self%get_parameter(&
+         self%s_OM_refr, 's_OM_refr', '[uM N]',&
+         'threshold of decay of refractory OM',&
+         default=50.0_rk)
     !----Stoichiometric coefficients----!
     call self%get_parameter(&
          self%r_n_p,   'r_n_p',  '[-]',&
@@ -180,7 +185,7 @@ contains
     call self%get_parameter(&
          self%r_c_n,   'r_c_n',  '[-]',&
          'C[uM]/N[uM]',&
-         default=8.0_rk)
+         default=6.625_rk)
     call self%get_parameter(&
          self%r_fe_n,   'r_fe_n',  '[-]',&
          'Fe[uM]/N[uM]',&
@@ -196,10 +201,10 @@ contains
 
     !Register state variables
     call self%register_state_variable(&
-         self%id_Fe2, 'Fe2', 'mmol/m**3','Fe(II)',&
+         self%id_Fe2, 'Fe2', 'mmol/m**3','Fe(II) dissolved',&
          minimum=0.0_rk)
     call self%register_state_variable(&
-         self%id_Fe3, 'Fe3', 'mmol/m**3','Fe(III)',&
+         self%id_Fe3, 'Fe3', 'mmol/m**3','Fe(III) oxides',&
          minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
     call self%register_state_variable(&
          self%id_FeS, 'FeS', 'mmol/m**3','FeS',&
@@ -214,7 +219,7 @@ contains
          self%id_Fe3PO42, 'Fe3PO42', 'mmol/m**3','Fe3PO42',&
          minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
     call self%register_state_variable(&
-         self%id_PO4_Fe3, 'PO4_Fe3', 'mmol/m**3','PO4_Fe3',&
+         self%id_PO4_Fe3, 'PO4_Fe3', 'mmol/m**3','PO4_Fe3 adsorbed',&
          minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
 
     !Register state dependencies
@@ -247,20 +252,38 @@ contains
          self%id_O2, 'O2', 'mmol/m**3',&
          'dissolved oxygen')
     call self%register_state_dependency(&
-         self%id_PON,'PON','mmol/m**3',&
+         self%id_POML,'POML','mmol/m**3',&
          'particulate organic nitrogen')
     call self%register_state_dependency(&
-         self%id_DON,'DON','mmol/m**3',&
+         self%id_POMR,'POMR','mmol/m**3',&
+         'POMR')
+    call self%register_state_dependency(&
+         self%id_DOMR,'DOMR','mmol/m**3',&
+         'DOMR')
+    call self%register_state_dependency(&
+         self%id_DOML,'DOML','mmol/m**3',&
          'dissolved organic nitrogen')
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-         self%id_DcPM_Fe,'DcPM_Fe','mmol/m**3',&
-         'POM with Fe(III) mineralization',&
+         self%id_DcPOML_Fe,'DcPOML_Fe','mmol/m**3',&
+         'POML with Fe(III) mineralization',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDM_Fe,'DcDM_Fe','mmol/m**3',&
-         'DOM with Fe(III) mineralization  ',&
+         self%id_DcPOMR_Fe,'DcPOMR_Fe','mmol/m**3',&
+         'POMR with Fe(III) mineralization',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOMR_Fe,'DcDOMR_Fe','mmol/m**3',&
+         'DOMR with Fe(III) mineralization',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOML_Fe,'DcDOML_Fe','mmol/m**3',&
+         'DOML with Fe(III) mineralization  ',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcTOM_Fe,'DcTOM_Fe','mmol/m**3',&
+         'Total OM with Fe(III) mineralization  ',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self% id_fe_ox1,'fe_ox1','mmol/m**3',&
@@ -294,14 +317,14 @@ contains
          self%id_fe_p_compl,'fe_p_compl','mmol/m**3',&
          'complexation of P with Fe(III)',&
          output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_fe_p_diss,'fe_p_diss','mmol/m**3',&
-         'dissolution of complexation of P with Fe(III)',&
-         output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_fe_si_compl,'fe_si_compl','mmol/m**3',&
-         'complexation of Si with Fe(III)',&
-         output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_fe_p_diss,'fe_p_diss','mmol/m**3',&
+    !     'dissolution of complexation of P with Fe(III)',&
+    !     output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_fe_si_compl,'fe_si_compl','mmol/m**3',&
+    !     'complexation of Si with Fe(III)',&
+    !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_fes_form,'fes_form','mmol/m**3 day',&
          'FeS formation',&
@@ -352,14 +375,14 @@ contains
     !state variables
     real(rk):: Fe2,Fe3,FeS,FeS2,FeCO3,Fe3PO42,PO4_Fe3
     !state dependencies
-    real(rk):: O2,PON,DON
+    real(rk):: O2,POML,POMR,DOML,DOMR
     real(rk):: Mn4,Mn3,H2S,NH4,PO4
     !diagnostic variables dependencies
     real(rk):: Hplus,CO3
     !increments
     real(rk):: d_Mn2,d_Mn4,d_Mn3
     real(rk):: d_Fe2,d_Fe3,d_FeS,d_FeS2,d_FeCO3,d_Fe3PO42,d_PO4_Fe3 
-    real(rk):: d_SO4,d_S0,d_H2S,d_O2,d_DON,d_PON
+    real(rk):: d_SO4,d_S0,d_H2S,d_O2,d_DOML,d_POML,d_POMR,d_DOMR
     real(rk):: d_DIC,d_Si,d_PO4,d_NH4
     real(rk):: d_Alk
     !processes
@@ -367,20 +390,22 @@ contains
     real(rk):: Om_FeS,fes_form,fes_diss,fes_ox
     real(rk):: fes2_form,fes2_ox,Om_FeCO3,feco3_form
     real(rk):: feco3_diss,feco3_ox
-    real(rk):: fe_p_compl,fe_p_diss,fe_si_compl
-    real(rk):: DcDM_Fe,DcPM_Fe,Dc_OM_total
+    real(rk):: fe_p_compl, Kad_PO4 !,fe_p_diss,fe_si_compl
+    real(rk):: DcDOML_Fe,DcPOML_Fe,DcPOMR_Fe,DcDOMR_Fe,DcTOM_Fe
     real(rk):: Om_Fe3PO42,fe3po42_form
     real(rk):: fe3po42_diss,fe3po42_hs
 
     _LOOP_BEGIN_
       !Retrieve variable values
       !state
-      _GET_(self%id_DON,DON)
+      _GET_(self%id_DOML,DOML)
       _GET_(self%id_Fe2,Fe2)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_NH4,NH4)
       !solids
-      _GET_(self%id_PON,PON)
+      _GET_(self%id_POML,POML)
+      _GET_(self%id_POMR,POMR)
+      _GET_(self%id_DOMR,DOMR)
       _GET_(self%id_Mn4,Mn4)
       _GET_(self%id_Mn3,Mn3)
       _GET_(self%id_Fe3,Fe3)
@@ -460,92 +485,90 @@ contains
 
       !(CH2O)106(NH3)16H3PO4 + 424Fe(OH)3 + 742CO2 ->
       ! 848HCO3-+ 424Fe2+ +318H2O +16NH3 +H3PO4 (Boudreau,1996) Fe units
-      DcDM_Fe = self%K_DON_fe*DON &
+      DcDOML_Fe = self%K_DOML_fe*DOML &
                *Fe3/(Fe3+self%K_omno_no3) &
                *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
-      DcPM_Fe = self%K_PON_fe*PON &
+      DcPOML_Fe = self%K_POML_fe*POML &
                *Fe3/(Fe3+self%K_omno_no3) &
                *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
-
+      DcPOMR_Fe = self%K_POMR_fe*POMR&
+               *Fe3/(Fe3+self%K_omno_no3) &
+               *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
+               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
+      DcDOMR_Fe = self%K_DOMR_fe*DOMR&
+               *Fe3/(Fe3+self%K_omno_no3) &
+               *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
+               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
       !!!complexation of P with Fe(III)
       !fe_p_compl = ((fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox)*PO4/(PO4+0.1) &
-      !        -fe_rd-(DcDM_Fe+DcPM_Fe)*self%r_fe_n)/self%r_fe3_p 
-      fe_p_compl = ((0.0006_rk*(fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox &
-              -fe_rd-(DcDM_Fe+DcPM_Fe)*self%r_fe_n))/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
-!      Kad_Hg2=self%KHg2_Fe3*self%Sad_Fe3*Fe3/(Hplus*1000000._rk+self%KHg2_Fe3*Hg2_free)
-    !    hg2_fe3_compl= min (Kad_Hg2*Hg2_free/(1.0_rk+Kad_Hg2), Hg2_free)
+      !        -fe_rd-(DcDOML_Fe+DcPOML_Fe)*self%r_fe_n)/self%r_fe3_p 
+!"      fe_p_compl = ((0.0006_rk*(fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox &
+!"              -fe_rd-(DcDOMR_Fe+DcPOMR_Fe)*self%r_fe_n))/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
+
+ !!!!!! Sorption of PO4 on Fe oxides
+     Kad_PO4=self%K_PO4_Fe3*self%Sad_Fe3*Fe3/(1.e-9_rk/Hplus+self%K_PO4_Fe3*PO4)
+   fe_p_compl= Kad_PO4*(PO4+PO4_Fe3)/(1.0_rk+Kad_PO4)-PO4_Fe3
+ !!!!  _SET_ODE_(self%id_Hg2_Fe3,hg2_fe3_compl)
       
-      fe_p_diss = 0.0_rk !((0.0006_rk*fe_rd)/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
+!      fe_p_diss = 0.0_rk !((0.0006_rk*fe_rd)/(1.e-9_rk/Hplus+0.06_rk*PO4))*PO4
       !!!complexation of Si with Fe(III)
-      !!fe_si_compl = (fe_rd-fe_ox1-fe_ox2+4._rk*DcDM_Fe+4._rk*DcPM_Fe)/&
+      !!fe_si_compl = (fe_rd-fe_ox1-fe_ox2+4._rk*DcDOML_Fe+4._rk*DcPOML_Fe)/&
       !!               self%r_fe3_si
-      fe_si_compl =  0.0_rk
+!      fe_si_compl =  0.0_rk
 
       !Summariazed OM mineralization
-      Dc_OM_total = DcDM_Fe+DcPM_Fe
+      DcTOM_Fe = DcDOMR_Fe+DcPOMR_Fe
 
       !Set increments
-      !Mn
-      d_Mn2 = 0.5_rk*fe_ox2+fe_ox3
+   d_Mn2 = 0.5_rk*fe_ox2+fe_ox3
       _SET_ODE_(self%id_Mn2,d_Mn2)
-      !Mn 
-      d_Mn3 = -fe_ox3
+   d_Mn3 = -fe_ox3
       _SET_ODE_(self%id_Mn3,d_Mn3)
-      !Mn solids
-      d_Mn4 = -0.5_rk*fe_ox2
+   d_Mn4 = -0.5_rk*fe_ox2
       _SET_ODE_(self%id_Mn4,d_Mn4)
-      !Fe
-      d_Fe2 = -fe_ox1-fe_ox2-fe_ox3+fe_rd-fes_form+fes_diss-&
-               feco3_form+feco3_diss-fe3po42_form+fe3po42_diss+(DcDM_Fe+DcPM_Fe)*&
-               self%r_fe_n+feS2_ox
+   d_Fe2 = -fe_ox1-fe_ox2-fe_ox3+fe_rd-fes_form+fes_diss &
+               -feco3_form+feco3_diss-fe3po42_form+fe3po42_diss &
+               +(DcPOMR_Fe+DcDOMR_Fe)*self%r_fe_n+feS2_ox
       _SET_ODE_(self%id_Fe2,d_Fe2)
-      !Fe solids
-      d_Fe3 = fe_ox1+fe_ox2+fe_ox3-fe_rd+fes_ox+feco3_ox-&
-              (DcDM_Fe+DcPM_Fe)*self%r_fe_n
+   d_Fe3 = fe_ox1+fe_ox2+fe_ox3-fe_rd+fes_ox+feco3_ox&
+              -(DcPOMR_Fe+DcDOMR_Fe)*self%r_fe_n
       _SET_ODE_(self%id_Fe3,d_Fe3)
-      d_FeS = fes_form-fes_diss-fes_ox-feS2_form+fe3po42_hs
+   d_FeS = fes_form-fes_diss-fes_ox-feS2_form+fe3po42_hs
       _SET_ODE_(self%id_FeS,d_FeS)
-      d_FeS2 = feS2_form-feS2_ox
+   d_FeS2 = feS2_form-feS2_ox
       _SET_ODE_(self%id_FeS2,d_FeS2)
-      d_FeCO3 = feco3_form-feco3_diss-feco3_ox
+   d_FeCO3 = feco3_form-feco3_diss-feco3_ox
       _SET_ODE_(self%id_FeCO3,d_FeCO3)
+  !d_Fe3PO42
       _SET_ODE_(self%id_Fe3PO42, fe3po42_form-fe3po42_diss-fe3po42_hs)
-      !S
-      d_SO4 = fes_ox+2._rk*feS2_ox
+   d_SO4 = fes_ox+2._rk*feS2_ox
       _SET_ODE_(self%id_SO4,d_SO4)
-      !S solid
-      d_S0 = 0.5_rk*fe_rd
+   d_S0 = 0.5_rk*fe_rd
       _SET_ODE_(self%id_S0,d_S0)
-      !S gas
-      d_H2S = -0.5_rk*fe_rd-fes_form+fes_diss-feS2_form+fe3po42_hs
+   d_H2S = -0.5_rk*fe_rd-fes_form+fes_diss-feS2_form+fe3po42_hs
       _SET_ODE_(self%id_H2S,d_H2S)
-      !O2
-      d_O2 = -0.25_rk*fe_ox1-2.25_rk*fes_ox-3.5_rk*feS2_ox+feco3_ox
+   d_O2 = -0.25_rk*fe_ox1-2.25_rk*fes_ox-3.5_rk*feS2_ox+feco3_ox
       _SET_ODE_(self%id_O2,d_O2)
-      !organic matter
-      d_DON = -DcDM_Fe
-      _SET_ODE_(self%id_DON,d_DON)
-      !solid OM
-      d_PON = -DcPM_Fe
-      _SET_ODE_(self%id_PON,d_PON)
-      !DIC
-      d_DIC = (Dc_OM_total)*self%r_c_n &
-              -feco3_form+feco3_diss+feco3_ox
+   d_DOML = -DcDOML_Fe
+      _SET_ODE_(self%id_DOML,d_DOML)
+   d_POML = -DcPOML_Fe
+      _SET_ODE_(self%id_POML,d_POML)
+   d_POMR = DcPOML_Fe-DcPOMR_Fe
+      _SET_ODE_(self%id_POMR,d_POMR)
+   d_DOMR = DcDOML_Fe-DcDOMR_Fe
+      _SET_ODE_(self%id_DOMR,d_DOMR)
+   d_DIC = (DcPOMR_Fe+DcDOMR_Fe)*self%r_c_n-feco3_form+feco3_diss+feco3_ox
       _SET_ODE_(self%id_DIC,d_DIC)
-      !Si
-      d_Si = fe_si_compl
+   d_Si = 0.0_rk !fe_si_compl
       _SET_ODE_(self%id_Si,d_Si)
-      !PO4
-      d_PO4 = (Dc_OM_total)/self%r_n_p-fe_p_compl &
+   d_PO4 = (DcDOML_Fe+DcPOML_Fe)/self%r_n_p-fe_p_compl &
               -0.66_rk*fe3po42_form+0.66_rk*fe3po42_diss+0.66_rk*fe3po42_hs
       _SET_ODE_(self%id_PO4,d_PO4)
-      !PO4 complexed with Fe3
+  !PO4 complexed with Fe3
       _SET_ODE_(self%id_PO4_Fe3,fe_p_compl)
-      !P
-      d_NH4 = Dc_OM_total
+   d_NH4 = DcDOML_Fe+DcPOML_Fe
       _SET_ODE_(self%id_NH4,d_NH4)
-      !Alkalinity changes due to redox reactions:
-      d_Alk = (&
+   d_Alk = (&                  !Alkalinity changes due to redox reactions:
              -2._rk*fe_ox1 &   !4Fe2+ + O2 +10H2O-> 4Fe(OH)3 +8H+
              -1._rk*fe_ox2 &   !2Fe2+ + MnO2 +4H2O -> 2Fe(OH)3 + Mn2+ +2H+
              -3._rk*fe_ox3 &   !Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
@@ -559,12 +582,15 @@ contains
              +2._rk*feco3_diss &
              !(CH2O)106(NH3)16H3PO4 + 424Fe(OH)3 + 742CO2 ->
              ! 848HCO3-+ 424Fe2+ +318H2O +16NH3 +H3PO4
-             + 53._rk*(DcDM_Fe+DcPM_Fe) & !DcDM_Fe is in N-units,i.e.848/16
+             ! + 53._rk*(DcDOML_Fe+DcPOML_Fe) & !DcDOML_Fe is in N-units,i.e.848/16
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 
-      _SET_DIAGNOSTIC_(self%id_DcDM_Fe,DcDM_Fe)
-      _SET_DIAGNOSTIC_(self%id_DcPM_Fe,DcPM_Fe)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_Fe,DcDOMR_Fe)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_Fe,DcDOML_Fe)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_Fe,DcPOMR_Fe)
+      _SET_DIAGNOSTIC_(self%id_DcPOML_Fe,DcPOML_Fe)
+      _SET_DIAGNOSTIC_(self%id_DcTOM_Fe,DcTOM_Fe)
       _SET_DIAGNOSTIC_(self%id_fe_ox1,fe_ox1)
       _SET_DIAGNOSTIC_(self%id_fe_rd,fe_rd)
       _SET_DIAGNOSTIC_(self%id_fe_ox2,fe_ox2)
@@ -576,8 +602,8 @@ contains
       _SET_DIAGNOSTIC_(self%id_fe3po42_form,fe3po42_form)
       _SET_DIAGNOSTIC_(self%id_fe3po42_hs,fe3po42_hs)
       _SET_DIAGNOSTIC_(self%id_fe_p_compl,fe_p_compl)
-      _SET_DIAGNOSTIC_(self%id_fe_p_diss,fe_p_diss)
-      _SET_DIAGNOSTIC_(self%id_fe_si_compl,fe_si_compl)
+!      _SET_DIAGNOSTIC_(self%id_fe_p_diss,fe_p_diss)
+!      _SET_DIAGNOSTIC_(self%id_fe_si_compl,fe_si_compl)
       _SET_DIAGNOSTIC_(self%id_fes_form,fes_form)
       _SET_DIAGNOSTIC_(self%id_fes_diss,fes_diss)
       _SET_DIAGNOSTIC_(self%id_fes_ox,fes_ox)
