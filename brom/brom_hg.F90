@@ -28,7 +28,7 @@
 !     Variable identifiers
 ! variables defined in other modules
    type (type_state_variable_id)        :: id_H2S, id_O2, id_Mn4, id_Fe3, id_Baae,id_Bhae,id_Baan,id_Bhan
-   type (type_state_variable_id)        :: id_Phy, id_Het, id_PON, id_DON, id_SO4
+   type (type_state_variable_id)        :: id_Phy, id_Het, id_POML,id_POMR, id_DON, id_SO4
 ! global dependencies
    type (type_dependency_id)            :: id_temp,id_par,id_depth
 ! diagnostic dependences defined in other modules
@@ -114,7 +114,7 @@
    call self%get_parameter(self%Kow_DOM_MeHg,'Kow_DOM_MeHg','[-]','partitioning koeff. for DOM for MeHg', default=100000.0_rk)
    call self%get_parameter(self%K_relax,'K_relax','[-]','relaxation koeff.  for partitioning and adsorption', default=0.01_rk)
 
-   call self%get_parameter(self%Wsed, 'Wsed', '[m/day]',  'Rate of sinking of detritus (POP, PON)',       default=5.00_rk)     
+   call self%get_parameter(self%Wsed, 'Wsed', '[m/day]',  'Rate of sinking of detritus (POM)',       default=5.00_rk)     
    call self%get_parameter(self%Wphy, 'Wphy', '[m/day]',  'Rate of sinking of Phy',                       default=0.10_rk)
    call self%get_parameter(self%Wm,   'Wm','   [m/day]',  'Rate of accelerated sinking of metals',        default=7.0_rk)
    call self%get_parameter(self%O2s_nf, 'O2s_nf', '[uM O]','half saturation for nitrification',default=4.488_rk)
@@ -147,7 +147,8 @@
    call self%register_state_dependency(self%id_Bhae, 'Bhae', 'mmol/m**3','Aerobic Heterotrophic Bacteria')
    call self%register_state_dependency(self%id_Baan, 'Baan', 'mmol/m**3','Anaerobic Autotrophic Bacteria')
    call self%register_state_dependency(self%id_Bhan, 'Bhan', 'mmol/m**3','Anaerobic Heterotrophic Bacteria')
-   call self%register_state_dependency(self%id_PON,'PON','mmol/m**3','particulate organic nitrogen')
+   call self%register_state_dependency(self%id_POML,'POML','mmol/m**3','particulate organic nitrogen')
+   call self%register_state_dependency(self%id_POMR,'POMR','mmol/m**3','POM refractory')
    call self%register_state_dependency(self%id_DON,'DON','mmol/m**3','dissolved organic nitrogen')
    
 
@@ -250,7 +251,7 @@
 ! !LOCAL VARIABLES:
    real(rk) ::  temp, O2, Mn4, Fe3, depth
    real(rk) ::  Hg0, Hg2, MeHg, HgS, Iz, H2S, Om_HgS, Hg2_flux, SO4 
-   real(rk) ::  Phy, Het, Bhae, Baae, Bhan, Baan, DON, PON
+   real(rk) ::  Phy, Het, Bhae, Baae, Bhan, Baan, DON, POML, POMR
    real(rk) ::  Hg2_biota, Hg2_POM, Hg2_DOM
    real(rk) ::  Hg2_Mn4, Hg2_Fe3, Hg2_free, Hg2_tot, Hg2_tot_diss
    real(rk) ::  MeHg_biota, MeHg_POM, MeHg_DOM
@@ -295,7 +296,8 @@
    ! other modules state variables
     _GET_(self%id_Phy,Phy) 
     _GET_(self%id_Het,Het)
-    _GET_(self%id_PON,PON)
+    _GET_(self%id_POML,POML)
+    _GET_(self%id_POMR,POMR)
     _GET_(self%id_DON,DON)
     _GET_(self%id_Baae,Baae)   
     _GET_(self%id_Bhae,Bhae)
@@ -344,7 +346,7 @@
   !
   ! partitioning betweeen dissolved Hg(II) and OM
     call partit (Hg2, Hg2_biota, Hg2_POM, Hg2_DOM, &
-                 Phy, Het, Baae, Bhae, Baan, Bhan, PON, DON, &
+                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
                  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                  self%Kow_bio_Hg2,self%Kow_POM_Hg2,self%Kow_DOM_Hg2)
     
@@ -384,7 +386,7 @@
    !
   ! partitioning betweeen dissolved MeHg and OM
     call partit (MeHg, MeHg_biota, MeHg_POM, MeHg_DOM, &
-                 Phy, Het, Baae, Bhae, Baan, Bhan, PON, DON, &
+                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
                  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                  self%Kow_bio_MeHg,self%Kow_POM_MeHg,self%Kow_DOM_MeHg)
         
@@ -506,12 +508,12 @@
 
 !-----------------------------------------------------------------------
    subroutine partit (Subst_dis,Subst_biota, Subst_POM, Subst_DOM, &
-                      Phy, Het, Baae, Bhae, Baan, Bhan, PON, DON, &
+                      Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
                       dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                       Kow_bio, Kow_pom, Kow_dom)
    ! !LOCAL VARIABLES:
    real(rk) :: Subst_dis, Subst_biota, Subst_POM, Subst_DOM,  Subst_tot 
-   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, PON, DON
+   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON
    real(rk) :: dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, dSubst_tot
    real(rk) :: dSubst_tot_diss, dSubst_tot_part
    real(rk) :: pol_bio  ! pollutant in BIOTA,"ng?"/l
@@ -554,10 +556,10 @@
         sha_bio=uMn2lip/1000.*(Phy+Het+Baae+Bhae+Baan+Bhan)  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif 
        
-       if(PON<=0.) then 
+       if(POML<=0.) then 
         sha_pom=0. 
        else
-        sha_pom=uMn2lip/1000.*PON  ! Volume(weight in kg, g->kg=/1000) of BIO
+        sha_pom=uMn2lip/1000.*POML  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif     
        
        if(DON<=0.) then 
