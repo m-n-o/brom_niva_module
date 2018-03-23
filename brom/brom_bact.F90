@@ -1,12 +1,11 @@
 !-----------------------------------------------------------------------
-! fabm_niva_brom_bact 
-! is free software: you can redistribute it and/or modify it under
+! BROM2 is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the FABM distribution.
+! the COPYING file at the root of the BROM2 distribution.
 !-----------------------------------------------------------------------
 
 #include "fabm_driver.h"
@@ -21,8 +20,8 @@ module fabm_niva_brom_bact
     type(type_state_variable_id):: id_Baae,id_Bhae,id_Baan,id_Bhan
     !state dependencies
     type(type_state_variable_id):: id_O2,id_NH4,id_H2S
-    type(type_state_variable_id):: id_PON,id_DON,id_DIC,id_PO4
-    type(type_state_variable_id):: id_Alk
+    type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_DIC,id_PO4
+    type(type_state_variable_id):: id_Alk,id_DOMR
 
     type(type_diagnostic_variable_id):: id_ChemBaae,id_ChemBaan
     type(type_diagnostic_variable_id):: id_HetBhan,id_HetBhae
@@ -32,16 +31,11 @@ module fabm_niva_brom_bact
     !processes we need to calculate bact
     type(type_dependency_id):: id_Nitrif1,id_Nitrif2
     type(type_dependency_id):: id_mn_ox1,id_s0_ox,id_anammox
-    type(type_dependency_id):: id_DcPM_O2,id_DcDM_O2
     type(type_dependency_id):: id_mn_rd1,id_mn_rd2,id_fe_rd
     type(type_dependency_id):: id_hs_no3,id_hs_ox
     type(type_dependency_id):: id_s2o3_ox,id_fe_ox1
-    type(type_dependency_id):: id_DcPM_NOX,id_DcDM_NOX
-    type(type_dependency_id):: id_DcPM_SO4,id_DcDM_SO4
-    type(type_dependency_id):: id_DcDM_Mn4,id_DcPM_Mn4
-    type(type_dependency_id):: id_DcPM_Fe,id_DcDM_Fe
-    type(type_dependency_id):: id_DcPM_ch4
-
+    type(type_dependency_id):: id_DcTOM_O2, id_DcTOM_NOX, id_DcTOM_MnX
+    type(type_dependency_id):: id_DcTOM_Fe, id_DcTOM_SOX, id_DcTOM_CH4
     !Model parameters
     !sinking
     real(rk):: Wbact
@@ -141,7 +135,7 @@ contains
     call self%get_parameter(&
          self%r_c_n,   'r_c_n',  '[-]',&
          'C[uM]/N[uM]',&
-         default=8.0_rk)
+         default=6.625_rk)
 
     !Register state variables
     call self%register_state_variable(&
@@ -180,12 +174,6 @@ contains
          (self%id_s0_ox,'s0_ox','mmol/m**3',&
          'S0 with O2 oxidation')
     call self%register_dependency&
-         (self%id_DcPM_O2,'DcPM_O2','mmol/m**3',&
-         'POM with O2 mineralization')
-    call self%register_dependency&
-         (self%id_DcDM_O2,'DcDM_O2','mmol/m**3',&
-         'DOM with O2 mineralization')
-    call self%register_dependency&
          (self%id_mn_rd1,'mn_rd1','mmol/m**3',&
          'Mn(IV) with H2S reduction')
     call self%register_dependency&
@@ -203,44 +191,34 @@ contains
     call self%register_dependency&
          (self%id_s2o3_ox,'s2o3_ox','mmol/m**3',&
          'Specific rate of oxidation of S2O3 with O2')
-    call self%register_dependency&
-         (self%id_DcPM_NOX,'DcPM_NOX','mmol/m**3',&
-         'POM denitrification (1+2 stage)')
-    call self%register_dependency&
-         (self%id_DcDM_NOX,'DcDM_NOX','mmol/m**3',&
-         'DOM denitrification (1+2 stage)')
-    call self%register_dependency&
-         (self%id_DcPM_SO4,'DcPM_SO4','mmol/m**3',&
-         'POM sulfatereduction (1+2 stage)')
-    call self%register_dependency&
-         (self%id_DcDM_SO4,'DcDM_SO4','mmol/m**3',&
-         'DOM sulfatereduction (1+2 stage)')
-    call self%register_dependency&
-         (self%id_DcPM_Mn4,'DcPM_Mn4','mmol/m**3',&
-         'POM with Mn(IV) mineralization')
-    call self%register_dependency&
-         (self%id_DcDM_Mn4,'DcDM_Mn4','mmol/m**3',&
-         'DOM with Mn(IV) mineralization')
-    call self%register_dependency&
-         (self%id_DcPM_Fe,'DcPM_Fe','mmol/m**3',&
-         'POM with Fe(III) mineralization')
-    call self%register_dependency&
-         (self%id_DcDM_Fe,'DcDM_Fe','mmol/m**3',&
-         'DOM with Fe(III) mineralization')
-    call self%register_dependency&
-         (self%id_DcPM_ch4,'DcPM_ch4','mmol/m**3',&
-         'CH4 production from PON and DON')
-
+    call self%register_dependency(self%id_DcTOM_O2,'DcTOM_O2', &
+         'mmol/m**3','Total OM mineralization with O2')
+    call self%register_dependency(self%id_DcTOM_NOX,'DcTOM_NOX', &
+         'mmol/m**3','Total OM mineralization with NO2 and NO3')
+    call self%register_dependency(self%id_DcTOM_MnX,'DcTOM_MnX', &
+         'mmol/m**3','Total OM mineralization with Mn(IV) and Mn(III)')
+    call self%register_dependency(self%id_DcTOM_Fe,'DcTOM_Fe', &
+         'mmol/m**3','Total OM mineralization with Fe(III)')
+    call self%register_dependency(self%id_DcTOM_SOX,'DcTOM_SOX', &
+         'mmol/m**3','Total OM mineralization with SO4 and S2O3')
+    call self%register_dependency(self%id_DcTOM_CH4,'DcTOM_CH4', &
+         'mmol/m**3','Total OM mineralization with methane genesis')
     !Register state dependencies
     call self%register_state_dependency(&
          self%id_NH4,'NH4','mmol/m**3',&
          'ammonium')
     call self%register_state_dependency(&
-         self%id_PON,'PON','mmol/m**3',&
+         self%id_POML,'POML','mmol/m**3',&
          'particulate organic nitrogen')
     call self%register_state_dependency(&
-         self%id_DON,'DON','mmol/m**3',&
-         'dissolved organic nitrogen')
+         self%id_POMR,'POMR','mmol/m**3',&
+         'particulate organic nitrogen')
+    call self%register_state_dependency(&
+         self%id_DOML,'DOML','mmol/m**3',&
+         'DOML (N)')
+    call self%register_state_dependency(&
+         self%id_DOMR,'DOMR','mmol/m**3',&
+         'DOMR (N)')
     call self%register_state_dependency(&
          self%id_po4,'PO4','mmol/m**3',&
          'phosphate',required=.false.)
@@ -306,7 +284,7 @@ contains
 
     !state dependincies
     real(rk):: O2,NH4,H2S
-    real(rk):: PON,DON,DIC,PO4
+    real(rk):: POML,POMR,DOML,DOMR,DIC,PO4
 
     !diagnostic variables
     real(rk):: ChemBaae,ChemBaan
@@ -317,14 +295,10 @@ contains
     !diagnostic dependencies
     real(rk):: Nitrif1,Nitrif2
     real(rk):: mn_ox1,s0_ox,anammox
-    real(rk):: DcPM_O2,DcDM_O2
     real(rk):: mn_rd1,mn_rd2,fe_rd,hs_ox,hs_no3
     real(rk):: s2o3_ox,fe_ox1
-    real(rk):: DcPM_NOX,DcDM_NOX
-    real(rk):: DcPM_SO4,DcDM_SO4
-    real(rk):: DcDM_Mn4,DcPM_Mn4
-    real(rk):: DcPM_Fe,DcDM_Fe
-    real(rk):: DcPM_ch4
+    real(rk):: DcTOM_O2, DcTOM_NOX, DcTOM_MnX
+    real(rk):: DcTOM_Fe, DcTOM_SOX, DcTOM_CH4
 
     !increments
     real(rk):: d_Baae,d_Baan,d_Bhae,d_Bhan,d_Alk
@@ -341,49 +315,41 @@ contains
       _GET_(self%id_fe_ox1,fe_ox1)
       _GET_(self%id_s0_ox,s0_ox)
       _GET_(self%id_anammox,anammox)
-      _GET_(self%id_DcPM_O2,DcPM_O2)
-      _GET_(self%id_DcDM_O2,DcDM_O2)
       _GET_(self%id_mn_rd1,mn_rd1)
       _GET_(self%id_mn_rd2,mn_rd2)
       _GET_(self%id_fe_rd,fe_rd)
       _GET_(self%id_hs_ox,hs_ox)
       _GET_(self%id_hs_no3,hs_no3)
       _GET_(self%id_s2o3_ox,s2o3_ox)
-      _GET_(self%id_DcPM_NOX,DcPM_NOX)
-      _GET_(self%id_DcDM_NOX,DcDM_NOX)
-      _GET_(self%id_DcPM_SO4,DcPM_SO4)
-      _GET_(self%id_DcDM_SO4,DcDM_SO4)
-      _GET_(self%id_DcDM_Mn4,DcDM_Mn4)
-      _GET_(self%id_DcPM_Mn4,DcPM_Mn4)
-      _GET_(self%id_DcPM_Fe,DcPM_Fe)
-      _GET_(self%id_DcDM_Fe,DcDM_Fe)
-      _GET_(self%id_DcPM_ch4,DcPM_ch4)
-
+      
+      _GET_(self%id_DcTOM_O2,DcTOM_O2)
+      _GET_(self%id_DcTOM_NOX,DcTOM_NOX)
+      _GET_(self%id_DcTOM_MnX,DcTOM_MnX)
+      _GET_(self%id_DcTOM_Fe,DcTOM_Fe)
+      _GET_(self%id_DcTOM_SOX,DcTOM_SOX)
+      _GET_(self%id_DcTOM_CH4,DcTOM_CH4)
+      
       _GET_(self%id_NH4,NH4)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_O2,O2)
-      _GET_(self%id_PON,PON)
-      _GET_(self%id_DON,DON)
+      _GET_(self%id_POML,POML)
+      _GET_(self%id_POMR,POMR)
+      _GET_(self%id_DOML,DOML)
+      _GET_(self%id_DOMR,DOMR)
       _GET_(self%id_DIC,DIC)
       _GET_(self%id_H2S,H2S)
 
       !Bacteria
       !OXIC CONDITIONS
       !aerobic autotrophs
-      !Check for 0s 
-      Baae = max(1.e-15_rk, Baae)
-      Bhae = max(1.e-15_rk, Bhae)
-      Baan = max(1.e-15_rk, Baan)
-      Bhan = max(1.e-15_rk, Bhan)
-      
       ChemBaae = (Nitrif1+Nitrif2+mn_ox1+fe_ox1+s2o3_ox+s0_ox+Anammox)&
                 *self%K_Baae_gro*Baae*min(yy(self%limBaae,NH4&
                 /(Baae+0.0001_rk)),yy(self%limBaae,PO4/(Baae+0.0001_rk)))
       MortBaae = (self%K_Baae_mrt+self%K_Baae_mrt_h2s&
                 *(0.5_rk*(1._rk-tanh(1._rk-H2S))))*Baae*Baae
       !aerobic heterotroph
-      HetBhae = (DcPM_O2+DcDM_O2)&
-               *self%K_Bhae_gro*Bhae*yy(self%limBhae,DON/(Bhae+0.0001_rk))
+      HetBhae = DcTOM_O2 &
+               *self%K_Bhae_gro*Bhae*yy(self%limBhae,DOML/(Bhae+0.0001_rk))
       MortBhae = (self%K_Bhae_mrt+ self%K_Bhae_mrt_h2s&
                *(0.5_rk*(1._rk-tanh(1._rk-H2S))))*Bhae
       !ANOXIC CONDITIONS
@@ -393,15 +359,14 @@ contains
                 /(Baan+0.0001_rk)),yy(self%limBaan,PO4/(Baan+0.0001_rk)))
       MortBaan = self%K_Baan_mrt*Baan*Baan
       !anaerobic heterotroph
-      HetBhan = (DcPM_NOX+DcDM_NOX+DcPM_SO4+DcDM_SO4+DcDM_Mn4+DcPM_Mn4 &
-               +DcPM_Fe+DcDM_Fe+DcPM_ch4)&
-               *self%K_Bhan_gro*Bhan*yy(self%limBhan,DON/(Bhan+0.0001_rk))
+      HetBhan = (DcTOM_NOX+DcTOM_MnX+DcTOM_Fe+DcTOM_SOX+DcTOM_CH4) &
+               *self%K_Bhan_gro*Bhan*yy(self%limBhan,DOML/(Bhan+0.0001_rk))
       MortBhan = (self%K_Bhan_mrt+ self%K_Bhan_mrt_o2&
                 *(0.5_rk+0.5_rk*(tanh(1._rk-O2))))*Bhan
 
       !Alkalinity changes due to redox reactions:
-      d_Alk = -ChemBaae-ChemBaan !+/- NH3
-      _SET_ODE_(self%id_Alk,d_Alk)
+!      d_Alk = -ChemBaae-ChemBaan !+/- NH3
+!      _SET_ODE_(self%id_Alk,d_Alk)
       !Bacteria
       d_Baae = ChemBaae-MortBaae
       _SET_ODE_(self%id_Baae,d_Baae)
@@ -424,8 +389,10 @@ contains
       _SET_ODE_(self%id_NH4,-ChemBaae-ChemBaan)
       _SET_ODE_(self%id_DIC,(-ChemBaae-ChemBaan)*self%r_c_n)
       _SET_ODE_(self%id_PO4,(-ChemBaae-ChemBaan)/self%r_n_p)
-      _SET_ODE_(self%id_DON,-HetBhae-HetBhan)
-      _SET_ODE_(self%id_PON,MortBaae+MortBaan+MortBhae+MortBhan)
+      _SET_ODE_(self%id_DOML,-HetBhae-HetBhan)
+      _SET_ODE_(self%id_POML,MortBaae+MortBaan+MortBhae+MortBhan)
+      _SET_ODE_(self%id_POMR,0.0_rk)
+      _SET_ODE_(self%id_DOMR,0.0_rk)
     _LOOP_END_
   end subroutine do
   !

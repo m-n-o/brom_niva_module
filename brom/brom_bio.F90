@@ -19,14 +19,14 @@ module fabm_niva_brom_bio
   type,extends(type_base_model),public :: type_niva_brom_bio
     !variables allocated here
     type(type_state_variable_id):: id_Phy,id_Het
-    type(type_state_variable_id):: id_O2,id_PON,id_DON
+    type(type_state_variable_id):: id_O2,id_POML,id_POMR,id_DOML,id_DOMR
     !state dependencies
     type(type_state_variable_id):: id_NO2,id_NO3,id_NH4,id_PO4
     type(type_state_variable_id):: id_Baae,id_Baan,id_Bhae,id_Bhan
     type(type_state_variable_id):: id_DIC,id_H2S,id_Si,id_Sipart,id_Alk
 
-    type(type_diagnostic_variable_id):: id_DcPM_O2,id_DcDM_O2
-    type(type_diagnostic_variable_id):: id_MortHet,id_Grazing,id_RespHet
+    type(type_diagnostic_variable_id):: id_DcPOML_O2,id_DcDOML_O2,id_DcPOMR_O2,id_DcDOMR_O2
+    type(type_diagnostic_variable_id):: id_MortHet,id_Grazing,id_RespHet, id_DcTOM_O2
     type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
     type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
     type(type_diagnostic_variable_id):: id_GrazPhy,id_GrazPOP,id_GrazBact
@@ -34,21 +34,29 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_LimN,id_GrowthPhy
     type(type_diagnostic_variable_id):: id_LimT,id_LimP,id_LimNO3,id_LimSi
     type(type_diagnostic_variable_id):: id_LimLight, id_N_fixation
-    type(type_diagnostic_variable_id):: id_eO2mO2,id_osat
+    type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat, id_POMTot,id_DOMTot
 
     type(type_dependency_id):: id_temp,id_salt,id_par,id_pres
+    type(type_dependency_id):: id_Hplus
     type(type_horizontal_dependency_id):: id_windspeed
 
     !Model parameters
     !specific rates of biogeochemical processes
-    real(rk):: K_DON_ox,K_PON_ox,K_PON_DON,Tda,beta_da,K_omox_o2
+    real(rk):: K_DOML_ox,K_POML_DOML,K_POML_ox,K_POMR_ox
+    real(rk):: K_DOMR_ox,K_POMR_DOMR,Tda,beta_da,K_omox_o2
     !----Phy  ----------!
     real(rk):: K_phy_gro,k_Erlov,Iopt
     real(rk):: K_phy_mrt,K_phy_exc,LatLight
-    integer :: phy_t_dependence
+    integer :: phy_t_dependence ! select dependence on T: (1) ERGOM; (2) for Arctic; (3) ERSEM
     !----Het -----------!
     real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_bac_gro
     real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
+    !---- O2--------!
+    !Upper boundary, for oxygen flux calculations
+    real(rk):: pvel = 5._rk ! wind speed [m/s]
+    real(rk):: a0 = 31.25_rk !oxygen saturation [uM]
+    real(rk):: a1 = 14.603_rk !oxygen saturation [-]
+    real(rk):: a2 = 0.4025_rk !oxygen saturation [1/degC]
     !---- N, P, Si--!
     real(rk):: K_nox_lim,K_nh4_lim,K_psi,K_nfix,K_po4_lim,K_si_lim
     !---- Sinking---!
@@ -70,16 +78,30 @@ contains
     integer,                    intent(in)            :: configunit
 
     call self%get_parameter(&
-         self%K_DON_ox,'K_DON_ox','[1/day]',&
-         'Specific rate of oxidation of DON with O2',&
+         self%LatLight,'LatLight','degree','Latitude',default=50.0_rk)
+    call self%get_parameter(&
+         self%K_DOML_ox,'K_DOML_ox','[1/day]',&
+         'Specific rate of oxidation of DOML with O2',&
          default=0.01_rk)
     call self%get_parameter(&
-         self%K_PON_ox,'K_PON_ox','[1/day]',&
-         'Specific rate of oxidation of PON with O2',&
+         self%K_DOMR_ox,'K_DOMR_ox','[1/day]',&
+         'Specific rate of oxidation of DOMR with O2',&
+         default=0.01_rk)
+    call self%get_parameter(&
+         self%K_POML_ox,'K_POML_ox','[1/day]',&
+         'Specific rate of oxidation of POML with O2',&
          default=0.002_rk)
     call self%get_parameter(&
-         self%K_PON_DON, 'K_PON_DON', '[1/day]',&
-         'Specific rate of Autolysis of PON to DON',&
+         self%K_POMR_ox,'K_POMR_ox','[1/day]',&
+         'Specific rate of oxidation of POMR with O2',&
+         default=0.002_rk)
+    call self%get_parameter(&
+         self%K_POML_DOML, 'K_POML_DOML', '[1/day]',&
+         'Specific rate of Autolysis of POML to DOML',&
+         default=0.1_rk)
+    call self%get_parameter(&
+         self%K_POMR_DOMR, 'K_POMR_DOMR', '[1/day]',&
+         'Specific rate of Autolysis of POMR to DOMR',&
          default=0.1_rk)
     call self%get_parameter(&
          self%beta_da,'beta_da','[1/day]',&
@@ -110,17 +132,8 @@ contains
          self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
          default=0.01_rk)
     call self%get_parameter(&
-         !self%phy_t_dependence,'Switcher','1',&
-         !'Turn on 2 for ice algae version',&
-         !default=2)
-         self%phy_t_dependence,'phy_t_dependence','-',&
-         'T dependence for Phy growth',&
-         default=3)    
-        !!=======
-        !     self%phy_t_dependence,'phy_t_dependence','-',&
-        !     'T dependence for Phy growth',&
-        !     default=3)
-
+         self%phy_t_dependence,'phy_t_dependence','-','T dependence fro Phy growth',&
+         default=1)
     !----Het----------!
     call self%get_parameter(&
          self%K_het_phy_gro,'K_het_phy_gro','1/d',&
@@ -137,7 +150,7 @@ contains
     call self%get_parameter(&
          self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
          'Max.spec.rate of grazing of Het on POM',&
-         default=0.70_rk)
+         default=0.70_rk) 
     call self%get_parameter(&
          self%K_het_pom_lim,'K_het_pom_lim','nd',&
          'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
@@ -192,7 +205,7 @@ contains
     !----Sinking--------
     call self%get_parameter(&
          self%Wsed,'Wsed','[1/day]',&
-         'Rate of sinking of detritus (POP, PON)',&
+         'Rate of sinking of detritus (POP, POM)',&
          default=5.00_rk)
     call self%get_parameter(&
          self%Wphy,'Wphy','[m/day]',&
@@ -208,7 +221,7 @@ contains
     call self%get_parameter(self%r_o_n,'r_o_n','[-]','O[uM]/N[uM]',&
                             default=6.625_rk)
     call self%get_parameter(self%r_c_n,'r_c_n','[-]','C[uM]/N[uM]',&
-                            default=8.0_rk)
+                            default=6.625_rk)
     call self%get_parameter(self%r_si_n,'r_si_n','[-]','Si[uM]/N[uM]',&
                             default=2.0_rk)
     !Register state variables
@@ -220,10 +233,15 @@ contains
          self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
          vertical_movement=-self%Whet/86400._rk)
     call self%register_state_variable(&
-         self%id_PON,'PON','mmol/m**3','PON',minimum=0.0_rk,&
+         self%id_POML,'POML','mmol/m**3','POML labile',minimum=0.0_rk,&
          vertical_movement=-self%Wsed/86400._rk)
     call self%register_state_variable(&
-         self%id_DON,'DON','mmol/m**3','DON',minimum=0.0_rk)
+         self%id_POMR,'POMR','mmol/m**3','POML refractory',minimum=0.0_rk,&
+         vertical_movement=-self%Wsed/86400._rk)
+    call self%register_state_variable(&
+         self%id_DOML,'DOML','mmol/m**3','DOML labile',minimum=0.0_rk)
+    call self%register_state_variable(&
+         self%id_DOMR,'DOMR','mmol/m**3','DOMR refractory',minimum=0.0_rk)
     call self%register_state_variable(&
          self%id_O2,'O2','mmol/m**3','O2',minimum=0.0_rk)
     !Register state dependencies
@@ -253,14 +271,22 @@ contains
          self%id_Baan,'Baan','mmol/m**3','anaerobic aurotrophic bacteria')
     call self%register_state_dependency(&
          self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
-    !Register diagnostic variables
+    !diagnostic dependency
+    call self%register_dependency(&
+         self%id_Hplus,'Hplus','mmol/m**3','H+ hydrogen')
+    !Register diagnostic variables 
     call self%register_diagnostic_variable(&
-         self%id_DcPM_O2,'DcPM_O2','mmol/m**3',&
-         'POM with O2 mineralization',output=output_time_step_integrated)
+         self%id_DcPOML_O2,'DcPOML_O2','mmol/m**3',&
+         'POML with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDM_O2,'DcDM_O2','mmol/m**3',&
-         'DOM with O2 mineralization',&
-         output=output_time_step_integrated)
+         self%id_DcPOMR_O2,'DcPOMR_O2','mmol/m**3',&
+         'POMR with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOMR_O2,'DcDOMR_O2','mmol/m**3',&
+         'DOMR with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOML_O2,'DcDOML_O2','mmol/m**3',&
+         'DOM with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_MortHet,'MortHet','mmol/m**3','Mortality of Het',&
          output=output_time_step_integrated)
@@ -324,13 +350,20 @@ contains
     call self%register_diagnostic_variable(&
          self%id_N_fixation,'N_fixation','mmol/m**3/d','N_fixation',&
          output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_eO2mO2,'eO2mO2',&
-         '1','relative oxygen saturation', &
+    call self%register_diagnostic_variable(self%id_O2_rel_sat, &
+         'O2_rel_sat','1','relative oxygen saturation', &
          standard_variable=standard_variables%fractional_saturation_of_oxygen)
+    call self%register_diagnostic_variable(self%id_O2_sat, &
+         'O2_sat','mmol O_2/m^3','oxygen saturation concentration')
     call self%register_diagnostic_variable(&
-         self%id_osat,'osat',&
-         'mmol O_2/m^3','oxygen saturation concentration')
+         self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
+         'Total OM_ oxidation with O2',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DOMTot,'DOMTot','mmol/m**3',&
+         'DOMTot: refractory+labile',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_POMTot,'POMTot','mmol/m**3',&
+         'POMTot: refractory+labile',output=output_time_step_integrated)
     !Register environmental dependencies
     call self%register_dependency(&
          self%id_par,&
@@ -349,25 +382,24 @@ contains
   end subroutine initialize
   !
   !
-  !
   subroutine do(self,_ARGUMENTS_DO_)
     class (type_niva_brom_bio),intent(in) :: self
 
     _DECLARE_ARGUMENTS_DO_
     real(rk):: temp,salt,pres,Iz
     real(rk):: NH4,NO2,NO3,PO4,Phy,Het,H2S,O2,Baae,Baan,Bhae,Bhan
-    real(rk):: PON,DON,Si,Sipart,Alk
+    real(rk):: POML,POMR,DOML,DOMR,Si,Sipart,Alk,Hplus
     real(rk):: LimLight,LimT,LimP,LimNO3,LimNH4,LimN,LimSi
     real(rk):: GrowthPhy,MortPhy,ExcrPhy,dAlk,N_fixation
     real(rk):: GrazPhy,GrazPOP,GrazBaae,GrazBaan,GrazBhae
     real(rk):: GrazBhan,GrazBact,Grazing,RespHet,MortHet
-    real(rk):: Autolysis,DcDM_O2,DcPM_O2,Dc_OM_total
-    real(rk):: OSAT
-    integer :: phy_t_dependence ! select dependence on T: (1) Old; (2) for Arctic; (3) ERSEM
+    real(rk):: Autolysis_L,Autolysis_R,DcDOML_O2,DcPOML_O2,DcTOM_O2
+    real(rk):: DcPOMR_O2,DcDOMR_O2,O2_sat,DOMTot,POMTot
+    integer :: phy_t_dependence ! select dependence on T: (1) ERGOM; (2) for Arctic; (3) ERSEM
     !increments
     real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4
     real(rk):: d_Sipart,d_Phy,d_Het,d_Baae,d_Baan,d_Bhae,d_Bhan
-    real(rk):: d_DON,d_PON
+    real(rk):: d_DOML,d_DOMR,d_POML,d_POMR
 
     ! Enter spatial loops (if any)
     _LOOP_BEGIN_
@@ -376,35 +408,29 @@ contains
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! temperature
       _GET_(self%id_pres,pres) ! pressure in dbar
-      ! Retrieve current (local) state variable values
+      ! Retrieve current (local) state variable values.
+      !diagnostic
+      _GET_(self%id_Hplus,Hplus)
       !state variables
       _GET_(self%id_NO2,NO2)
       _GET_(self%id_NO3,NO3)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_Si,Si)
       _GET_(self%id_Alk,Alk)
-      !gases
       _GET_(self%id_NH4,NH4)
       _GET_(self%id_H2S,H2S)
       _GET_(self%id_O2,O2)
-      !solids
       _GET_(self%id_Phy,Phy)
       _GET_(self%id_Het,Het)
       _GET_(self%id_Baae,Baae)
       _GET_(self%id_Baan,Baan)
       _GET_(self%id_Bhae,Bhae)
       _GET_(self%id_Bhan,Bhan)
-      _GET_(self%id_PON,PON)
-      _GET_(self%id_DON,DON)
+      _GET_(self%id_POML,POML)
+      _GET_(self%id_POMR,POMR)
+      _GET_(self%id_DOML,DOML)
+      _GET_(self%id_DOMR,DOMR)
       _GET_(self%id_Sipart,Sipart)
-
-      !PON and DON (Savchuk, Wulff,1996)
-      Autolysis = self%K_PON_DON*PON
-      !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
-      DcDM_O2 = self%K_DON_ox*DON*O2/(O2+self%K_omox_o2) &
-               *(1._rk+self%beta_da*yy(self%tda,temp))
-      DcPM_O2 = self%K_PON_ox*PON*O2/(O2+self%K_omox_o2) &
-               *(1._rk+self%beta_da*yy(self%tda,temp))
 
       !Phy
       !Influence of the Irradiance on photosynthesis
@@ -423,7 +449,7 @@ contains
                (1._rk-exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk))))
       !dependence of photosynthesis on N
       LimN = min(1._rk,LimNO3+LimNH4)
-      LimN = max(0.001,LimN)
+      LimN = max(0.0001,LimN)
       !Grouth of Phy (gross primary production in uM N)
       GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*Phy
       !Rate of mortality of phy
@@ -439,7 +465,7 @@ contains
                 yy(self%K_het_phy_lim,Phy/(Het+0.0001_rk))
       !Grazing of Het on detritus
       GrazPOP = self%K_het_pom_gro*Het*&
-                yy(self%K_het_pom_lim,PON/(Het+0.0001_rk))
+                yy(self%K_het_pom_lim,POML/(Het+0.0001_rk))
       !Grazing of Het on  bacteria
       GrazBaae = 1.0_rk*self%K_het_bac_gro*Het*&
                  yy(self%limGrazBac,Baae/(Het+0.0001_rk))
@@ -459,70 +485,85 @@ contains
 
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
-      PO4 = max(PO4,0.000001_rk)
       N_fixation = self%K_nfix*LimP*&
-                   1._rk/(1._rk+((NO3+NO2+NH4)/max(PO4,0.000001_rk)*16._rk)**4._rk)*GrowthPhy
+               1._rk/(1._rk+((NO3+NO2+NH4)/max(PO4,0.000001_rk)*16._rk)**4._rk)*GrowthPhy
 
-      !Summariazed OM mineralization
-      Dc_OM_total = DcPM_O2+DcDM_O2
-
+      !POML and DOML (Savchuk, Wulff,1996)
+      Autolysis_L = self%K_POML_DOML*POML
+      Autolysis_R = self%K_POMR_DOMR*POMR
+      !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
+      DcDOML_O2 = self%K_DOML_ox*DOML*O2/(O2+self%K_omox_o2) &
+               *(1._rk+self%beta_da*yy(self%tda,temp))
+      DcPOML_O2 = self%K_POML_ox*POML*O2/(O2+self%K_omox_o2) &
+               *(1._rk+self%beta_da*yy(self%tda,temp))
+      DcPOMR_O2 = self%K_POMR_ox*POMR*O2/(O2+self%K_omox_o2) &
+               *(1._rk+self%beta_da*yy(self%tda,temp))
+      DcDOMR_O2 = self%K_DOMR_ox*DOMR*O2/(O2+self%K_omox_o2) &
+               *(1._rk+self%beta_da*yy(self%tda,temp))
+      !Summariazed OM decay in N units for release of DIC and consumption of O2
+      DcTOM_O2 = DcPOMR_O2+DcDOMR_O2
+      
       !components of temporal derivarives calculated in this module:
-      !Changes in alkalinity
-      dAlk = &
+   dAlk = 0.0_rk !+ &
              !the nutrient-H+-compensation principle.
              !Formulated by Wolf-Gladrow et al., 2007 :
              !"an increase of alkalinity by 1 mole when nitrate or
              !nitrite is the N source,
-             +1._rk*GrowthPhy*(LimNO3/LimN)&
+!             +1._rk*GrowthPhy*(LimNO3/LimN)&
              !decrease of H+ to compensate NO3 consumption
              !and a decrease of alkalinity by 1 mole when ammonia is used"
-             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation !&
-!             + Dc_OM_total
+!             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation !&
+!             + DcTOM_O2
       _SET_ODE_(self%id_Alk,dAlk)
-      d_NO2 = (-GrowthPhy*(LimNO3/LimN)*&
-               (NO2/(0.00001_rk+NO2+NO3)))
-      _SET_ODE_(self%id_NO2,d_NO2)
-      d_NO3 = (-GrowthPhy*(LimNO3/LimN)*&
-               ((NO3+0.00001_rk)/(0.00001_rk+NO2+NO3)))
-      _SET_ODE_(self%id_NO3,d_NO3)
-      d_PO4 = ((Dc_OM_total-GrowthPhy+RespHet)/self%r_n_p)
-      _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
-      _SET_ODE_(self%id_Si,d_Si)
-      d_DON = (Autolysis-DcDM_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
-      _SET_ODE_(self%id_DON,d_DON)
-      d_DIC = ((Dc_OM_total-GrowthPhy+RespHet)*self%r_c_n)
-      _SET_ODE_(self%id_DIC,d_DIC)
-      !gases
-      d_O2 = ((-DcDM_O2-DcPM_O2+GrowthPhy-RespHet)*self%r_o_n)
-      _SET_ODE_(self%id_O2,d_O2)
-      d_NH4 = (Dc_OM_total+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
-      _SET_ODE_(self%id_NH4,d_NH4)
-      !solids
-      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n) !+ExcrPhy
-      _SET_ODE_(self%id_Sipart,d_Sipart)
-      d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
-      _SET_ODE_(self%id_Phy,d_Phy)
-      d_Het = (self%Uz*Grazing-MortHet-RespHet)
-      _SET_ODE_(self%id_Het,d_Het)
-      d_Baae = -GrazBaae
-      _SET_ODE_(self%id_Baae,d_Baae)
-      d_Baan = -GrazBaan
-      _SET_ODE_(self%id_Baan,d_Baan)
-      d_Bhae = -GrazBhae
-      _SET_ODE_(self%id_Bhae,d_Bhae)
-      d_Bhan = -GrazBhan
-      _SET_ODE_(self%id_Bhan,d_Bhan)
-      d_PON = (-Autolysis-DcPM_O2+MortPhy+MortHet+Grazing*&
+   d_POML = (-Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
                (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP)
-      _SET_ODE_(self%id_PON,d_PON)
+      _SET_ODE_(self%id_POML,d_POML)
+   d_DOML = (Autolysis_L-DcDOML_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
+      _SET_ODE_(self%id_DOML,d_DOML)
+   d_POMR = (DcPOML_O2-DcPOMR_O2-Autolysis_R)
+      _SET_ODE_(self%id_POMR,d_POMR)
+   d_DOMR = (DcDOML_O2-DcDOMR_O2+Autolysis_R)
+      _SET_ODE_(self%id_DOMR,d_DOMR)
+   d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001_rk+NO2+NO3)))
+      _SET_ODE_(self%id_NO2,d_NO2)
+   d_NO3 = (-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001_rk)/(0.00001_rk+NO2+NO3)))
+      _SET_ODE_(self%id_NO3,d_NO3)
+   d_PO4 = ((DcPOML_O2+DcDOML_O2-GrowthPhy+RespHet)/self%r_n_p)
+      _SET_ODE_(self%id_PO4,d_PO4)
+   d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
+      _SET_ODE_(self%id_Si,d_Si)
+   d_DIC = ((DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n)
+      _SET_ODE_(self%id_DIC,d_DIC)
+   d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)
+      _SET_ODE_(self%id_O2,d_O2)
+   d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
+      _SET_ODE_(self%id_NH4,d_NH4)
+   d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
+      _SET_ODE_(self%id_Sipart,d_Sipart)
+   d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
+      _SET_ODE_(self%id_Phy,d_Phy)
+   d_Het = (self%Uz*Grazing-MortHet-RespHet)
+      _SET_ODE_(self%id_Het,d_Het)
+   d_Baae = -GrazBaae
+      _SET_ODE_(self%id_Baae,d_Baae)
+   d_Baan = -GrazBaan
+      _SET_ODE_(self%id_Baan,d_Baan)
+   d_Bhae = -GrazBhae
+      _SET_ODE_(self%id_Bhae,d_Bhae)
+   d_Bhan = -GrazBhan
+      _SET_ODE_(self%id_Bhan,d_Bhan)
+      
+      O2_sat = oxygen_saturation_concentration(temp,salt)
+      POMTot=POML+POMR
+      DOMTot=DOML+DOMR
 
-      OSAT = oxygen_saturation_concentration(temp,salt)
-
-      _SET_DIAGNOSTIC_(self%id_osat,OSAT)
-      _SET_DIAGNOSTIC_(self%id_eO2mO2,max(0.0_rk,O2/OSAT))
-      _SET_DIAGNOSTIC_(self%id_DcPM_O2,DcPM_O2)
-      _SET_DIAGNOSTIC_(self%id_DcDM_O2,DcDM_O2)
+      
+      _SET_DIAGNOSTIC_(self%id_O2_sat,O2_sat)
+      _SET_DIAGNOSTIC_(self%id_O2_rel_sat,max(0.0_rk,100.0_rk*O2/O2_sat))
+      _SET_DIAGNOSTIC_(self%id_DcPOML_O2,DcPOML_O2)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_O2,DcPOMR_O2)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_O2,DcDOMR_O2)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_O2,DcDOML_O2)
       _SET_DIAGNOSTIC_(self%id_MortHet,MortHet)
       _SET_DIAGNOSTIC_(self%id_Grazing,Grazing)
       _SET_DIAGNOSTIC_(self%id_RespHet,RespHet)
@@ -543,6 +584,9 @@ contains
       _SET_DIAGNOSTIC_(self%id_LimNO3,LimNO3)
       _SET_DIAGNOSTIC_(self%id_LimSi,LimSi)
       _SET_DIAGNOSTIC_(self%id_LimLight,LimLight)
+      _SET_DIAGNOSTIC_(self%id_DcTOM_O2,DcTOM_O2)
+      _SET_DIAGNOSTIC_(self%id_DOMTot,DOMTot)
+      _SET_DIAGNOSTIC_(self%id_POMTot,POMTot)
       _SET_DIAGNOSTIC_(self%id_N_fixation,N_fixation)
     _LOOP_END_
   end subroutine do
@@ -574,7 +618,7 @@ contains
       TempT = (temp+273.15_rk)/100._rk
       Obe = exp(-173.4292_rk+249.6339_rk/TempT+143.3483_rk*&
             log(TempT)-21.8492_rk*TempT+salt*(-0.033096_rk+&
-            0.014259_rk*TempT-0.0017_rk*TempT*TempT)) !Osat
+            0.014259_rk*TempT-0.0017_rk*TempT*TempT)) !O2_sat
       Obe = Obe*1000._rk/22.4_rk !convert from ml/l into uM
       Q_O2 = windspeed*(Obe-O2) !After (Burchard et al., 2005)
 
@@ -596,22 +640,24 @@ contains
     real(rk):: t_upt_min !Low  t limit for uptake rate dependence on t
     real(rk):: t_upt_max !High t limit for uptake rate dependence on t
 
-    !Old
-    bm = 0.12_rk
-    cm = 1.4_rk
-    !for Arctic (Moore et al.,2002; Jin et al.,2008)
-    t_0           = 0._rk
-    temp_aug_rate = 0.0663_rk
-    !ERSEM
-    q10       = 2.0_rk
-    t_upt_min = 10.0_rk
-    t_upt_max = 32.0_rk
 
+
+ 
     if (self%phy_t_dependence == 1) then
+      ! ERGOM
+      bm = 0.12_rk
+      cm = 1.4_rk
       f_t = exp(bm*temperature-cm)
     else if (self%phy_t_dependence == 2) then
+      !for Arctic (Moore et al.,2002; Jin et al.,2008)
+      t_0           = 0._rk
+      temp_aug_rate = 0.0663_rk
       f_t = exp(temp_aug_rate*(temperature-t_0))
     else if (self%phy_t_dependence == 3) then
+      ! ERSEM
+      q10       = 2.0_rk
+      t_upt_min = 10.0_rk
+      t_upt_max = 32.0_rk
       f_t = q10**((temperature-t_upt_min)/10._rk)-&
             q10**((temperature-t_upt_max)/3._rk)
     end if
@@ -626,9 +672,9 @@ contains
   !
   !adapted from ersem
   !
-  function oxygen_saturation_concentration(ETW,X1X) result(OSAT)
+  function oxygen_saturation_concentration(ETW,X1X) result(O2_sat)
     real(rk),                      intent(in) :: ETW,X1X
-    real(rk)                                  :: OSAT
+    real(rk)                                  :: O2_sat
 
     real(rk),parameter :: A1 = -173.4292_rk
     real(rk),parameter :: A2 = 249.6339_rk
@@ -652,13 +698,13 @@ contains
     ! calc theoretical oxygen saturation for temp + salinity
     ! From WEISS 1970 DEEP SEA RES 17, 721-735.
     ! units of ln(ml(STP)/l)
-    OSAT = A1 + A2 * (100._rk/ABT) + A3 * log(ABT/100._rk) &
+    O2_sat = A1 + A2 * (100._rk/ABT) + A3 * log(ABT/100._rk) &
             + A4 * (ABT/100._rk) &
             + X1X * ( B1 + B2 * (ABT/100._rk) + B3 * ((ABT/100._rk)**2))
 
     ! convert units to ml(STP)/l then to mMol/m3
-    OSAT = exp( OSAT )
-    OSAT = OSAT * 1000._rk / VIDEAL
+    O2_sat = exp( O2_sat )
+    O2_sat = O2_sat * 1000._rk / VIDEAL
   end function
   !
   ! Original author(s): Hans Burchard, Karsten Bolding
