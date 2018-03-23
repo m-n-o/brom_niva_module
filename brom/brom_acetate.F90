@@ -242,3 +242,7 @@
 !EOC
 
    end module fabm_niva_brom_acetate
+
+!-----------------------------------------------------------------------
+! Copyright by the GOTM-team under the GNU Public License - www.gnu.org
+!-----------------------------------------------------------------------
