@@ -220,7 +220,7 @@ contains
             
       k_CH4_660 = (24._rk/100._rk)*(0.24_rk * windspeed**2._rk)*(Sc/ 660._rk)**-0.5_rk !m/d
       Q_pCH4 = k_CH4_660 * (pCH4a - max(0e0,pCH4w))
-      Q_CH4 = Q_pCH4 * s/86400._rk
+      Q_CH4 = Q_pCH4 * s!/86400._rk
        
       _SET_SURFACE_EXCHANGE_(self%id_CH4,Q_CH4)
     _HORIZONTAL_LOOP_END_
