@@ -258,7 +258,7 @@ contains
     call self%register_state_dependency(&
          self%id_DOMR,'DOMR','mmol/m**3',&
          'particulate organic nitrogen')
-    
+
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPOML_Mn4,'DcPOML_Mn4','mmol/m**3/d',&
@@ -365,7 +365,7 @@ contains
     !processes
     real(rk):: mn_ox1,mn_ox2,mn_rd1,mn_rd2,Om_MnS,mns_form,mns_diss, mns_ox
     real(rk):: Om_MnCO3,mnco3_form,mnco3_diss,mnco3_ox
-    real(rk):: DcDOML_Mn3, DcPOML_Mn3, DcDOMR_Mn3, DcPOMR_Mn3 
+    real(rk):: DcDOML_Mn3, DcPOML_Mn3, DcDOMR_Mn3, DcPOMR_Mn3
     real(rk):: DcPOML_Mn4, DcDOML_Mn4, DcPOMR_Mn4, DcDOMR_Mn4
     real(rk):: DcTOM_MnX
 
@@ -431,7 +431,7 @@ contains
                *Mn3/(Mn3+0.5_rk) &
                *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
                *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      
+
       DcDOML_Mn4 = max(0._rk, self%K_DOML_mn4*DOML &
                *Mn4/(Mn4+0.5_rk) &
                *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
@@ -489,18 +489,19 @@ contains
       d_NH4 = DcDOML_Mn4+DcPOML_Mn4+DcDOML_Mn3+DcPOML_Mn3
       _SET_ODE_(self%id_NH4,d_NH4)
       d_Alk = (&      !Alkalinity changes due to redox reactions:
-             +1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
-             -3._rk*mn_ox2 &   !2Mn3+ + 3H2O  + 0.5 O2 -> 2MnO2 + 6H+
-             +3._rk*mn_rd1 &   !2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
-             -1._rk*mn_rd2 &   !2Mn3+ + HS- -> 2Mn2+ + S0 + H+
-             !these 4 above, do we need it?
-             -2._rk*mns_form & !Mn2+ + H2S <-> MnS + 2H+
-             +2._rk*mns_diss &
-             -2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
-             +2._rk*mnco3_diss &
+             !+1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
+             !-3._rk*mn_ox2 &   !2Mn3+ + 3H2O  + 0.5 O2 -> 2MnO2 + 6H+
+             !+3._rk*mn_rd1 &   !2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
+             !-1._rk*mn_rd2 &   !2Mn3+ + HS- -> 2Mn2+ + S0 + H+
+             !!these 4 above, do we need it?
+             !-2._rk*mns_form & !Mn2+ + H2S <-> MnS + 2H+
+             !+2._rk*mns_diss &
+             !-2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
+             !+2._rk*mnco3_diss &
              !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
              ! 424HCO3- + 212Mn2+ + 16NH3 + H3PO4
-!             +26.5_rk*(Dc_OM_Mn_total) & !DcDM_Mn is in N-units,i.e.424/16
+            +d_NH4 &
+            -d_PO4 &
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 

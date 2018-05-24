@@ -85,7 +85,7 @@ contains
          self%id_CaCO3_form,'CaCO3_form','-','CaCO3 formation')
     call self%register_diagnostic_variable(&
          self%id_CaCO3_diss,'CaCO3_diss','-','CaCO3 formation')
-    
+
     !Register environmental dependencies
     call self%register_dependency(self%id_temp,&
          standard_variables%temperature)
@@ -151,12 +151,12 @@ contains
       d_CaCO3 = caco3_form-caco3_diss
       _SET_ODE_(self%id_CaCO3,d_CaCO3)
       !Alkalinity changes due to redox reactions:
-      d_Alk = (&
-             -2._rk*caco3_form & !Ca2+ + CO32- -> CaCO3
-             +2._rk*caco3_diss & !CaCO3 -> Ca2+ + CO32-
-             )
+      d_Alk = 0._rk &
+            -2._rk*caco3_form & !Ca2+ + CO32- -> CaCO3
+            +2._rk*caco3_diss  !CaCO3 -> Ca2+ + CO32-
+
       _SET_ODE_(self%id_Alk,d_Alk)
-      
+
       _SET_DIAGNOSTIC_(self%id_Ca,Ca)
       _SET_DIAGNOSTIC_(self%id_Om_Ca,Om_Ca)
       _SET_DIAGNOSTIC_(self%id_Om_Ar,Om_Ar)

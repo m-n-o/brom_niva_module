@@ -383,7 +383,7 @@ contains
 
       !Set increments
    d_SO4 = hs_no3+0.5_rk*s2o3_ox+s0_no3+2._rk*s2o3_no3 &
-           +(-DcPOMR_SO4-DcDOMR_SO4)/self%r_n_s 
+           +(-DcPOMR_SO4-DcDOMR_SO4)/self%r_n_s
       _SET_ODE_(self%id_SO4,d_SO4)
    d_S2O3 = 0.5_rk*s0_ox-s2o3_ox+0.25_rk*s0_disp-s2o3_no3 &
            +0.5_rk*((DcPOMR_SO4+DcDOMR_SO4-DcDOMR_S2O3-DcPOMR_S2O3))/self%r_n_s
@@ -414,12 +414,15 @@ contains
    d_Alk = (&
              !(CH2O)106(NH3)16H3PO4 + 53SO42- =
              !106HCO3- + 16NH3 + H3PO4 + 53H2S (Boudreau, 1996)
-!             +2._rk*(DcPM_SO4 +DcDM_SO4) &
-             -0.5_rk*s0_disp & !4S0 + 3H2O -> 2H2S + S2O3-- + 2H+
-             -1._rk*(-s0_ox) & !2S0 + O2 + H2O -> S2O3-- + 2H+
-             -0.5_rk*s0_no3 &  !4S0 + 3NO3- + 7H2O -> 4SO4-- + 3NH4+ + 2H+
-             -1._rk*s2o3_ox &  !S2O3-- + 2O2 + 2OH- -> 2SO4-- + H2O
-             -0.4_rk*hs_no3 &  !5H2S + 8NO3- + 2OH+ -> 5SO4-- + 4N2 + 6H2O
+             !-0.5_rk*s0_disp & !4S0 + 3H2O -> 2H2S + S2O3-- + 2H+
+             !-1._rk*(-s0_ox) & !2S0 + O2 + H2O -> S2O3-- + 2H+
+             !-0.5_rk*s0_no3 &  !4S0 + 3NO3- + 7H2O -> 4SO4-- + 3NH4+ + 2H+
+             !-1._rk*s2o3_ox &  !S2O3-- + 2O2 + 2OH- -> 2SO4-- + H2O
+             !-0.4_rk*hs_no3 &  !5H2S + 8NO3- + 2OH+ -> 5SO4-- + 4N2 + 6H2O
+             +d_NH4 &
+             -d_NO3 &
+             -d_PO4 &
+             -d_SO4 &
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 

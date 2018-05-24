@@ -150,7 +150,7 @@ contains
     call self%get_parameter(&
          self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
          'Max.spec.rate of grazing of Het on POM',&
-         default=0.70_rk) 
+         default=0.70_rk)
     call self%get_parameter(&
          self%K_het_pom_lim,'K_het_pom_lim','nd',&
          'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
@@ -274,7 +274,7 @@ contains
     !diagnostic dependency
     call self%register_dependency(&
          self%id_Hplus,'Hplus','mmol/m**3','H+ hydrogen')
-    !Register diagnostic variables 
+    !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPOML_O2,'DcPOML_O2','mmol/m**3',&
          'POML with O2 mineralization',output=output_time_step_integrated)
@@ -502,62 +502,60 @@ contains
                *(1._rk+self%beta_da*yy(self%tda,temp))
       !Summariazed OM decay in N units for release of DIC and consumption of O2
       DcTOM_O2 = DcPOMR_O2+DcDOMR_O2
-      
+
+      d_POML = (-Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
+                  (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP)
+         _SET_ODE_(self%id_POML,d_POML)
+      d_DOML = (Autolysis_L-DcDOML_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
+         _SET_ODE_(self%id_DOML,d_DOML)
+      d_POMR = (DcPOML_O2-DcPOMR_O2-Autolysis_R)
+         _SET_ODE_(self%id_POMR,d_POMR)
+      d_DOMR = (DcDOML_O2-DcDOMR_O2+Autolysis_R)
+         _SET_ODE_(self%id_DOMR,d_DOMR)
+      d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001_rk+NO2+NO3)))
+         _SET_ODE_(self%id_NO2,d_NO2)
+      d_NO3 = (-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001_rk)/(0.00001_rk+NO2+NO3)))
+         _SET_ODE_(self%id_NO3,d_NO3)
+      d_PO4 = ((DcPOML_O2+DcDOML_O2-GrowthPhy+RespHet)/self%r_n_p)
+         _SET_ODE_(self%id_PO4,d_PO4)
+      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
+         _SET_ODE_(self%id_Si,d_Si)
+      d_DIC = ((DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n)
+         _SET_ODE_(self%id_DIC,d_DIC)
+      d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)
+         _SET_ODE_(self%id_O2,d_O2)
+      d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
+         _SET_ODE_(self%id_NH4,d_NH4)
+      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
+         _SET_ODE_(self%id_Sipart,d_Sipart)
+      d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
+         _SET_ODE_(self%id_Phy,d_Phy)
+      d_Het = (self%Uz*Grazing-MortHet-RespHet)
+         _SET_ODE_(self%id_Het,d_Het)
+      d_Baae = -GrazBaae
+         _SET_ODE_(self%id_Baae,d_Baae)
+      d_Baan = -GrazBaan
+         _SET_ODE_(self%id_Baan,d_Baan)
+      d_Bhae = -GrazBhae
+         _SET_ODE_(self%id_Bhae,d_Bhae)
+      d_Bhan = -GrazBhan
+         _SET_ODE_(self%id_Bhan,d_Bhan)
+
       !components of temporal derivarives calculated in this module:
-   dAlk = 0.0_rk !+ &
-             !the nutrient-H+-compensation principle.
-             !Formulated by Wolf-Gladrow et al., 2007 :
-             !"an increase of alkalinity by 1 mole when nitrate or
-             !nitrite is the N source,
-!             +1._rk*GrowthPhy*(LimNO3/LimN)&
-             !decrease of H+ to compensate NO3 consumption
-             !and a decrease of alkalinity by 1 mole when ammonia is used"
-!             -1._rk*GrowthPhy*(LimNH4/LimN)+N_fixation !&
-!             + DcTOM_O2
+      dAlk = 0.0_rk+&
+            ! -1 mole per 1 mole of PO4-
+            -d_PO4 &
+            ! -1 mole per 1 mole of NO3- or NO2-
+            -d_NO3-d_NO2 &
+            ! +1 mole per 1 mole of NH4+
+            +d_NH4
       _SET_ODE_(self%id_Alk,dAlk)
-   d_POML = (-Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
-               (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP)
-      _SET_ODE_(self%id_POML,d_POML)
-   d_DOML = (Autolysis_L-DcDOML_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
-      _SET_ODE_(self%id_DOML,d_DOML)
-   d_POMR = (DcPOML_O2-DcPOMR_O2-Autolysis_R)
-      _SET_ODE_(self%id_POMR,d_POMR)
-   d_DOMR = (DcDOML_O2-DcDOMR_O2+Autolysis_R)
-      _SET_ODE_(self%id_DOMR,d_DOMR)
-   d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001_rk+NO2+NO3)))
-      _SET_ODE_(self%id_NO2,d_NO2)
-   d_NO3 = (-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001_rk)/(0.00001_rk+NO2+NO3)))
-      _SET_ODE_(self%id_NO3,d_NO3)
-   d_PO4 = ((DcPOML_O2+DcDOML_O2-GrowthPhy+RespHet)/self%r_n_p)
-      _SET_ODE_(self%id_PO4,d_PO4)
-   d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
-      _SET_ODE_(self%id_Si,d_Si)
-   d_DIC = ((DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n)
-      _SET_ODE_(self%id_DIC,d_DIC)
-   d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)
-      _SET_ODE_(self%id_O2,d_O2)
-   d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
-      _SET_ODE_(self%id_NH4,d_NH4)
-   d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
-      _SET_ODE_(self%id_Sipart,d_Sipart)
-   d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
-      _SET_ODE_(self%id_Phy,d_Phy)
-   d_Het = (self%Uz*Grazing-MortHet-RespHet)
-      _SET_ODE_(self%id_Het,d_Het)
-   d_Baae = -GrazBaae
-      _SET_ODE_(self%id_Baae,d_Baae)
-   d_Baan = -GrazBaan
-      _SET_ODE_(self%id_Baan,d_Baan)
-   d_Bhae = -GrazBhae
-      _SET_ODE_(self%id_Bhae,d_Bhae)
-   d_Bhan = -GrazBhan
-      _SET_ODE_(self%id_Bhan,d_Bhan)
-      
+
       O2_sat = oxygen_saturation_concentration(temp,salt)
       POMTot=POML+POMR
       DOMTot=DOML+DOMR
 
-      
+
       _SET_DIAGNOSTIC_(self%id_O2_sat,O2_sat)
       _SET_DIAGNOSTIC_(self%id_O2_rel_sat,max(0.0_rk,100.0_rk*O2/O2_sat))
       _SET_DIAGNOSTIC_(self%id_DcPOML_O2,DcPOML_O2)
@@ -642,7 +640,7 @@ contains
 
 
 
- 
+
     if (self%phy_t_dependence == 1) then
       ! ERGOM
       bm = 0.12_rk
@@ -661,13 +659,13 @@ contains
       f_t = q10**((temperature-t_upt_min)/10._rk)-&
             q10**((temperature-t_upt_max)/3._rk)
     end if
-!   Some others:
- !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
- !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)  
- !  LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
- !  LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
- !  LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM)
- !  LimT     =q10*(T-20)/10 !Q10=1.88 (Gregoire, 2000)       
+    !   Some others:
+    !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
+    !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)
+    !  LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
+    !  LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
+    !  LimT     = 2.**((temp- 10.)/10.) -2**((temp-32.)/3.) !(ERSEM)
+    !  LimT     =q10*(T-20)/10 !Q10=1.88 (Gregoire, 2000)
   end function f_t
   !
   !adapted from ersem
@@ -707,9 +705,8 @@ contains
     O2_sat = O2_sat * 1000._rk / VIDEAL
   end function
   !
-  ! Original author(s): Hans Burchard, Karsten Bolding
-  ! DESCRIPTION:
   ! This is a squared Michaelis-Menten type of limiter
+  ! Original author(s): Hans Burchard, Karsten Bolding
   !
   real(rk) function yy(a,x)
     real(rk),intent(in):: a,x

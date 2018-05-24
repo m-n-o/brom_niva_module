@@ -284,7 +284,7 @@ contains
                   *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
                   *NO2/(NO2+self%K_omno_no2)
       !Denitrification as consumpation of NOX and production of N2
-      Denitr1 = self%r_n_no3*(DcPOMR_NO3+DcDOMR_NO3) 
+      Denitr1 = self%r_n_no3*(DcPOMR_NO3+DcDOMR_NO3)
       Denitr2 = self%r_n_no2*(DcPOMR_NO2+DcDOMR_NO2)
       !Summariazed OM mineralization in N (released NH4) units
       DcTOM_NOX = DcPOMR_NO3+DcPOMR_NO2+DcDOMR_NO3+DcDOMR_NO2
@@ -313,11 +313,12 @@ contains
       _SET_ODE_(self%id_PO4,d_PO4)
    d_Alk = (&      !Alkalinity changes due to redox reactions:
              !NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
-             -2._rk*Nitrif1 &  !(Wolf-Gladrow, Zeebe, 2007)
+             !-2._rk*Nitrif1 &  !(Wolf-Gladrow, Zeebe, 2007)
              !3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 or
              !5 CH2O + 4 H+ + 4 NO3- -> 2 N2 + 5 CO2 + 7H2O
-!             +1._rk*(DcPOML_NO2+DcDOML_NO2) &
-!             + DcTOM_NOX &
+             +d_NH4 &
+             -d_PO4 &
+             -d_NO3-d_NO2 &
              )
       _SET_ODE_(self%id_Alk,d_Alk)
 
