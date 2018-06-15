@@ -632,7 +632,7 @@ contains
 
     real(rk):: bm
     real(rk):: cm
-    real(rk):: t_0           !reference temperature
+    real(rk):: t_0,tref      !reference temperature
     real(rk):: temp_aug_rate !temperature augmentation rate
     real(rk):: q10       !Coefficient for uptake rate dependence on t
     real(rk):: t_upt_min !Low  t limit for uptake rate dependence on t
@@ -658,6 +658,11 @@ contains
       t_upt_max = 32.0_rk
       f_t = q10**((temperature-t_upt_min)/10._rk)-&
             q10**((temperature-t_upt_max)/3._rk)
+    else if (self%phy_t_dependence == 4) then
+      ! Q10 formulation (Soetaert Ecological modeling p.49)
+      q10 = 2._rk
+      tref = 10._rk
+      f_t = exp((temperature - tref)/10 * log(q10))
     end if
     !   Some others:
     !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
