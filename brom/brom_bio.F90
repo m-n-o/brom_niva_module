@@ -34,7 +34,7 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_LimN,id_GrowthPhy
     type(type_diagnostic_variable_id):: id_LimT,id_LimP,id_LimNO3,id_LimSi
     type(type_diagnostic_variable_id):: id_LimLight, id_N_fixation
-    type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat, id_POMTot,id_DOMTot
+    type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat, id_POMTot,id_DOMTot, id_AOU
 
     type(type_dependency_id):: id_temp,id_salt,id_par,id_pres
     type(type_dependency_id):: id_Hplus
@@ -355,6 +355,8 @@ contains
          standard_variable=standard_variables%fractional_saturation_of_oxygen)
     call self%register_diagnostic_variable(self%id_O2_sat, &
          'O2_sat','mmol O_2/m^3','oxygen saturation concentration')
+    call self%register_diagnostic_variable(self%id_AOU, &
+         'AOU','mmol O_2/m^3','Apparent Oxygen Utilization')
     call self%register_diagnostic_variable(&
          self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
          'Total OM_ oxidation with O2',output=output_time_step_integrated)
@@ -394,7 +396,7 @@ contains
     real(rk):: GrazPhy,GrazPOP,GrazBaae,GrazBaan,GrazBhae
     real(rk):: GrazBhan,GrazBact,Grazing,RespHet,MortHet
     real(rk):: Autolysis_L,Autolysis_R,DcDOML_O2,DcPOML_O2,DcTOM_O2
-    real(rk):: DcPOMR_O2,DcDOMR_O2,O2_sat,DOMTot,POMTot
+    real(rk):: DcPOMR_O2,DcDOMR_O2,O2_sat,DOMTot,POMTot,AOU
     integer :: phy_t_dependence ! select dependence on T: (1) ERGOM; (2) for Arctic; (3) ERSEM
     !increments
     real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4
@@ -558,6 +560,7 @@ contains
 
       _SET_DIAGNOSTIC_(self%id_O2_sat,O2_sat)
       _SET_DIAGNOSTIC_(self%id_O2_rel_sat,max(0.0_rk,100.0_rk*O2/O2_sat))
+      _SET_DIAGNOSTIC_(self%id_AOU,(O2_sat-O2))
       _SET_DIAGNOSTIC_(self%id_DcPOML_O2,DcPOML_O2)
       _SET_DIAGNOSTIC_(self%id_DcPOMR_O2,DcPOMR_O2)
       _SET_DIAGNOSTIC_(self%id_DcDOMR_O2,DcDOMR_O2)
