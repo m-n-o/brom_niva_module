@@ -192,7 +192,7 @@ module fabm_niva_brom_methane
         b3 * (abs_temp / 100._rk **2._rk))))    
         ! solubility     
         s = bunsen / 22.4  !# mole /l     
-        pCH4a = 1.8 !E-6_rk 
+        pCH4a = 1.8E-6_rk 
         pCH4w = CH4 * 0.082057 * abs_temp ![uatm] if ch4 in uM
 
         !calculate the scmidt number and unit conversions
@@ -243,8 +243,11 @@ module fabm_niva_brom_methane
         _GET_(self%id_POMR,POMR)
         _GET_(self%id_DOMR,DOMR)
  
-
-    
+        !Correct for methane max solubility value
+        if (CH4 > 1340) then
+            CH4 = 1340
+        end if
+        
         !CH4 production from POML and DOML
         !(CH2O)106(NH3)16H3PO4 -> 53 CO2 + 53 CH4 + 16 NH3 + H3PO4
         thr_o2 = threshold_lower(self%s_omso_o2,o2)  
@@ -280,7 +283,7 @@ module fabm_niva_brom_methane
         _SET_ODE_(self%id_O2,d_O2)
         d_SO4 = -ch4_so4
         _SET_ODE_(self%id_SO4,d_SO4)
-        d_DIC = (DcDOMR_ch4+DcPOMR_ch4)*self%r_c_n
+        d_DIC = (DcDOMR_ch4+DcPOMR_ch4)*self%r_c_n+ch4_o2
         _SET_ODE_(self%id_DIC,d_DIC)
         d_CH4 = 0.5_rk*(DcDOMR_ch4+DcPOMR_ch4)-ch4_o2-ch4_so4
         _SET_ODE_(self%id_CH4,d_CH4)
@@ -299,18 +302,14 @@ module fabm_niva_brom_methane
     end subroutine do
     
     real(rk) function threshold_lower(threshold_value,var_conc)
-        !use fabm_niva_brom_methane
-        !use fabm_types
         real(rk), intent(in) :: threshold_value,var_conc
         threshold_lower = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function !threshold_lower  
+    end function  
     
     real(rk) function threshold_higher(threshold_value,var_conc)
-        !use fabm_niva_brom_methane
-        !use fabm_types
         real(rk), intent(in) :: threshold_value,var_conc
         threshold_higher = 0.5+0.5*tanh(var_conc-threshold_value)
-    end function !threshold_higher
+    end function 
     
 end module fabm_niva_brom_methane
     
