@@ -343,8 +343,8 @@ contains
       !OXIC CONDITIONS
       !aerobic autotrophs
       ChemBaae = (Nitrif1+Nitrif2+mn_ox1+fe_ox1+s2o3_ox+s0_ox+Anammox)&
-                *self%K_Baae_gro*Baae*min(yy(self%limBaae,NH4&
-                /(Baae+0.0001_rk)),yy(self%limBaae,PO4/(Baae+0.0001_rk)))
+                *self%K_Baae_gro*Baae*yy2(self%limBaae,NH4,PO4,Baae)
+
       MortBaae = (self%K_Baae_mrt+self%K_Baae_mrt_h2s&
                 *(0.5_rk*(1._rk-tanh(1._rk-H2S))))*Baae*Baae
       !aerobic heterotroph
@@ -355,8 +355,8 @@ contains
       !ANOXIC CONDITIONS
       !anaerobic autotrophs
       ChemBaan = (mn_rd1+mn_rd2+fe_rd+hs_ox+hs_no3)&
-                *self%K_Baan_gro*Baan*min(yy(self%limBaan,NH4&
-                /(Baan+0.0001_rk)),yy(self%limBaan,PO4/(Baan+0.0001_rk)))
+                *self%K_Baan_gro*Baan*yy2(self%limBaan,NH4,PO4,Baan)
+      
       MortBaan = self%K_Baan_mrt*Baan*Baan
       !anaerobic heterotroph
       HetBhan = (DcTOM_NOX+DcTOM_MnX+DcTOM_Fe+DcTOM_SOX+DcTOM_CH4) &
@@ -395,13 +395,21 @@ contains
       _SET_ODE_(self%id_DOMR,0.0_rk)
     _LOOP_END_
   end subroutine do
-  !
-  !Original author(s): Hans Burchard, Karsten Bolding
-  !This is a squared Michaelis-Menten type of limiter
-  !
-  real(rk) function yy(a,x)
+  
+  
+real(rk) function yy(a,x)
+    !Original author(s): Hans Burchard, Karsten Bolding
+    !This is a squared Michaelis-Menten type of limiter
     real(rk),intent(in):: a,x
-
     yy=x**2/(a**2+x**2)
-  end function yy
+end function yy
+  
+real(rk) function yy2(limVar,var1,var2,var_to_lim)
+    real(rk), intent(in) :: limVar,var1,var2,var_to_lim
+    real(rk) :: var1_yy,var2_yy
+    var1_yy = yy(limVar,var1/(var_to_lim+0.0001_rk))
+    var2_yy = yy(limVar,var2/(var_to_lim+0.0001_rk))
+    yy2 = min(var1_yy,var2_yy)  
+end function yy2
+
 end module fabm_niva_brom_bact
