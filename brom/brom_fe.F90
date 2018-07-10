@@ -496,21 +496,21 @@ contains
       DcDOML_Fe = self%K_DOML_fe*DOML &
                *Fe3/(Fe3+self%K_omno_no3) &
                * thr_lower(self%O2s_dn,o2)
-               !*(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
+
       DcPOML_Fe = self%K_POML_fe*POML &
                *Fe3/(Fe3+self%K_omno_no3) &
                * thr_lower(self%O2s_dn,o2)
-               !*(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
+
       DcPOMR_Fe = self%K_POMR_fe*POMR&
                *Fe3/(Fe3+self%K_omno_no3) &
                *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
                * thr_lower(self%O2s_dn,o2)
-               !*(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
+
       DcDOMR_Fe = self%K_DOMR_fe*DOMR&
                *Fe3/(Fe3+self%K_omno_no3) &
                *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
                * thr_lower(self%O2s_dn,o2)
-               !*(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn)))
+
       !!!complexation of P with Fe(III)
       !fe_p_compl = ((fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox)*PO4/(PO4+0.1) &
       !        -fe_rd-(DcDOML_Fe+DcPOML_Fe)*self%r_fe_n)/self%r_fe3_p
