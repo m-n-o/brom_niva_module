@@ -225,8 +225,7 @@ module fabm_niva_brom_methane
         !increments
         real(rk):: d_SO4,d_O2,d_CH4,d_NH4,d_DIC,d_PO4
         real(rk):: d_DOML,d_POML,d_POMR,d_DOMR
-        real(rk):: thr_o2,thr_no3,thr_so4,thr_o2_r
-
+        real(rk):: thr_o2_l,thr_no3,thr_so4,thr_o2_l_r
 
         _LOOP_BEGIN_
         !state variables
@@ -250,25 +249,25 @@ module fabm_niva_brom_methane
         
         !CH4 production from POML and DOML
         !(CH2O)106(NH3)16H3PO4 -> 53 CO2 + 53 CH4 + 16 NH3 + H3PO4
-        thr_o2 = threshold_lower(self%s_omso_o2,o2)  
-        thr_o2_r = threshold_higher(self%s_omso_o2,o2) 
-        thr_no3 = threshold_lower(self%s_omso_no3,no3)
-        thr_so4 = threshold_lower(self%s_omch_so4,so4)
+        thr_o2_l = thr_lower(self%s_omso_o2,o2)  
+        thr_o2_l_r = thr_higher(self%s_omso_o2,o2) 
+        thr_no3 = thr_lower(self%s_omso_no3,no3)
+        thr_so4 = thr_lower(self%s_omch_so4,so4)
       
-        DcDOML_ch4 = thr_o2*thr_no3*thr_so4*self%K_DOML_ch4*DOML       
-        DcPOML_ch4 = thr_o2*thr_no3*thr_so4*self%K_POML_ch4*POML
-        DcDOMR_CH4 = thr_o2*thr_no3*thr_so4*threshold_lower(self%s_OM_refr,DOMR) &
+        DcDOML_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_DOML_ch4*DOML       
+        DcPOML_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_POML_ch4*POML
+        DcDOMR_CH4 = thr_o2_l*thr_no3*thr_so4*thr_lower(self%s_OM_refr,DOMR) &
                     *self%K_DOMR_ch4*DOMR               
-        DcPOMR_CH4 = thr_o2*thr_no3*thr_so4*threshold_lower(self%s_OM_refr,POMR) &          
+        DcPOMR_CH4 = thr_o2_l*thr_no3*thr_so4*thr_lower(self%s_OM_refr,POMR) &          
                     *self%K_POMR_ch4*POMR
       
         !total OM mineralization 
         DcTOM_CH4=DcDOMR_CH4+DcPOMR_CH4
         !CH4 oxidation with O2
         !CH4 + 2O2 = CO2 + 2H2O
-        ch4_o2 = self%K_ch4_o2*CH4*thr_o2_r
+        ch4_o2 = self%K_ch4_o2*CH4*thr_o2_l_r
         !CH4 + SO42- + 2 H+  = CO2 + H2S + 2H2O
-        ch4_so4 = self%K_ch4_so4*CH4*SO4*(thr_o2)
+        ch4_so4 = self%K_ch4_so4*CH4*SO4*(thr_o2_l)
 
         !Set increments
         d_DOML = -DcDOML_ch4
@@ -301,14 +300,14 @@ module fabm_niva_brom_methane
         _LOOP_END_
     end subroutine do
     
-    real(rk) function threshold_lower(threshold_value,var_conc)
+    real(rk) function thr_lower(threshold_value,var_conc)
         real(rk), intent(in) :: threshold_value,var_conc
-        threshold_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+        thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
     end function  
     
-    real(rk) function threshold_higher(threshold_value,var_conc)
+    real(rk) function thr_higher(threshold_value,var_conc)
         real(rk), intent(in) :: threshold_value,var_conc
-        threshold_higher = 0.5+0.5*tanh(var_conc-threshold_value)
+        thr_higher = 0.5+0.5*tanh(var_conc-threshold_value)
     end function 
     
 end module fabm_niva_brom_methane
