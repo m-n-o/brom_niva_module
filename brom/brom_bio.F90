@@ -67,6 +67,8 @@ module fabm_niva_brom_bio
     procedure :: do
     procedure :: do_surface
     procedure :: f_t
+    procedure :: graz
+    
     end type
     contains
 
@@ -396,7 +398,7 @@ module fabm_niva_brom_bio
         !increments
         real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4
         real(rk):: d_Sipart,d_Phy,d_Het,d_Baae,d_Baan,d_Bhae,d_Bhan
-        real(rk):: d_DOML,d_DOMR,d_POML,d_POMR
+        real(rk):: d_DOML,d_DOMR,d_POML,d_POMR,kf
 
         ! Enter spatial loops (if any)
         _LOOP_BEGIN_
@@ -435,20 +437,25 @@ module fabm_niva_brom_bio
             !Influence of Temperature on photosynthesis
             LimT = self%f_t(temp)
             !dependence of photosynthesis on P
-            LimP = yy(self%K_po4_lim*self%r_n_p,PO4/max(Phy,1.e-10_rk))
+            
+            LimP = yy(self%K_po4_lim*self%r_n_p,v_to_phy(PO4,Phy))
             !dependence of photosynthesis on Si
-            LimSi = yy(self%K_si_lim/self%r_si_n,Si/max(Phy,1.e-10_rk))
+            LimSi = yy(self%K_si_lim/self%r_si_n,v_to_phy(Si,Phy))
             !dependence of photosynthesis on NO3+NO2
-            LimNO3 = yy(self%K_nox_lim,(NO3+NO2)/max(Phy,1.e-10_rk))*&
-            exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk)))
+            LimNO3 = yy(self%K_nox_lim,v_to_phy(NO3+NO2,Phy))*&
+            exp(-self%K_psi*v_to_phy(NH4,Phy)) !
+            !max(Phy,1.e-10_rk)
             !dependence of photosynthesis on NH4
-            LimNH4 = yy(self%K_nh4_lim,NH4/max(Phy,1.e-10_rk))*&
-            (1._rk-exp(-self%K_psi*(NH4/max(Phy,1.e-10_rk))))
+            LimNH4 = yy(self%K_nh4_lim,v_to_phy(NH4,Phy))*&
+            (1._rk-exp(-self%K_psi*v_to_phy(NH4,Phy)))
+            
+            
+
+            
             !dependence of photosynthesis on N
-            LimN = min(1._rk,LimNO3+LimNH4)
-            LimN = max(0.0001,LimN)
+            LimN = non_zero(min(1._rk,LimNO3+LimNH4))
             !Grouth of Phy (gross primary production in uM N)
-            GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*Phy
+            GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*non_zero(Phy)
             !Rate of mortality of phy
             MortPhy = max(0.99_rk,(self%K_phy_mrt+(&
             0.5_rk-0.5_rk*tanh(O2-60._rk))*&
@@ -459,20 +466,19 @@ module fabm_niva_brom_bio
             !Het
             !Grazing of Het on phy
             GrazPhy = self%K_het_phy_gro*Het*&
-            yy(self%K_het_phy_lim,Phy/(Het+0.0001_rk))
+                yy(self%K_het_phy_lim,Phy/non_zero(Het))
             !Grazing of Het on detritus
             GrazPOP = self%K_het_pom_gro*Het*&
-            yy(self%K_het_pom_lim,POML/(Het+0.0001_rk))
+                yy(self%K_het_pom_lim,POML/non_zero(Het))
             !Grazing of Het on  bacteria
-            GrazBaae = 1.0_rk*self%K_het_bac_gro*Het*&
-                yy(self%limGrazBac,Baae/(Het+0.0001_rk))
-            GrazBaan = 0.5_rk*self%K_het_bac_gro*Het*&
-                yy(self%limGrazBac,Baan/(Het+0.0001_rk))
-            GrazBhae = 1.0_rk*self%K_het_bac_gro*Het*&
-                yy(self%limGrazBac, Bhae/(Het+0.0001_rk))
-            GrazBhan = 1.3_rk*self%K_het_bac_gro*Het*&
-                yy(self%limGrazBac, Bhan/(Het+0.0001_rk))
+            
+            GrazBaae = 1.0_rk*self%graz(Baae,Het)            
+            GrazBaan = 0.5_rk*self%graz(Baan,Het)
+            GrazBhae = 1.0_rk*self%graz(Bhae,Het) 
+            GrazBhan = 1.3_rk*self%graz(Bhan,Het) 
+                        
             GrazBact =GrazBaae+GrazBaan+GrazBhae+GrazBhan
+        
             !Total grazing of Het
             Grazing = GrazPhy+GrazPOP+GrazBact
             !Respiration of Het
@@ -483,20 +489,20 @@ module fabm_niva_brom_bio
             !Nitrogen fixation described as appearence of NH4 available for
             !phytoplankton: N2 -> NH4 :
             N_fixation = self%K_nfix*LimP*&
-            1._rk/(1._rk+((NO3+NO2+NH4)/max(PO4,0.000001_rk)*16._rk)**4._rk)*GrowthPhy
-
+            1._rk/(1._rk+((NO3+NO2+NH4)/non_zero(PO4)*16._rk)**4._rk)*GrowthPhy
+            !max(PO4,0.000001_rk)
             !POML and DOML (Savchuk, Wulff,1996)
             Autolysis_L = self%K_POML_DOML*POML
             Autolysis_R = self%K_POMR_DOMR*POMR
             !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
-            DcDOML_O2 = self%K_DOML_ox*DOML*O2/(O2+self%K_omox_o2) &
-            *(1._rk+self%beta_da*yy(self%tda,temp))
-            DcPOML_O2 = self%K_POML_ox*POML*O2/(O2+self%K_omox_o2) &
-            *(1._rk+self%beta_da*yy(self%tda,temp))
-            DcPOMR_O2 = self%K_POMR_ox*POMR*O2/(O2+self%K_omox_o2) &
-            *(1._rk+self%beta_da*yy(self%tda,temp))
-            DcDOMR_O2 = self%K_DOMR_ox*DOMR*O2/(O2+self%K_omox_o2) &
-            *(1._rk+self%beta_da*yy(self%tda,temp))
+            kf = (O2/(O2+self%K_omox_o2))*&
+                 (1._rk+self%beta_da*yy(self%tda,temp)) !koefficient   
+            
+            DcDOML_O2 = self%K_DOML_ox*DOML*kf 
+            DcPOML_O2 = self%K_POML_ox*POML*kf            
+            DcPOMR_O2 = self%K_POMR_ox*POMR*kf           
+            DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
+            
             !Summariazed OM decay in N units for release of DIC and consumption of O2
             DcTOM_O2 = DcPOMR_O2+DcDOMR_O2
 
@@ -509,9 +515,9 @@ module fabm_niva_brom_bio
             _SET_ODE_(self%id_POMR,d_POMR)
             d_DOMR = (DcDOML_O2-DcDOMR_O2+Autolysis_R)
             _SET_ODE_(self%id_DOMR,d_DOMR)
-            d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(NO2/(0.00001_rk+NO2+NO3)))
+            d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(NO2/non_zero(NO2+NO3)))
             _SET_ODE_(self%id_NO2,d_NO2)
-            d_NO3 = (-GrowthPhy*(LimNO3/LimN)*((NO3+0.00001_rk)/(0.00001_rk+NO2+NO3)))
+            d_NO3 = (-GrowthPhy*(LimNO3/LimN)*(non_zero(NO3)/non_zero(NO2+NO3)))
             _SET_ODE_(self%id_NO3,d_NO3)
             d_PO4 = ((DcPOML_O2+DcDOML_O2-GrowthPhy+RespHet)/self%r_n_p)
             _SET_ODE_(self%id_PO4,d_PO4)
@@ -614,6 +620,8 @@ module fabm_niva_brom_bio
         _HORIZONTAL_LOOP_END_
     end subroutine
     
+    
+    
     real(rk) function f_t(self,temperature)
         !Phytoplankton temperature limiter
         class (type_niva_brom_bio),intent(in) :: self
@@ -633,7 +641,7 @@ module fabm_niva_brom_bio
             f_t = exp(bm*temperature-cm)
         else if (self%phy_t_dependence == 2) then
             !for Arctic (Moore et al.,2002; Jin et al.,2008)
-            t_0           = 0._rk
+            t_0           = -2._rk !0._rk
             temp_aug_rate = 0.0663_rk
             f_t = exp(temp_aug_rate*(temperature-t_0))
         else if (self%phy_t_dependence == 3) then
@@ -683,11 +691,30 @@ module fabm_niva_brom_bio
         O2_sat = O2_sat * 1000._rk / VIDEAL
     end function
     
+    real(rk) function non_zero(var)
+        real(rk),intent(in):: var
+        non_zero = max(var,1.e-10_rk)
+    end function non_zero
+ 
+    real(rk) function graz(self,var,Het)
+        class (type_niva_brom_bio),intent(in) :: self
+        real(rk),intent(in):: var,Het
+        !Het = non_zero(Het)
+        graz = self%K_het_bac_gro*Het*yy(self%limGrazBac,var/non_zero(Het))   
+    end function graz
+    
     real(rk) function yy(a,x)
         ! Squared Michaelis-Menten type of limiter
         ! Original author(s): Hans Burchard, Karsten Bolding
         real(rk),intent(in):: a,x
         yy=x**2._rk/(a**2._rk+x**2._rk)
     end function yy
+    
+    
+    real(rk) function v_to_phy(var,Phy)
+    real(rk),intent(in):: var, Phy
+        v_to_phy = var/non_zero(Phy)
+    end function v_to_phy    
+    
     
 end module fabm_niva_brom_bio
