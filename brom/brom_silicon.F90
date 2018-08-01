@@ -112,15 +112,16 @@ contains
       !state
       _GET_(self%id_Si,Si)
       _GET_(self%id_Sipart,Sipart)
-! biogeonic silicate dissolution possible for small concentrations of Sipart (i,e, biogenic)
-      Si_dissolution = self%K_sipart_diss*Sipart*(1._rk-0.5_rk*(1._rk+tanh(Sipart-self%K_sipart_diss_limit)))
-! Formation of minerals with Al etc. (DeMaster, 2003, Treatise of Geochemistry, vol.7)
+    ! biogeonic silicate dissolution possible for small concentrations of Sipart (i,e, biogenic)
+      Si_dissolution = self%K_sipart_diss*Sipart*thr_lower(self%K_sipart_diss_limit,Sipart)
+      !(1._rk-0.5_rk*(1._rk+tanh(Sipart-self%K_sipart_diss_limit)))
+    ! Formation of minerals with Al etc. (DeMaster, 2003, Treatise of Geochemistry, vol.7)
     if (Sipart.gt.1000.0_rk) then
       Si_clay_miner = self%K_sipart_to_minerals*(Sipart-1000.0_rk)
     else
       Si_clay_miner = 0.0_rk
     endif
-! Precipitation of dissolved Si at high concentrations (Strakhov, 1978)
+    ! Precipitation of dissolved Si at high concentrations (Strakhov, 1978)
     if (Si.gt.self%Si_diss_max) then
       Si_precip= 0.1*(Si-self%Si_diss_max)
     else
@@ -139,4 +140,9 @@ contains
 
     _LOOP_END_
   end subroutine do
+  
+    real(rk) function thr_lower(threshold_value,var_conc)
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+    end function  
 end module fabm_niva_brom_silicon

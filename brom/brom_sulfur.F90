@@ -294,6 +294,8 @@ contains
     real(rk):: s0_disp,hs_ox,s0_ox,s0_no3,s2o3_ox,s2o3_no3,hs_no3
     real(rk):: DcPOML_so4,DcDOML_so4,DcPOML_s2o3,DcDOML_s2o3,s2o3_rd,so4_rd
     real(rk):: DcPOMR_SO4,DcPOMR_S2O3,DcDOMR_SO4,DcDOMR_S2O3
+    !parameters 
+    real(rk):: thr_no3,thr_o2
     !Summariazed OM mineralization in N units
     real(rk):: DcTOM_SOX
 
@@ -331,28 +333,27 @@ contains
       !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
       !(Volkov, 1984)
       hs_no3 = self%K_hs_no3*H2S*NO3
+      !Thresholds 
+      thr_o2 = thr_lower(self%s_omso_o2,o2)
+      thr_no3 = thr_lower(self%s_omso_no3,no3)       
       !in anoxic conditions:
       !OM sulfatereduction (Boudreau, 1996)
       !(CH2O)106(NH3)16H3PO4 + 53SO42- = 106HCO3- + 16NH3 + H3PO4 + 53H2S
       !POM sulfatereduction (1st stage):
-      DcPOML_so4 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                 *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+      DcPOML_so4 = thr_o2 * thr_no3 &
                  *self%K_POML_so4*SO4*POML
       !DOM sulfatereduction (1st stage):
-      DcDOML_so4 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                 *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+      DcDOML_so4 = thr_o2 * thr_no3 &
                  *self%K_DOML_so4*SO4*DOML
       if (o2.gt.10._rk) then
         DcPOML_so4=0._rk
         DcDOML_so4=0._rk
       endif
       !POM sulfatereduction (2d stage):
-      DcPOML_s2o3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+      DcPOML_s2o3 = thr_o2 * thr_no3 &
                   *self%K_POML_s2o3*S2O3*POML
       !DOML sulfatereduction (2d stage):
-      DcDOML_s2o3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
+      DcDOML_s2o3 = thr_o2 * thr_no3 &
                   *self%K_DOML_s2o3*S2O3*DOML
       if (o2.gt.10._rk) then
         DcPOML_s2o3=0._rk
@@ -361,23 +362,19 @@ contains
       so4_rd   = (DcPOML_so4+DcDOML_so4)/self%r_n_s  !in S units
       s2o3_rd  = (DcPOML_s2o3+DcDOML_s2o3)/self%r_n_s
       ! POMR mineralization with SO4 and S2O3
-      DcPOMR_SO4  = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                  *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
-                  *self%K_POMR_so4 *SO4 *POMR
-      DcPOMR_S2O3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                  *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
-                  *self%K_POMR_s2o3*S2O3*POMR
+      DcPOMR_SO4  = thr_o2 *thr_no3 &
+                    *thr_higher(self%s_OM_refr,POMR) &
+                    *self%K_POMR_so4 *SO4 *POMR
+      DcPOMR_S2O3 = thr_o2 * thr_no3 &
+                    *thr_higher(self%s_OM_refr,POMR) &
+                    *self%K_POMR_s2o3*S2O3*POMR
       ! DOMR mineralization with SO4 and S2O3
-      DcDOMR_SO4  = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                  *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
-                  *self%K_DOMR_so4 *SO4 *DOMR
-      DcDOMR_S2O3 = (1._rk-0.5_rk*(1._rk+tanh(o2-self%s_omso_o2))) &
-                  *(1._rk-0.5_rk*(1._rk+tanh(NO3-self%s_omso_no3))) &
-                  *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
-                  *self%K_DOMR_s2o3*S2O3*DOMR
+      DcDOMR_SO4  = thr_o2 *thr_no3 &
+                    * thr_higher(self%s_OM_refr,DOMR) &
+                    *self%K_DOMR_so4 *SO4 *DOMR
+      DcDOMR_S2O3 = thr_o2 *thr_no3 &
+                    *thr_higher(self%s_OM_refr,DOMR) &
+                    *self%K_DOMR_s2o3*S2O3*DOMR
       !Summariazed total SO4 and S2O3 reduction for total OM in N units
       DcTOM_SOX=DcPOMR_SO4+DcPOMR_S2O3+DcDOMR_SO4+DcDOMR_S2O3
 
@@ -446,4 +443,15 @@ contains
       _SET_DIAGNOSTIC_(self%id_hs_no3,hs_no3)
     _LOOP_END_
   end subroutine do
+  
+real(rk) function thr_lower(threshold_value,var_conc)
+    real(rk), intent(in) :: threshold_value,var_conc
+    thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+end function  
+    
+real(rk) function thr_higher(threshold_value,var_conc)
+    real(rk), intent(in) :: threshold_value,var_conc
+    thr_higher = 0.5+0.5*tanh(var_conc-threshold_value)
+end function 
+    
 end module fabm_niva_brom_sulfur

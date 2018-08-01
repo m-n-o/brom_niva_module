@@ -641,7 +641,7 @@ module fabm_niva_brom_bio
             f_t = exp(bm*temperature-cm)
         else if (self%phy_t_dependence == 2) then
             !for Arctic (Moore et al.,2002; Jin et al.,2008)
-            t_0           = -2._rk !0._rk
+            t_0           = 0._rk
             temp_aug_rate = 0.0663_rk
             f_t = exp(temp_aug_rate*(temperature-t_0))
         else if (self%phy_t_dependence == 3) then

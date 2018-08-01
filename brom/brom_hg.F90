@@ -261,7 +261,7 @@
    real(rk) ::  hg0_irr_ox, hg2_irr_red, mehg_irr_degr, hg2_mehg, mehg_hg2
    real(rk) ::  hg2_fe3_compl, hg2_mn4_compl, mehg_fe3_compl, mehg_mn4_compl
    real(rk) ::  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM
-   real(rk) ::  dHg2, dHg0, dMeHg, Kad_Hg2, Kad_MeHg
+   real(rk) ::  dHg2, dHg0, dMeHg, Kad_Hg2, Kad_MeHg,Iz_coef
   !diagnostic variables dependencies
    real(rk):: Hplus
    
@@ -312,35 +312,39 @@
     _GET_(self%id_Hplus,Hplus)
 !-----------------------------------------------------------------
     ! Hg species (Knigthes 2008)
-!% Hg0 bioreduction  Hg0 -> Hg2+  ()
+    !% Hg0 bioreduction  Hg0 -> Hg2+  ()
     hg0_hg2=self%K_hg0_hg2*Hg0         
-!% Hg2 biooxydation  Hg2+ + 0.5O2 + 2H+-> Hg0 + H2O   ()
-    hg2_hg0=self%K_hg2_hg0*Hg2*0.5*(1.+tanh(o2-self%O2s_nf))  
-!% Hg2 methylation Hg2+  -> MeHg   ()
-    hg2_mehg=self%K_hg2_mehg*Hg2*0.5*(1.+tanh(Bhan-50.0_rk))
-!% MeHg demethylation MeHg  -> Hg2+   ()
-    mehg_hg2=(self%K_mehg_hg2/10.0_rk + self%K_mehg_hg2*0.5*(1.+tanh(Bhan-5.0_rk)))*MeHg 
-!% MeHg reduction MeHg + H2S -> Hg2+ + ???   ()
+    !% Hg2 biooxydation  Hg2+ + 0.5O2 + 2H+-> Hg0 + H2O   ()
+    hg2_hg0=self%K_hg2_hg0*Hg2*thr_higher(self%O2s_nf,o2)
+    !0.5*(1.+tanh(o2-self%O2s_nf))  
+    !% Hg2 methylation Hg2+  -> MeHg   ()
+    hg2_mehg=self%K_hg2_mehg*Hg2*thr_higher(50.0_rk,Bhan)
+    !0.5*(1.+tanh(Bhan-50.0_rk))
+    !% MeHg demethylation MeHg  -> Hg2+   ()
+    mehg_hg2=(self%K_mehg_hg2/10.0_rk + self%K_mehg_hg2*thr_higher(5.0_rk,Bhan))*MeHg 
+    !0.5*(1.+tanh(Bhan-5.0_rk))
+    !% MeHg reduction MeHg + H2S -> Hg2+ + ???   ()
     mehg_h2s=self%K_mehg_h2s*MeHg*(0.5_rk+0.5_rk*tanh(H2S+50.0_rk))
-!% HgS saturarion state
+    !% HgS saturarion state
     Om_HgS=H2S*Hg2/(self%K_HgS) 
-!% HgS formation Hg2+ + H2S -> HgS + 2H+ ()
+    !% HgS formation Hg2+ + H2S -> HgS + 2H+ ()
     hgs_form=max(0._rk,self%K_hgs_form*max(0._rk,(Om_HgS-1._rk)))
     if (Hg2<0.000001.or.H2S<0.01) hgs_form=0._rk
-!% HgS dissolution  HgS + 2H+ -> Hg2+ + H2S   ()
+    !% HgS dissolution  HgS + 2H+ -> Hg2+ + H2S   ()
     hgs_diss=self%K_hgs_diss*HgS*max(0._rk,(1._rk-Om_HgS))
-!    if (HgS<0.000001) hgs_diss=0._rk 
-!% HgS oxydation  HgS + 2O2 -> Hg2+ + SO42-  ()
+    !    if (HgS<0.000001) hgs_diss=0._rk 
+    !% HgS oxydation  HgS + 2O2 -> Hg2+ + SO42-  ()
     hgs_ox=self%K_hgs_ox*HgS*(0.5_rk+0.5_rk*tanh(O2+1.0_rk))     
     !hgs_form = 0.0_rk
     !hgs_diss = 0.0_rk
     !hgs_ox = 0.0_rk
-!% Hg2 photo reduction  Hg2+ -> Hg0   ()
-    hg2_irr_red=self%K_hg2_irr_red*Hg2*Iz/25.*exp(1._rk-Iz/25.)
-!% Hg0 photo oxydation  Hg0 -> Hg2+   ()
-    hg0_irr_ox=self%K_hg0_irr_ox*Hg0*Iz/25.*exp(1._rk-Iz/25.)
-!% MeHg photo degradation MeHg  -> Hg0   
-    mehg_irr_degr=self%K_mehg_irr_degr*MeHg*Iz/25.*exp(1._rk-Iz/25.)
+    Iz_coef = Iz/25.*exp(1._rk-Iz/25.)
+    !% Hg2 photo reduction  Hg2+ -> Hg0   ()
+    hg2_irr_red=self%K_hg2_irr_red*Hg2*Iz_coef
+    !% Hg0 photo oxydation  Hg0 -> Hg2+   ()
+    hg0_irr_ox=self%K_hg0_irr_ox*Hg0*Iz_coef
+    !% MeHg photo degradation MeHg  -> Hg0   
+    mehg_irr_degr=self%K_mehg_irr_degr*MeHg*Iz_coef
   !_______
   ! Hg(II)
   !
@@ -360,7 +364,7 @@
    _SET_ODE_(self%id_Hg2_DOM,dSubst_DOM)
    _SET_ODE_(self%id_Hg2_free,0.0)
 
- !! Sorption of Hg(II) on Mn oxides
+     !! Sorption of Hg(II) on Mn oxides
      hg2_mn4_compl = 0.0_rk 
    _SET_ODE_(self%id_Hg2_Mn4,hg2_mn4_compl)
 
@@ -383,7 +387,7 @@
    
   !________
   ! MeHg
-   !
+  !
   ! partitioning betweeen dissolved MeHg and OM
     call partit (MeHg, MeHg_biota, MeHg_POM, MeHg_DOM, &
                  Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
@@ -586,5 +590,16 @@
     dSubst_DOM   = -Subst_DOM   +pol_dom
 
    
-   end subroutine partit
+    end subroutine partit
+
+    real(rk) function thr_lower(threshold_value,var_conc)
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+    end function  
+    
+    real(rk) function thr_higher(threshold_value,var_conc)
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_higher = 0.5+0.5*tanh(var_conc-threshold_value)
+    end function     
+
 end module
