@@ -221,7 +221,7 @@ module fabm_niva_brom_bio
         call self%get_parameter(self%r_c_n,'r_c_n','[-]','C[uM]/N[uM]',&
                     default=6.625_rk)
         call self%get_parameter(self%r_si_n,'r_si_n','[-]','Si[uM]/N[uM]',&
-                    default=2.0_rk)
+                    default=1.0_rk)
         !Register state variables
         call self%register_state_variable(&
         self%id_Phy,'Phy','mmol/m**3','Phy',&
