@@ -527,7 +527,7 @@ module fabm_niva_brom_bio
             _SET_ODE_(self%id_DIC,d_DIC)
             d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)
             _SET_ODE_(self%id_O2,d_O2)
-            d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet-GrowthPhy*(LimNH4/LimN)+N_fixation)
+            d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN))
             _SET_ODE_(self%id_NH4,d_NH4)
             d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
             _SET_ODE_(self%id_Sipart,d_Sipart)
@@ -713,7 +713,7 @@ module fabm_niva_brom_bio
     
     real(rk) function v_to_phy(var,Phy)
     real(rk),intent(in):: var, Phy
-        v_to_phy = var/non_zero(Phy)
+        v_to_phy = non_zero(var)/non_zero(Phy)
     end function v_to_phy    
     
     
