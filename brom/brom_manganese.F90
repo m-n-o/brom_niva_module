@@ -347,7 +347,7 @@ contains
   !
   !
   !
-  subroutine do(self,_ARGUMENTS_DO_)
+    subroutine do(self,_ARGUMENTS_DO_)
     class (type_niva_brom_manganese),intent(in) :: self
 
     _DECLARE_ARGUMENTS_DO_
@@ -370,159 +370,199 @@ contains
     real(rk):: DcTOM_MnX
 
     _LOOP_BEGIN_
-      !Retrieve current (local) variable values.
-      _GET_(self%id_Hplus,Hplus)
-      _GET_(self%id_CO3,CO3)
-      _GET_(self%id_DOML,DOML)
-      _GET_(self%id_PO4,PO4)
-      _GET_(self%id_NH4,NH4)
-      _GET_(self%id_Mn2,Mn2)
-      _GET_(self%id_Mn3,Mn3)
-      _GET_(self%id_PO4_Mn3,PO4_Mn3)
-      _GET_(self%id_POML,POML)
-      _GET_(self%id_POMR,POMR)
-      _GET_(self%id_DOMR,DOMR)
-      _GET_(self%id_Mn4,Mn4)
-      _GET_(self%id_MnS,MnS)
-      _GET_(self%id_MnCO3,MnCO3)
-      _GET_(self%id_O2,O2)
-      _GET_(self%id_H2S,H2S)
+        !Retrieve current (local) variable values.
+        _GET_(self%id_Hplus,Hplus)
+        _GET_(self%id_CO3,CO3)
+        _GET_(self%id_DOML,DOML)
+        _GET_(self%id_PO4,PO4)
+        _GET_(self%id_NH4,NH4)
+        _GET_(self%id_Mn2,Mn2)
+        _GET_(self%id_Mn3,Mn3)
+        _GET_(self%id_PO4_Mn3,PO4_Mn3)
+        _GET_(self%id_POML,POML)
+        _GET_(self%id_POMR,POMR)
+        _GET_(self%id_DOMR,DOMR)
+        _GET_(self%id_Mn4,Mn4)
+        _GET_(self%id_MnS,MnS)
+        _GET_(self%id_MnCO3,MnCO3)
+        _GET_(self%id_O2,O2)
+        _GET_(self%id_H2S,H2S)
 
-      !Mn2 oxidation: 4Mn(2+)+O2+4H(+)->4Mn(3+)+2H2O (Canfield,2005)
-      mn_ox1 = max(0._rk, 0.5_rk*(1._rk+tanh(Mn2-self%s_mnox_mn2))*&
-               self%K_mn_ox1*Mn2*o2*o2/(o2+self%K_mnox_o2) )
-      !Mn3 oxidation: 2Mn3+ + 0.5O2 + 3H20 -> 2MnO2 + 6H+ (Tebo,1997)
-      mn_ox2 = max(0._rk, 0.5_rk*(1._rk+tanh(Mn3-self%s_mnox_mn3))*&
-               self%K_mn_ox2*Mn3*o2/(o2+self%K_mnox_o2) )
-      !Mn4 reduction: 2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
-      mn_rd1 = max(0._rk, 0.5_rk*(1._rk+tanh(Mn4-self%s_mnrd_mn4))*&
-               self%K_mn_rd1*Mn4*h2s/(h2s+self%K_mnrd_hs) )
-      !Mn3 reduction: 2Mn3+ + HS- -> 2Mn2+ + S0 + H+
-      mn_rd2 = max(0._rk, 0.5_rk*(1._rk+tanh(Mn3-self%s_mnrd_mn3))*&
-               self%K_mn_rd2*Mn3*h2s/(h2s+self%K_mnrd_hs) )
-      !MnS formation/dissollution (dSED) Mn2+ + HS- = MnS(s) + H+
-      Om_MnS = H2S*Mn2/(self%K_MnS*Hplus*1000000._rk)
-      !Mn2+ + HS- -> MnS(s) + H+
-      mns_form = self%K_mns_form*max(0._rk,(Om_MnS-1._rk))
-      !MnS(s) + H+ -> Mn2+ + HS-
-      mns_diss = self%K_MnS_diss*MnS*max(0._rk,(1._rk-Om_MnS))
-      !MnS + 2O2 -> Mn(2+) + SO4(2-)
-      mns_ox = self%K_mns_ox*MnS*O2
-      !MnCO3 precipitation/dissolution
-      Om_MnCO3 = Mn2*CO3/(self%K_MnCO3)
-      !Mn2+ + CO3-- <-> MnCO3 (vanCappelen,96)
-      mnco3_form = self%K_mnco3_form*max(0._rk,(Om_MnCO3-1._rk))
-      mnco3_diss = self%K_mnco3_diss*MnCO3*max(0._rk,(1._rk-Om_MnCO3))
-      !2MnCO3(s) + O2 + 2H2O = 2MnO2(s) + 2HCO3- + 2H+ (Morgan,05)
-      mnco3_ox = self%K_mnco3_ox*MnCO3*O2
-      !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
-      !424HCO3- + 212Mn2+ +16NH3 +H3PO4  (Boudreau, 1996) !in N units
-      DcDOML_Mn3 = max(0._rk,self%K_DOML_mn3*DOML &    ! Mn(III)
-               *Mn3/(Mn3+0.5_rk) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcPOML_Mn3 = max(0._rk,self%K_POML_mn3*POML &
-               *Mn3/(Mn3+0.5_rk) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcDOMR_Mn3 = max(0._rk,self%K_DOMR_mn3*DOMR &
-               *Mn3/(Mn3+0.5_rk) &
-               *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcPOMR_Mn3 = max(0._rk,self%K_POMR_mn3*POMR &
-               *Mn3/(Mn3+0.5_rk) &
-               *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
+        !Mn2 oxidation: 4Mn(2+)+O2+4H(+)->4Mn(3+)+2H2O (Canfield,2005)
+        mn_ox1 = pos(thr_h(self%s_mnox_mn2,Mn2)*&
+                 self%K_mn_ox1*Mn2*o2*o2/(o2+self%K_mnox_o2))
+        !Mn3 oxidation: 2Mn3+ + 0.5O2 + 3H20 -> 2MnO2 + 6H+ (Tebo,1997)
+        mn_ox2 = pos(thr_h(self%s_mnox_mn3,Mn3)*&     
+                self%K_mn_ox2*Mn3*o2/(o2+self%K_mnox_o2))
+        !Mn4 reduction: 2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
+        mn_rd1 = pos(thr_h(self%s_mnrd_mn4,Mn4)*&     
+                self%K_mn_rd1*Mn4*h2s/(h2s+self%K_mnrd_hs))
+        !Mn3 reduction: 2Mn3+ + HS- -> 2Mn2+ + S0 + H+
+        mn_rd2 = pos(thr_h(self%s_mnrd_mn3,Mn3)*&
+                self%K_mn_rd2*Mn3*h2s/(h2s+self%K_mnrd_hs))
+        !MnS formation/dissollution (dSED) Mn2+ + HS- = MnS(s) + H+
+        Om_MnS = H2S*Mn2/(self%K_MnS*Hplus*1000000._rk)
+        !Mn2+ + HS- -> MnS(s) + H+
+        mns_form = self%K_mns_form*pos(Om_MnS-1._rk)
+        !MnS(s) + H+ -> Mn2+ + HS-
+        mns_diss = self%K_MnS_diss*MnS*pos(1._rk-Om_MnS)
+        !MnS + 2O2 -> Mn(2+) + SO4(2-)
+        mns_ox = self%K_mns_ox*MnS*O2
+        !MnCO3 precipitation/dissolution
+        Om_MnCO3 = Mn2*CO3/(self%K_MnCO3)
+        !Mn2+ + CO3-- <-> MnCO3 (vanCappelen,96)
+        mnco3_form = self%K_mnco3_form*pos(Om_MnCO3-1._rk)
+        mnco3_diss = self%K_mnco3_diss*MnCO3*pos(1._rk-Om_MnCO3)
+        !2MnCO3(s) + O2 + 2H2O = 2MnO2(s) + 2HCO3- + 2H+ (Morgan,05)
+        mnco3_ox = self%K_mnco3_ox*MnCO3*O2
+        
+        !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
+        !424HCO3- + 212Mn2+ +16NH3 +H3PO4  (Boudreau, 1996) !in N units        
+        DcDOML_Mn3 = pos(self%K_DOML_mn3*DOML &   
+                     *Mn3/(Mn3+0.5_rk)&
+                     *thr_l(self%O2s_dn,o2))
+        
+        DcPOML_Mn3 = pos(self%K_POML_mn3*POML &
+                     *Mn3/(Mn3+0.5_rk)&
+                     *thr_l(self%O2s_dn,o2))
 
-      DcDOML_Mn4 = max(0._rk, self%K_DOML_mn4*DOML &
-               *Mn4/(Mn4+0.5_rk) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcPOML_Mn4 = max(0._rk, self%K_POML_mn4*POML &
-               *Mn4/(Mn4+0.5_rk) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcPOMR_Mn4 = max(0._rk,self%K_POMR_mn4*POMR &
-               *Mn4/(Mn4+0.5_rk) &
-               *(0.5_rk*(1._rk+tanh((POMR-self%s_OM_refr)*0.1_rk))) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      DcDOMR_Mn4 = max(0._rk,self%K_DOMR_mn4*DOMR &
-               *Mn4/(Mn4+0.5_rk) &
-               *(0.5_rk*(1._rk+tanh((DOMR-self%s_OM_refr)*0.1_rk))) &
-               *(1._rk-0.5_rk*(1._rk+tanh(o2-self%O2s_dn))))
-      !Summariazed OM mineralization
-      DcTOM_MnX = DcDOMR_Mn3+DcPOMR_Mn3+DcDOMR_Mn4+DcPOMR_Mn4
-      !Set increments
-      d_Mn2 = -mn_ox1+mn_rd2-mns_form+mns_diss-mnco3_form+mns_ox+&
+        DcDOMR_Mn3 = pos(self%K_DOMR_mn3*DOMR &
+                     *Mn3/(Mn3+0.5_rk)&
+                     *thr_h_r(self%s_OM_refr,DOMR) &
+                     *thr_l(self%O2s_dn,o2))
+                        
+        DcPOMR_Mn3 = pos(self%K_POMR_mn3*POMR &
+                    *Mn3/(Mn3+0.5_rk) &
+                    *thr_h_r(self%s_OM_refr,POMR) &
+                    *thr_l(self%O2s_dn,o2))
+        
+        DcDOML_Mn4 = pos(self%K_DOML_mn4*DOML &
+                     *Mn4/(Mn4+0.5_rk) &
+                     *thr_l(self%O2s_dn,o2))
+        
+        DcPOML_Mn4 = pos(self%K_POML_mn4*POML &
+                     *Mn4/(Mn4+0.5_rk)&
+                     *thr_l(self%O2s_dn,o2))
+
+        DcPOMR_Mn4 = pos(self%K_POMR_mn4*POMR &
+                    *Mn4/(Mn4+0.5_rk) &
+                    *thr_h_r(self%s_OM_refr,POMR) &
+                    *thr_l(self%O2s_dn,o2))
+        
+        DcDOMR_Mn4 = pos(self%K_DOMR_mn4*DOMR &
+                    *Mn4/(Mn4+0.5_rk) &
+                    *thr_h_r(self%s_OM_refr,DOMR) &
+                    *thr_l(self%O2s_dn,o2))
+        
+        !Summariazed OM mineralization
+        DcTOM_MnX = DcDOMR_Mn3+DcPOMR_Mn3+DcDOMR_Mn4+DcPOMR_Mn4
+        !Set increments
+        d_Mn2 = -mn_ox1+mn_rd2-mns_form+mns_diss-mnco3_form+mns_ox+&
                 mnco3_diss+(DcDOMR_Mn3+DcPOMR_Mn3)*self%r_mn_n
-      _SET_ODE_(self%id_Mn2,d_Mn2)
-      d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2-&
-              (DcDOMR_Mn4+DcPOMR_Mn4-DcDOMR_Mn3-DcPOMR_Mn3)*self%r_mn_n
-      _SET_ODE_(self%id_Mn3,d_Mn3)
+        _SET_ODE_(self%id_Mn2,d_Mn2)
+        d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2-&
+                (DcDOMR_Mn4+DcPOMR_Mn4-DcDOMR_Mn3-DcPOMR_Mn3)*self%r_mn_n
+        _SET_ODE_(self%id_Mn3,d_Mn3)
             !complexation of PO4 with Mn(III)
-      d_PO4_Mn3 = - PO4_Mn3 &  ! old (last time step) PO4_Mn3
-            + Mn3/self%r_mn3_p ! new PO4_Mn3 calculated for old Mn3
-      if (d_PO4_Mn3.ge.PO4) d_PO4_Mn3 = PO4
-      _SET_ODE_(self%id_PO4_Mn3,d_PO4_Mn3)
-      d_Mn4 = mn_ox2-mn_rd1+mnco3_ox &
-              +(-DcDOMR_Mn4-DcPOMR_Mn4)*self%r_mn_n
-      _SET_ODE_(self%id_Mn4,d_Mn4)
-      d_MnS = mns_form-mns_diss-mns_ox
-      _SET_ODE_(self%id_MnS,d_MnS)
-      d_MnCO3 = mnco3_form-mnco3_diss-mnco3_ox
-      _SET_ODE_(self%id_MnCO3,d_MnCO3)
-      d_S0 = 0.5_rk*mn_rd1+0.5_rk*mn_rd2
-      _SET_ODE_(self%id_S0,d_S0)
-      d_H2S = -0.5_rk*mn_rd1-0.5_rk*mn_rd2-mns_form+mns_diss
-      _SET_ODE_(self%id_H2S,d_H2S)
-      d_O2 = -0.25_rk*mn_ox1-0.25_rk*mn_ox2-0.5_rk*mnco3_ox-2._rk*mns_ox
-      _SET_ODE_(self%id_O2,d_O2)
-      d_DOML = -DcDOML_Mn4-DcDOML_Mn3
-      _SET_ODE_(self%id_DOML,d_DOML)
-      d_DOMR = DcDOML_Mn4+DcDOML_Mn3-DcDOMR_Mn4-DcDOMR_Mn3
-      _SET_ODE_(self%id_DOMR,d_DOMR)
-      d_POML = -DcPOML_Mn4-DcPOML_Mn3
-      _SET_ODE_(self%id_POML,d_POML)
-      d_POMR = DcPOML_Mn4+DcPOML_Mn3-DcPOMR_Mn4-DcPOMR_Mn3
-      _SET_ODE_(self%id_POMR,d_POMR)
-      d_DIC = (DcDOMR_Mn3+DcDOMR_Mn4+DcPOMR_Mn3+DcPOMR_Mn4)*self%r_c_n &
-               -mnco3_form+mnco3_diss+mnco3_ox
-      _SET_ODE_(self%id_DIC,d_DIC)
-      d_PO4 = ((DcDOML_Mn4+DcPOML_Mn4+DcDOML_Mn3+DcPOML_Mn3)/self%r_n_p)-d_PO4_Mn3
-      _SET_ODE_(self%id_PO4,d_PO4)
-      d_NH4 = DcDOML_Mn4+DcPOML_Mn4+DcDOML_Mn3+DcPOML_Mn3
-      _SET_ODE_(self%id_NH4,d_NH4)
-      d_Alk = (&      !Alkalinity changes due to redox reactions:
-             !+1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
-             !-3._rk*mn_ox2 &   !2Mn3+ + 3H2O  + 0.5 O2 -> 2MnO2 + 6H+
-             !+3._rk*mn_rd1 &   !2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
-             !-1._rk*mn_rd2 &   !2Mn3+ + HS- -> 2Mn2+ + S0 + H+
-             !!these 4 above, do we need it?
-             !-2._rk*mns_form & !Mn2+ + H2S <-> MnS + 2H+
-             !+2._rk*mns_diss &
-             !-2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
-             !+2._rk*mnco3_diss &
-             !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
-             ! 424HCO3- + 212Mn2+ + 16NH3 + H3PO4
-            +d_NH4 &
-            -d_PO4 &
-             )
-      _SET_ODE_(self%id_Alk,d_Alk)
+        d_PO4_Mn3 = - PO4_Mn3 &  ! old (last time step) PO4_Mn3
+            + Mn3/self%r_mn3_p   ! new PO4_Mn3 calculated for old Mn3
+        if (d_PO4_Mn3.ge.PO4) d_PO4_Mn3 = PO4
+        _SET_ODE_(self%id_PO4_Mn3,d_PO4_Mn3)
+        d_Mn4 = mn_ox2-mn_rd1+mnco3_ox &
+                +(-DcDOMR_Mn4-DcPOMR_Mn4)*self%r_mn_n
+        _SET_ODE_(self%id_Mn4,d_Mn4)
+        d_MnS = mns_form-mns_diss-mns_ox
+        _SET_ODE_(self%id_MnS,d_MnS)
+        d_MnCO3 = mnco3_form-mnco3_diss-mnco3_ox
+        _SET_ODE_(self%id_MnCO3,d_MnCO3)
+        d_S0 = 0.5_rk*mn_rd1+0.5_rk*mn_rd2
+        _SET_ODE_(self%id_S0,d_S0)
+        d_H2S = -0.5_rk*mn_rd1-0.5_rk*mn_rd2-mns_form+mns_diss
+        _SET_ODE_(self%id_H2S,d_H2S)
+        d_O2 = -0.25_rk*mn_ox1-0.25_rk*mn_ox2-0.5_rk*mnco3_ox-2._rk*mns_ox
+        _SET_ODE_(self%id_O2,d_O2)
+        d_DOML = -DcDOML_Mn4-DcDOML_Mn3
+        _SET_ODE_(self%id_DOML,d_DOML)
+        d_DOMR = DcDOML_Mn4+DcDOML_Mn3-DcDOMR_Mn4-DcDOMR_Mn3
+        _SET_ODE_(self%id_DOMR,d_DOMR)
+        d_POML = -DcPOML_Mn4-DcPOML_Mn3
+        _SET_ODE_(self%id_POML,d_POML)
+        d_POMR = DcPOML_Mn4+DcPOML_Mn3-DcPOMR_Mn4-DcPOMR_Mn3
+        _SET_ODE_(self%id_POMR,d_POMR)
+        d_DIC = (DcDOMR_Mn3+DcDOMR_Mn4+DcPOMR_Mn3+DcPOMR_Mn4)*self%r_c_n &
+                -mnco3_form+mnco3_diss+mnco3_ox
+        _SET_ODE_(self%id_DIC,d_DIC)
+        d_PO4 = ((DcDOML_Mn4+DcPOML_Mn4+DcDOML_Mn3+DcPOML_Mn3)/self%r_n_p)-d_PO4_Mn3
+        _SET_ODE_(self%id_PO4,d_PO4)
+        d_NH4 = DcDOML_Mn4+DcPOML_Mn4+DcDOML_Mn3+DcPOML_Mn3
+        _SET_ODE_(self%id_NH4,d_NH4)
+        !Alkalinity changes due to redox reactions:
+        d_Alk = (0._rk + d_NH4 -d_PO4 )                 
+        _SET_ODE_(self%id_Alk,d_Alk)
 
-      _SET_DIAGNOSTIC_(self%id_DcPOML_Mn3,DcPOML_Mn3)
-      _SET_DIAGNOSTIC_(self%id_DcDOML_Mn3,DcDOML_Mn3)
-      _SET_DIAGNOSTIC_(self%id_DcPOML_Mn4,DcPOML_Mn4)
-      _SET_DIAGNOSTIC_(self%id_DcDOML_Mn4,DcDOML_Mn4)
-      _SET_DIAGNOSTIC_(self%id_DcPOMR_Mn3,DcPOMR_Mn3)
-      _SET_DIAGNOSTIC_(self%id_DcDOMR_Mn3,DcDOMR_Mn3)
-      _SET_DIAGNOSTIC_(self%id_DcPOMR_Mn4,DcPOMR_Mn4)
-      _SET_DIAGNOSTIC_(self%id_DcDOMR_Mn4,DcDOMR_Mn4)
-      _SET_DIAGNOSTIC_(self%id_DcTOM_MnX,DcTOM_MnX)
-      _SET_DIAGNOSTIC_(self%id_mn_ox1,mn_ox1)
-      _SET_DIAGNOSTIC_(self%id_mn_ox2,mn_ox2)
-      _SET_DIAGNOSTIC_(self%id_mn_rd1,mn_rd1)
-      _SET_DIAGNOSTIC_(self%id_mn_rd2,mn_rd2)
-      _SET_DIAGNOSTIC_(self%id_mns_form,mns_form)
-      _SET_DIAGNOSTIC_(self%id_mns_diss,mns_diss)
-      _SET_DIAGNOSTIC_(self%id_mns_ox,mns_ox)
-      _SET_DIAGNOSTIC_(self%id_mnco3_diss,mnco3_diss)
-      _SET_DIAGNOSTIC_(self%id_mnco3_form,mnco3_form)
+        _SET_DIAGNOSTIC_(self%id_DcPOML_Mn3,DcPOML_Mn3)
+        _SET_DIAGNOSTIC_(self%id_DcDOML_Mn3,DcDOML_Mn3)
+        _SET_DIAGNOSTIC_(self%id_DcPOML_Mn4,DcPOML_Mn4)
+        _SET_DIAGNOSTIC_(self%id_DcDOML_Mn4,DcDOML_Mn4)
+        _SET_DIAGNOSTIC_(self%id_DcPOMR_Mn3,DcPOMR_Mn3)
+        _SET_DIAGNOSTIC_(self%id_DcDOMR_Mn3,DcDOMR_Mn3)
+        _SET_DIAGNOSTIC_(self%id_DcPOMR_Mn4,DcPOMR_Mn4)
+        _SET_DIAGNOSTIC_(self%id_DcDOMR_Mn4,DcDOMR_Mn4)
+        _SET_DIAGNOSTIC_(self%id_DcTOM_MnX,DcTOM_MnX)
+        _SET_DIAGNOSTIC_(self%id_mn_ox1,mn_ox1)
+        _SET_DIAGNOSTIC_(self%id_mn_ox2,mn_ox2)
+        _SET_DIAGNOSTIC_(self%id_mn_rd1,mn_rd1)
+        _SET_DIAGNOSTIC_(self%id_mn_rd2,mn_rd2)
+        _SET_DIAGNOSTIC_(self%id_mns_form,mns_form)
+        _SET_DIAGNOSTIC_(self%id_mns_diss,mns_diss)
+        _SET_DIAGNOSTIC_(self%id_mns_ox,mns_ox)
+        _SET_DIAGNOSTIC_(self%id_mnco3_diss,mnco3_diss)
+        _SET_DIAGNOSTIC_(self%id_mnco3_form,mnco3_form)
     _LOOP_END_
-  end subroutine do
-end module fabm_niva_brom_manganese
+    end subroutine do
+  
+    real(rk) function thr_h(threshold_value,var_conc)
+        ! Threshold value for the reaction 
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+    end function 
+    
+    real(rk) function thr_h_r(threshold_value,var_conc)
+        ! Smooth thershold function
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_h_r = 0.5+0.5*tanh((var_conc-threshold_value)*0.1)
+    end function
+      
+    real(rk) function thr_l(threshold_value,var_conc)
+        ! Threshold value for the reaction 
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
+    end function  
+    
+    real(rk) function thr_l_r(threshold_value,var_conc)
+        ! Smooth thershold function
+        real(rk), intent(in) :: threshold_value,var_conc
+        thr_l_r = 0.5-0.5*tanh((var_conc-threshold_value)*0.1)
+    end function  
+    
+   real(rk) function pos(var)
+   ! Returns 0 if value is negative       
+       real(rk), intent(in) :: var
+       pos =  max(0._rk,var)  
+   end function
+  
+    end module fabm_niva_brom_manganese
+
+![1] Alkalinity changes due to redox reactions:
+    !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
+    ! 424HCO3- + 212Mn2+ + 16NH3 + H3PO4  
+    !+1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
+    !-3._rk*mn_ox2 &   !2Mn3+ + 3H2O  + 0.5 O2 -> 2MnO2 + 6H+
+    !+3._rk*mn_rd1 &   !2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
+    !-1._rk*mn_rd2 &   !2Mn3+ + HS- -> 2Mn2+ + S0 + H+
+    !!these 4 above, do we need it?
+    !-2._rk*mns_form & !Mn2+ + H2S <-> MnS + 2H+
+    !+2._rk*mns_diss &
+    !-2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
+    !+2._rk*mnco3_diss &
+  

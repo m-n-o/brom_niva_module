@@ -315,13 +315,13 @@
     !% Hg0 bioreduction  Hg0 -> Hg2+  ()
     hg0_hg2=self%K_hg0_hg2*Hg0         
     !% Hg2 biooxydation  Hg2+ + 0.5O2 + 2H+-> Hg0 + H2O   ()
-    hg2_hg0=self%K_hg2_hg0*Hg2*thr_higher(self%O2s_nf,o2)
+    hg2_hg0=self%K_hg2_hg0*Hg2*thr_h(self%O2s_nf,o2)
     !0.5*(1.+tanh(o2-self%O2s_nf))  
     !% Hg2 methylation Hg2+  -> MeHg   ()
-    hg2_mehg=self%K_hg2_mehg*Hg2*thr_higher(50.0_rk,Bhan)
+    hg2_mehg=self%K_hg2_mehg*Hg2*thr_h(50.0_rk,Bhan)
     !0.5*(1.+tanh(Bhan-50.0_rk))
     !% MeHg demethylation MeHg  -> Hg2+   ()
-    mehg_hg2=(self%K_mehg_hg2/10.0_rk + self%K_mehg_hg2*thr_higher(5.0_rk,Bhan))*MeHg 
+    mehg_hg2=(self%K_mehg_hg2/10.0_rk + self%K_mehg_hg2*thr_h(5.0_rk,Bhan))*MeHg 
     !0.5*(1.+tanh(Bhan-5.0_rk))
     !% MeHg reduction MeHg + H2S -> Hg2+ + ???   ()
     mehg_h2s=self%K_mehg_h2s*MeHg*(0.5_rk+0.5_rk*tanh(H2S+50.0_rk))
@@ -592,14 +592,14 @@
    
     end subroutine partit
 
-    real(rk) function thr_lower(threshold_value,var_conc)
+    real(rk) function thr_l(threshold_value,var_conc)
         real(rk), intent(in) :: threshold_value,var_conc
-        thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
     end function  
     
-    real(rk) function thr_higher(threshold_value,var_conc)
+    real(rk) function thr_h(threshold_value,var_conc)
         real(rk), intent(in) :: threshold_value,var_conc
-        thr_higher = 0.5+0.5*tanh(var_conc-threshold_value)
+        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
     end function     
 
 end module

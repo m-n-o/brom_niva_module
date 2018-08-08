@@ -436,8 +436,7 @@ module fabm_niva_brom_bio
             LimLight = Iz/self%Iopt*exp(1._rk-Iz/self%Iopt)
             !Influence of Temperature on photosynthesis
             LimT = self%f_t(temp)
-            !dependence of photosynthesis on P
-            
+            !dependence of photosynthesis on P          
             LimP = yy(self%K_po4_lim*self%r_n_p,v_to_phy(PO4,Phy))
             !dependence of photosynthesis on Si
             LimSi = yy(self%K_si_lim/self%r_si_n,v_to_phy(Si,Phy))
@@ -449,20 +448,15 @@ module fabm_niva_brom_bio
             LimNH4 = yy(self%K_nh4_lim,v_to_phy(NH4,Phy))*&
             (1._rk-exp(-self%K_psi*v_to_phy(NH4,Phy)))
             
-            
-
-            
             !dependence of photosynthesis on N
             LimN = non_zero(min(1._rk,LimNO3+LimNH4))
             !Grouth of Phy (gross primary production in uM N)
             GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*non_zero(Phy)
             !Rate of mortality of phy
-            MortPhy = max(0.99_rk,(self%K_phy_mrt+(&
-            0.5_rk-0.5_rk*tanh(O2-60._rk))*&
-            0.45_rk+(0.5_rk-0.5_rk*tanh(O2-20._rk))*0.45_rk))*Phy
+            MortPhy = Phy*(self%K_phy_mrt + thr_l(60._rk,O2)*0.45_rk+&
+                                            thr_l(20._rk,O2)*0.45_rk) !max(0.99_rk,)
             !Excretion of phy
             ExcrPhy = self%K_phy_exc*Phy
-
             !Het
             !Grazing of Het on phy
             GrazPhy = self%K_het_phy_gro*Het*&
@@ -482,9 +476,9 @@ module fabm_niva_brom_bio
             !Total grazing of Het
             Grazing = GrazPhy+GrazPOP+GrazBact
             !Respiration of Het
-            RespHet = self%K_het_res*Het*(0.5_rk+0.5_rk*tanh(O2-20._rk))
-            MortHet = (0.25_rk+(0.5_rk-0.5_rk*tanh(O2-20._rk))*0.3_rk+&
-            (0.5_rk+0.4_rk*tanh(H2S-10._rk))*0.45_rk)*Het
+            RespHet = self%K_het_res*Het*thr_h(20._rk,O2)
+            MortHet = Het*(0.25_rk+thr_l(20._rk,O2)*0.3_rk+&
+            (0.5_rk+0.4_rk*tanh(H2S-10._rk))*0.45_rk)
 
             !Nitrogen fixation described as appearence of NH4 available for
             !phytoplankton: N2 -> NH4 :
@@ -715,6 +709,15 @@ module fabm_niva_brom_bio
     real(rk),intent(in):: var, Phy
         v_to_phy = non_zero(var)/non_zero(Phy)
     end function v_to_phy    
+
+    real(rk) function thr_l(threshold_value,var_conc)
+    real(rk), intent(in) :: threshold_value,var_conc
+        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
+    end function  
     
+    real(rk) function thr_h(threshold_value,var_conc)
+    real(rk), intent(in) :: threshold_value,var_conc
+        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+    end function
     
 end module fabm_niva_brom_bio

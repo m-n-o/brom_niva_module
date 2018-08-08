@@ -57,7 +57,7 @@ contains
   !
   subroutine initialize(self,configunit)
     class (type_niva_brom_bact), intent(inout), target :: self
-    integer,                      intent(in)            :: configunit
+    integer,                      intent(in)           :: configunit
 
     !-----Model parameters------
     !Sinking
@@ -346,17 +346,17 @@ contains
                 *self%K_Baae_gro*Baae*yy2(self%limBaae,NH4,PO4,Baae)
 
       MortBaae = (self%K_Baae_mrt+self%K_Baae_mrt_h2s&
-                *thr_higher(1._rk,H2S))*Baae*Baae
+                *thr_h(1._rk,H2S))*Baae*Baae
       
-      !real(rk) function thr_lower(threshold_value,var_conc)
+      !real(rk) function thr_l(threshold_value,var_conc)
       !real(rk), intent(in) :: threshold_value,var_conc
-      !thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+      !thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
     
       !aerobic heterotroph
       HetBhae = DcTOM_O2 &
                *self%K_Bhae_gro*Bhae*yy(self%limBhae,DOML/(Bhae+0.0001_rk))
       MortBhae = (self%K_Bhae_mrt+ self%K_Bhae_mrt_h2s&
-               *thr_higher(1._rk,H2S))*Bhae
+               *thr_h(1._rk,H2S))*Bhae
       !ANOXIC CONDITIONS
       !anaerobic autotrophs
       ChemBaan = (mn_rd1+mn_rd2+fe_rd+hs_ox+hs_no3)&
@@ -367,7 +367,7 @@ contains
       HetBhan = (DcTOM_NOX+DcTOM_MnX+DcTOM_Fe+DcTOM_SOX+DcTOM_CH4) &
                *self%K_Bhan_gro*Bhan*yy(self%limBhan,DOML/(Bhan+0.0001_rk))
       MortBhan = (self%K_Bhan_mrt+ self%K_Bhan_mrt_o2&
-                *thr_lower(1._rk,O2))*Bhan
+                *thr_l(1._rk,O2))*Bhan
 
       !Alkalinity changes due to redox reactions:
 !      d_Alk = -ChemBaae-ChemBaan !+/- NH3
@@ -401,14 +401,14 @@ contains
     _LOOP_END_
   end subroutine do
   
-real(rk) function thr_lower(threshold_value,var_conc)
+real(rk) function thr_l(threshold_value,var_conc)
     real(rk), intent(in) :: threshold_value,var_conc
-    thr_lower = 0.5-0.5*tanh(var_conc-threshold_value)
+    thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
 end function  
     
-real(rk) function thr_higher(threshold_value,var_conc)
+real(rk) function thr_h(threshold_value,var_conc)
     real(rk), intent(in) :: threshold_value,var_conc
-    thr_higher = 0.5+0.5*tanh(var_conc-threshold_value)
+    thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
 end function 
   
   
