@@ -106,7 +106,7 @@ module fabm_niva_brom_silicon
         _GET_(self%id_Si,Si)
         _GET_(self%id_Sipart,Sipart)
         !biogeonic silicate dissolution possible for small concentrations of Sipart (i,e, biogenic)
-        Si_dissolution = self%K_sipart_diss*Sipart*thr_l(self%K_sipart_diss_limit,Sipart)
+        Si_dissolution = self%K_sipart_diss*Sipart*thr_l(self%K_sipart_diss_limit,Sipart,1._rk)
         !(1._rk-0.5_rk*(1._rk+tanh(Sipart-self%K_sipart_diss_limit)))
         ! Formation of minerals with Al etc.
         ! (DeMaster, 2003, Treatise of Geochemistry, vol.7)
@@ -135,8 +135,12 @@ module fabm_niva_brom_silicon
         _LOOP_END_
     end subroutine do
   
-    real(rk) function thr_l(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
+    real(rk) function thr_l(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function     
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
     end function  
+    
 end module fabm_niva_brom_silicon

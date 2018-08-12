@@ -198,7 +198,7 @@ module fabm_niva_brom_methane
         !calculate the scmidt number and unit conversions
         !Sc = 2073.1_rk-125.62_rk*temp+3.6276_rk*temp**2._rk-0.043219_rk*&
         !     temp**3.0_rk
-        ! Sc corrected for CH4 
+        !Sc corrected for CH4 
         Sc = 2101.2_rk - 131.54_rk * temp + & 
             4.4931_rk * temp **2_rk - 0.08676_rk * temp **3 + &
             0.00070663_rk * temp ** 4_rk 
@@ -249,16 +249,16 @@ module fabm_niva_brom_methane
         
         !CH4 production from POML and DOML
         !(CH2O)106(NH3)16H3PO4 -> 53 CO2 + 53 CH4 + 16 NH3 + H3PO4
-        thr_o2_l = thr_l(self%s_omso_o2,o2)  
-        thr_o2_h = thr_h(self%s_omso_o2,o2) 
-        thr_no3 = thr_l(self%s_omso_no3,no3)
-        thr_so4 = thr_l(self%s_omch_so4,so4)
+        thr_o2_l = thr_l(self%s_omso_o2,o2,1._rk)  
+        thr_o2_h = thr_h(self%s_omso_o2,o2,1._rk) 
+        thr_no3 = thr_l(self%s_omso_no3,no3,1._rk)
+        thr_so4 = thr_l(self%s_omch_so4,so4,1._rk)
       
         DcDOML_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_DOML_ch4*DOML       
         DcPOML_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_POML_ch4*POML
-        DcDOMR_CH4 = thr_o2_l*thr_no3*thr_so4*thr_h_r(self%s_OM_refr,DOMR) &
+        DcDOMR_CH4 = thr_o2_l*thr_no3*thr_so4*thr_h(self%s_OM_refr,DOMR,0.1_rk) &
                     *self%K_DOMR_ch4*DOMR               
-        DcPOMR_CH4 = thr_o2_l*thr_no3*thr_so4*thr_h_r(self%s_OM_refr,POMR) &          
+        DcPOMR_CH4 = thr_o2_l*thr_no3*thr_so4*thr_h(self%s_OM_refr,POMR,0.1_rk) &          
                     *self%K_POMR_ch4*POMR
       
         !total OM mineralization 
@@ -269,26 +269,28 @@ module fabm_niva_brom_methane
         !CH4 + SO42- + 2 H+  = CO2 + H2S + 2H2O
         ch4_so4 = self%K_ch4_so4*CH4*SO4*thr_o2_l
 
-        !Set increments
+        !Calculate increments
         d_DOML = -DcDOML_ch4
-        _SET_ODE_(self%id_DOML,d_DOML)
         d_POML = -DcPOML_ch4
-        _SET_ODE_(self%id_POML,d_POML)
         d_DOMR = DcDOML_ch4-DcDOMR_ch4
-        _SET_ODE_(self%id_DOMR,d_DOMR)
         d_POMR = DcPOML_ch4-DcPOMR_ch4
-        _SET_ODE_(self%id_POMR,d_POMR)
-        d_O2 = -2._rk*ch4_o2
-        _SET_ODE_(self%id_O2,d_O2)
+        d_O2  = -2._rk*ch4_o2
         d_SO4 = -ch4_so4
-        _SET_ODE_(self%id_SO4,d_SO4)
-        d_DIC = (DcDOMR_ch4+DcPOMR_ch4)*self%r_c_n+ch4_o2
-        _SET_ODE_(self%id_DIC,d_DIC)
+        d_DIC = (DcDOMR_ch4+DcPOMR_ch4)*self%r_c_n+ch4_o2+ch4_so4
         d_CH4 = 0.5_rk*(DcDOMR_ch4+DcPOMR_ch4)-ch4_o2-ch4_so4
-        _SET_ODE_(self%id_CH4,d_CH4)
         d_NH4 = DcDOML_ch4+DcPOML_ch4
-        _SET_ODE_(self%id_NH4,d_NH4)
         d_PO4 = (DcDOML_ch4+DcPOML_ch4)/self%r_n_p
+        
+        !Set increments
+        _SET_ODE_(self%id_DOML,d_DOML)        
+        _SET_ODE_(self%id_POML,d_POML)        
+        _SET_ODE_(self%id_DOMR,d_DOMR)        
+        _SET_ODE_(self%id_POMR,d_POMR)        
+        _SET_ODE_(self%id_O2,d_O2)        
+        _SET_ODE_(self%id_SO4,d_SO4)
+        _SET_ODE_(self%id_DIC,d_DIC)        
+        _SET_ODE_(self%id_CH4,d_CH4)        
+        _SET_ODE_(self%id_NH4,d_NH4)        
         _SET_ODE_(self%id_PO4,d_PO4)
       
         _SET_DIAGNOSTIC_(self%id_DcPOML_ch4,DcPOML_ch4)
@@ -300,28 +302,20 @@ module fabm_niva_brom_methane
         _LOOP_END_
     end subroutine do
     
-    real(rk) function thr_l(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function  
-    
-    real(rk) function thr_h(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+    real(rk) function thr_h(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
     end function 
-
-    real(rk) function thr_h_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h_r = 0.5+0.5*tanh((var_conc-threshold_value)*0.1)
-    end function
           
-    real(rk) function thr_l_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l_r = 0.5-0.5*tanh((var_conc-threshold_value)*0.1)
-    end function      
-    
+    real(rk) function thr_l(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
+    end function 
+              
 end module fabm_niva_brom_methane
     
 

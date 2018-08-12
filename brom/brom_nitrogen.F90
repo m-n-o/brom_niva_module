@@ -118,7 +118,7 @@ module fabm_niva_brom_nitrogen
         'threshold of decay of refractory OM',&
         default=5.0_rk)
         !----Stoichiometric coefficients----!
-        call self%get_parameter(self%r_c_n,  'r_c_n',  '[-]','C[uM]/N[uM]',  default=8.0_rk)
+        call self%get_parameter(self%r_c_n,  'r_c_n',  '[-]','C[uM]/N[uM]',  default=6.625_rk)
         call self%get_parameter(self%r_n_p,  'r_n_p',  '[-]','N[uM]/P[uM]',  default=16.0_rk)
         call self%get_parameter(self%r_n_no3,'r_n_no3','[-]','N[uM]/NO3[uM]',default=0.075_rk)
         call self%get_parameter(self%r_n_no2,'r_n_no2','[-]','N[uM]/NO2[uM]',default=0.113_rk)
@@ -234,10 +234,10 @@ module fabm_niva_brom_nitrogen
 
         !N
         !coefficient for denitrification         
-        thr_o2_l = thr_l(self%O2s_dn,o2)        
+        thr_o2_l = thr_l(self%O2s_dn,o2,1._rk)        
         !Nitrification 1st and 2d stages: [1][2]       
-        Nitrif1 = self%K_nitrif1*NH4*o2*thr_h(self%O2s_nf,o2)
-        Nitrif2 = self%K_nitrif2*NO2*o2*thr_h(self%O2s_nf,o2) 
+        Nitrif1 = self%K_nitrif1*NH4*o2*thr_h(self%O2s_nf,o2,1._rk)
+        Nitrif2 = self%K_nitrif2*NO2*o2*thr_h(self%O2s_nf,o2,1._rk) 
 
         !in suboxic conditions
         !Anammox [3]
@@ -253,9 +253,9 @@ module fabm_niva_brom_nitrogen
         DcDOML_NO3 = self%K_DOML_NO3*DOML &
         *thr_o2_l* k_no3 
         DcPOMR_NO3 = self%K_POMR_NO3*POMR *thr_o2_l &
-        *thr_h_r(self%s_OM_refr,POMR) * k_no3
+        *thr_h(self%s_OM_refr,POMR,0._rk) * k_no3
         DcDOMR_NO3 = self%K_DOMR_NO3*DOMR *thr_o2_l &
-        *thr_h_r(self%s_OM_refr,DOMR) * k_no3
+        *thr_h(self%s_OM_refr,DOMR,0._rk) * k_no3
         
         !POM and DOM denitrification (2d stage)[5]
         DcPOML_NO2 = self%K_POML_NO2*POML &
@@ -263,9 +263,9 @@ module fabm_niva_brom_nitrogen
         DcDOML_NO2 = self%K_DOML_NO2*DOML &
         *thr_o2_l * k_no2
         DcPOMR_NO2 = self%K_POMR_NO2*POMR *thr_o2_l &
-        * thr_h_r(self%s_OM_refr,POMR)* k_no2       
+        * thr_h(self%s_OM_refr,POMR,0._rk)* k_no2       
         DcDOMR_NO2 = self%K_DOMR_NO2*DOMR*thr_o2_l &
-        * thr_h_r(self%s_OM_refr,DOMR) * k_no2
+        * thr_h(self%s_OM_refr,DOMR,0._rk) * k_no2
         !Denitrification as consumption of NOX and production of N2
         Denitr1 = self%r_n_no3*(DcPOMR_NO3+DcDOMR_NO3)
         Denitr2 = self%r_n_no2*(DcPOMR_NO2+DcDOMR_NO2)
@@ -317,26 +317,24 @@ module fabm_niva_brom_nitrogen
         _LOOP_END_
     end subroutine do
     
-    real(rk) function thr_l(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function  
-    
-    real(rk) function thr_h(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+    real(rk) function thr_h(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
+    end function 
+          
+    real(rk) function thr_l(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
     end function 
 
-    real(rk) function thr_h_r(threshold_value,var_conc)
-        ! Smooth thershold function for refracory OM
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h_r = 0.5+0.5*tanh((var_conc-threshold_value)*0.1)
-    end function    
-    
     real(rk) function rate_coef(value,reac_rate)
         real(rk), intent(in):: value,reac_rate
         rate_coef = value/(value+reac_rate)
-    end function
+    end function    
     
     end module fabm_niva_brom_nitrogen
     

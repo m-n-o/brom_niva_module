@@ -231,15 +231,15 @@ module fabm_niva_brom_bio
         self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
         vertical_movement=-self%Whet/86400._rk)
         call self%register_state_variable(&
-        self%id_POML,'POML','mmol/m**3','POML labile',minimum=0.0_rk,&
+        self%id_POML,'POML','mmol/m**3','POM labile',minimum=0.0_rk,&
         vertical_movement=-self%Wsed/86400._rk)
         call self%register_state_variable(&
-        self%id_POMR,'POMR','mmol/m**3','POML refractory',minimum=0.0_rk,&
+        self%id_POMR,'POMR','mmol/m**3','POM refractory',minimum=0.0_rk,&
         vertical_movement=-self%Wsed/86400._rk)
         call self%register_state_variable(&
-        self%id_DOML,'DOML','mmol/m**3','DOML labile',minimum=0.0_rk)
+        self%id_DOML,'DOML','mmol/m**3','DOM labile',minimum=0.0_rk)
         call self%register_state_variable(&
-        self%id_DOMR,'DOMR','mmol/m**3','DOMR refractory',minimum=0.0_rk)
+        self%id_DOMR,'DOMR','mmol/m**3','DOM refractory',minimum=0.0_rk)
         call self%register_state_variable(&
         self%id_O2,'O2','mmol/m**3','O2',minimum=0.0_rk)
         !Register state dependencies
@@ -275,16 +275,20 @@ module fabm_niva_brom_bio
         !Register diagnostic variables
         call self%register_diagnostic_variable(&
         self%id_DcPOML_O2,'DcPOML_O2','mmol/m**3',&
-        'POML with O2 mineralization',output=output_time_step_integrated)
+        'POML with O2 mineralization',&
+        output=output_time_step_integrated)
         call self%register_diagnostic_variable(&
         self%id_DcPOMR_O2,'DcPOMR_O2','mmol/m**3',&
-        'POMR with O2 mineralization',output=output_time_step_integrated)
+        'POMR with O2 mineralization',&
+        output=output_time_step_integrated)
         call self%register_diagnostic_variable(&
         self%id_DcDOMR_O2,'DcDOMR_O2','mmol/m**3',&
-        'DOMR with O2 mineralization',output=output_time_step_integrated)
+        'DOMR with O2 mineralization',&
+        output=output_time_step_integrated)
         call self%register_diagnostic_variable(&
         self%id_DcDOML_O2,'DcDOML_O2','mmol/m**3',&
-        'DOM with O2 mineralization',output=output_time_step_integrated)
+        'DOM with O2 mineralization',&
+        output=output_time_step_integrated)
         call self%register_diagnostic_variable(&
         self%id_MortHet,'MortHet','mmol/m**3','Mortality of Het',&
         output=output_time_step_integrated)
@@ -442,30 +446,29 @@ module fabm_niva_brom_bio
             LimSi = yy(self%K_si_lim/self%r_si_n,v_to_phy(Si,Phy))
             !dependence of photosynthesis on NO3+NO2
             LimNO3 = yy(self%K_nox_lim,v_to_phy(NO3+NO2,Phy))*&
-            exp(-self%K_psi*v_to_phy(NH4,Phy)) !
-            !max(Phy,1.e-10_rk)
+            exp(-self%K_psi*v_to_phy(NH4,Phy)) 
             !dependence of photosynthesis on NH4
             LimNH4 = yy(self%K_nh4_lim,v_to_phy(NH4,Phy))*&
-            (1._rk-exp(-self%K_psi*v_to_phy(NH4,Phy)))
-            
+            (1._rk-exp(-self%K_psi*v_to_phy(NH4,Phy)))           
             !dependence of photosynthesis on N
-            LimN = non_zero(min(1._rk,LimNO3+LimNH4))
+            LimN = n_zero(min(1._rk,LimNO3+LimNH4))
+            
             !Grouth of Phy (gross primary production in uM N)
-            GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*non_zero(Phy)
+            GrowthPhy = self%K_phy_gro*LimLight*LimT*min(LimP,LimN,LimSi)*n_zero(Phy)
             !Rate of mortality of phy
-            MortPhy = Phy*(self%K_phy_mrt + thr_l(60._rk,O2)*0.45_rk+&
-                                            thr_l(20._rk,O2)*0.45_rk) !max(0.99_rk,)
+            MortPhy = Phy*(self%K_phy_mrt + thr_l(60._rk,O2,1._rk)*0.45_rk+&
+                                            thr_l(20._rk,O2,1._rk)*0.45_rk) 
             !Excretion of phy
             ExcrPhy = self%K_phy_exc*Phy
             !Het
             !Grazing of Het on phy
             GrazPhy = self%K_het_phy_gro*Het*&
-                yy(self%K_het_phy_lim,Phy/non_zero(Het))
+                yy(self%K_het_phy_lim,Phy/n_zero(Het))
             !Grazing of Het on detritus
             GrazPOP = self%K_het_pom_gro*Het*&
-                yy(self%K_het_pom_lim,POML/non_zero(Het))
-            !Grazing of Het on  bacteria
+                yy(self%K_het_pom_lim,POML/n_zero(Het))
             
+            !Grazing of Het on  bacteria            
             GrazBaae = 1.0_rk*self%graz(Baae,Het)            
             GrazBaan = 0.5_rk*self%graz(Baan,Het)
             GrazBhae = 1.0_rk*self%graz(Bhae,Het) 
@@ -476,74 +479,75 @@ module fabm_niva_brom_bio
             !Total grazing of Het
             Grazing = GrazPhy+GrazPOP+GrazBact
             !Respiration of Het
-            RespHet = self%K_het_res*Het*thr_h(20._rk,O2)
-            MortHet = Het*(0.25_rk+thr_l(20._rk,O2)*0.3_rk+&
+            RespHet = self%K_het_res*Het*thr_h(20._rk,O2,1._rk)
+            MortHet = Het*(0.25_rk+thr_l(20._rk,O2,1._rk)*0.3_rk+&
             (0.5_rk+0.4_rk*tanh(H2S-10._rk))*0.45_rk)
 
             !Nitrogen fixation described as appearence of NH4 available for
             !phytoplankton: N2 -> NH4 :
             N_fixation = self%K_nfix*LimP*&
-            1._rk/(1._rk+((NO3+NO2+NH4)/non_zero(PO4)*16._rk)**4._rk)*GrowthPhy
-            !max(PO4,0.000001_rk)
+            1._rk/(1._rk+((NO3+NO2+NH4)/n_zero(PO4)*16._rk)**4._rk)*GrowthPhy
+
             !POML and DOML (Savchuk, Wulff,1996)
             Autolysis_L = self%K_POML_DOML*POML
             Autolysis_R = self%K_POMR_DOMR*POMR
+            DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf          
+            
+            !OM decay in N units for release of DIC and consumption of O2            
             !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
+            
             kf = (O2/(O2+self%K_omox_o2))*&
                  (1._rk+self%beta_da*yy(self%tda,temp)) !koefficient   
             
             DcDOML_O2 = self%K_DOML_ox*DOML*kf 
             DcPOML_O2 = self%K_POML_ox*POML*kf            
             DcPOMR_O2 = self%K_POMR_ox*POMR*kf           
-            DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
-            
-            !Summariazed OM decay in N units for release of DIC and consumption of O2
-            DcTOM_O2 = DcPOMR_O2+DcDOMR_O2
+            DcTOM_O2  = DcPOMR_O2+DcDOMR_O2
 
             d_POML = (-Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
-                (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP)
-            _SET_ODE_(self%id_POML,d_POML)
+                     (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP)
             d_DOML = (Autolysis_L-DcDOML_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
-            _SET_ODE_(self%id_DOML,d_DOML)
             d_POMR = (DcPOML_O2-DcPOMR_O2-Autolysis_R)
-            _SET_ODE_(self%id_POMR,d_POMR)
             d_DOMR = (DcDOML_O2-DcDOMR_O2+Autolysis_R)
-            _SET_ODE_(self%id_DOMR,d_DOMR)
-            d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(NO2/non_zero(NO2+NO3)))
-            _SET_ODE_(self%id_NO2,d_NO2)
-            d_NO3 = (-GrowthPhy*(LimNO3/LimN)*(non_zero(NO3)/non_zero(NO2+NO3)))
-            _SET_ODE_(self%id_NO3,d_NO3)
+            d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(n_zero(NO2)/n_zero(NO2+NO3)))
+            d_NO3 = (-GrowthPhy*(LimNO3/LimN)*(n_zero(NO3)/n_zero(NO2+NO3)))
             d_PO4 = ((DcPOML_O2+DcDOML_O2-GrowthPhy+RespHet)/self%r_n_p)
-            _SET_ODE_(self%id_PO4,d_PO4)
-            d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
-            _SET_ODE_(self%id_Si,d_Si)
-            d_DIC = ((DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n)
-            _SET_ODE_(self%id_DIC,d_DIC)
-            d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)
-            _SET_ODE_(self%id_O2,d_O2)
-            d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN))
-            _SET_ODE_(self%id_NH4,d_NH4)
+            d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)            
+            d_DIC = ((DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n)           
+            d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)            
+            d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN))            
             d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
-            _SET_ODE_(self%id_Sipart,d_Sipart)
             d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
-            _SET_ODE_(self%id_Phy,d_Phy)
-            d_Het = (self%Uz*Grazing-MortHet-RespHet)
-            _SET_ODE_(self%id_Het,d_Het)
+            d_Het = (self%Uz*Grazing-MortHet-RespHet)            
             d_Baae = -GrazBaae
-            _SET_ODE_(self%id_Baae,d_Baae)
             d_Baan = -GrazBaan
-            _SET_ODE_(self%id_Baan,d_Baan)
             d_Bhae = -GrazBhae
-            _SET_ODE_(self%id_Bhae,d_Bhae)
-            d_Bhan = -GrazBhan
-            _SET_ODE_(self%id_Bhan,d_Bhan)
-
-            !components of temporal derivarives calculated in this module:
-            dAlk = 0.0_rk+&            
-            -d_PO4 & ! -1 mole per 1 mole of PO4-            
-            -d_NO3-d_NO2 & ! -1 mole per 1 mole of NO3- or NO2-            
-            +d_NH4 ! +1 mole per 1 mole of NH4+
+            d_Bhan = -GrazBhan 
             
+            !Components of temporal derivarives calculated in this module:
+            dAlk = 0.0_rk -d_PO4 -d_NO3 -d_NO2 +d_NH4           
+            ! -1 mole per 1 mole of NO3- or NO2- or PO4-          
+            ! +1 mole per 1 mole of NH4+
+            
+            
+            _SET_ODE_(self%id_POML,d_POML)            
+            _SET_ODE_(self%id_DOML,d_DOML)            
+            _SET_ODE_(self%id_POMR,d_POMR)            
+            _SET_ODE_(self%id_DOMR,d_DOMR)            
+            _SET_ODE_(self%id_NO2,d_NO2)            
+            _SET_ODE_(self%id_NO3,d_NO3)            
+            _SET_ODE_(self%id_PO4,d_PO4)            
+            _SET_ODE_(self%id_Si,d_Si)            
+            _SET_ODE_(self%id_DIC,d_DIC)            
+            _SET_ODE_(self%id_O2,d_O2)            
+            _SET_ODE_(self%id_NH4,d_NH4)            
+            _SET_ODE_(self%id_Sipart,d_Sipart)            
+            _SET_ODE_(self%id_Phy,d_Phy)            
+            _SET_ODE_(self%id_Het,d_Het)            
+            _SET_ODE_(self%id_Baae,d_Baae)
+            _SET_ODE_(self%id_Baan,d_Baan)
+            _SET_ODE_(self%id_Bhae,d_Bhae)            
+            _SET_ODE_(self%id_Bhan,d_Bhan)            
             _SET_ODE_(self%id_Alk,dAlk)
 
             O2_sat = oxygen_saturation_concentration(temp,salt)
@@ -647,7 +651,8 @@ module fabm_niva_brom_bio
             q10**((temperature-t_upt_max)/3._rk)
         end if
         !   Some others:
-        !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) !Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
+        !  LimT     = 0.5(1+tanh((t-tmin)/smin)) (1-0.5(1+th((t-tmax)/smax))) 
+        !  Smin= 15  Smax= 15  Tmin=  10 Tmax= 35   (Deb et al., .09)
         !  LimT     = exp(self%bm*temp-self%cm))        !Dependence on Temperature (used in (Ya,So, 2011) for Arctic)
         !  LimT     = 1./(1.+exp(10.-temp))             !Dependence on Temperature (ERGOM for cya)
         !  LimT     = 1.-temp*temp/(temp*temp +12.*12.) !Dependence on Temperature (ERGOM for dia)
@@ -685,16 +690,16 @@ module fabm_niva_brom_bio
         O2_sat = O2_sat * 1000._rk / VIDEAL
     end function
     
-    real(rk) function non_zero(var)
+    real(rk) function n_zero(var)
         real(rk),intent(in):: var
-        non_zero = max(var,1.e-10_rk)
-    end function non_zero
+        n_zero = max(var,1.e-10_rk)
+    end function n_zero
  
     real(rk) function graz(self,var,Het)
         class (type_niva_brom_bio),intent(in) :: self
         real(rk),intent(in):: var,Het
-        !Het = non_zero(Het)
-        graz = self%K_het_bac_gro*Het*yy(self%limGrazBac,var/non_zero(Het))   
+        !Het = n_zero(Het)
+        graz = self%K_het_bac_gro*Het*yy(self%limGrazBac,var/n_zero(Het))   
     end function graz
     
     real(rk) function yy(a,x)
@@ -707,17 +712,21 @@ module fabm_niva_brom_bio
     
     real(rk) function v_to_phy(var,Phy)
     real(rk),intent(in):: var, Phy
-        v_to_phy = non_zero(var)/non_zero(Phy)
+        v_to_phy = n_zero(var)/n_zero(Phy)
     end function v_to_phy    
 
-    real(rk) function thr_l(threshold_value,var_conc)
-    real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function  
-    
-    real(rk) function thr_h(threshold_value,var_conc)
-    real(rk), intent(in) :: threshold_value,var_conc
-        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
-    end function
+    real(rk) function thr_h(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
+    end function 
+          
+    real(rk) function thr_l(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
+    end function 
     
 end module fabm_niva_brom_bio

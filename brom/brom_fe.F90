@@ -431,23 +431,22 @@ contains
 
       !Fe
       !Fe2 oxidation1: 4Fe2+ + O2 + 10H2O -> 4Fe(OH)3 +8H+ (vanCappelen,96)
-      !thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
-      fe_ox1 = thr_h(self%s_feox_fe2,Fe2)*&
+      fe_ox1 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
                self%K_fe_ox1*o2*Fe2
       !
       !Fe2 oxidation2: Fe2+ + MnO2 + 4H+ -> Fe3+ + Mn2+ + 2H2O (vanCappelen,96)
       !                2Fe2+ + MnO2 + 4H2O -> 2Fe(OH)3 + Mn2+ + 2H+ (Pakhomova, p.c.)
-      fe_ox2 = thr_h(self%s_feox_fe2,Fe2)*&
-               thr_h(self%s_feox_fe2,Mn4)*&
+      fe_ox2 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+               thr_h(self%s_feox_fe2,Mn4,1._rk)*&
                self%K_fe_ox2*Mn4*Fe2
       
       !Fe2 oxidation2: Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
-      fe_ox3 = thr_h(self%s_feox_fe2,Fe2)*&
-               thr_h(self%s_feox_fe2,Mn3)*&
+      fe_ox3 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+               thr_h(self%s_feox_fe2,Mn3,1._rk)*&
                self%K_fe_ox2*Mn3*Fe2
       !
       !Fe3 reduction: 2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
-      fe_rd = thr_h(self%s_ferd_fe3,Fe3)*&
+      fe_rd = thr_h(self%s_ferd_fe3,Fe3,1._rk)*&
               self%K_fe_rd*Fe3*h2s/(h2s+self%K_ferd_hs)
       !
       !FeS formation/dissollution (Bektursunova,11)
@@ -497,21 +496,21 @@ contains
       ! 848HCO3-+ 424Fe2+ +318H2O +16NH3 +H3PO4 (Boudreau,1996) Fe units
       DcDOML_Fe = self%K_DOML_fe*DOML &
                *Fe3/(Fe3+self%K_omno_no3) &
-               *thr_l(self%O2s_dn,o2)
+               *thr_l(self%O2s_dn,o2,1._rk)
 
       DcPOML_Fe = self%K_POML_fe*POML &
                *Fe3/(Fe3+self%K_omno_no3) &
-               *thr_l(self%O2s_dn,o2)
+               *thr_l(self%O2s_dn,o2,1._rk)
 
       DcPOMR_Fe = self%K_POMR_fe*POMR&
                *Fe3/(Fe3+self%K_omno_no3) &
-               *thr_h_r(self%s_OM_refr,POMR) &
-               *thr_l(self%O2s_dn,o2)
+               *thr_h(self%s_OM_refr,POMR,0.1_rk) &
+               *thr_l(self%O2s_dn,o2,1._rk)
 
       DcDOMR_Fe = self%K_DOMR_fe*DOMR&
                *Fe3/(Fe3+self%K_omno_no3) &
-               *thr_h_r(self%s_OM_refr,DOMR) &
-               *thr_l(self%O2s_dn,o2)
+               *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
+               *thr_l(self%O2s_dn,o2,1._rk)
 
       !!!complexation of P with Fe(III)
       !fe_p_compl = ((fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox)*PO4/(PO4+0.1) &
@@ -625,28 +624,18 @@ contains
     _LOOP_END_
   end subroutine do
   
-    real(rk) function thr_h(threshold_value,var_conc)
+    real(rk) function thr_h(threshold_value,var_conc,koef)
         ! Threshold value for the reaction 
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
     end function 
-    
-    real(rk) function thr_h_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h_r = 0.5+0.5*tanh((var_conc-threshold_value)*0.1)
-    end function
-      
-    real(rk) function thr_l(threshold_value,var_conc)
+          
+    real(rk) function thr_l(threshold_value,var_conc,koef)
         ! Threshold value for the reaction 
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function  
-    
-    real(rk) function thr_l_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l_r = 0.5-0.5*tanh((var_conc-threshold_value)*0.1)
-    end function   
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
+    end function    
     
 end module fabm_niva_brom_fe

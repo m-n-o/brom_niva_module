@@ -389,16 +389,16 @@ contains
         _GET_(self%id_H2S,H2S)
 
         !Mn2 oxidation: 4Mn(2+)+O2+4H(+)->4Mn(3+)+2H2O (Canfield,2005)
-        mn_ox1 = pos(thr_h(self%s_mnox_mn2,Mn2)*&
+        mn_ox1 = pos(thr_h(self%s_mnox_mn2,Mn2,1._rk)*&
                  self%K_mn_ox1*Mn2*o2*o2/(o2+self%K_mnox_o2))
         !Mn3 oxidation: 2Mn3+ + 0.5O2 + 3H20 -> 2MnO2 + 6H+ (Tebo,1997)
-        mn_ox2 = pos(thr_h(self%s_mnox_mn3,Mn3)*&     
+        mn_ox2 = pos(thr_h(self%s_mnox_mn3,Mn3,1._rk)*&     
                 self%K_mn_ox2*Mn3*o2/(o2+self%K_mnox_o2))
         !Mn4 reduction: 2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
-        mn_rd1 = pos(thr_h(self%s_mnrd_mn4,Mn4)*&     
+        mn_rd1 = pos(thr_h(self%s_mnrd_mn4,Mn4,1._rk)*&     
                 self%K_mn_rd1*Mn4*h2s/(h2s+self%K_mnrd_hs))
         !Mn3 reduction: 2Mn3+ + HS- -> 2Mn2+ + S0 + H+
-        mn_rd2 = pos(thr_h(self%s_mnrd_mn3,Mn3)*&
+        mn_rd2 = pos(thr_h(self%s_mnrd_mn3,Mn3,1._rk)*&
                 self%K_mn_rd2*Mn3*h2s/(h2s+self%K_mnrd_hs))
         !MnS formation/dissollution (dSED) Mn2+ + HS- = MnS(s) + H+
         Om_MnS = H2S*Mn2/(self%K_MnS*Hplus*1000000._rk)
@@ -420,39 +420,39 @@ contains
         !424HCO3- + 212Mn2+ +16NH3 +H3PO4  (Boudreau, 1996) !in N units        
         DcDOML_Mn3 = pos(self%K_DOML_mn3*DOML &   
                      *Mn3/(Mn3+0.5_rk)&
-                     *thr_l(self%O2s_dn,o2))
+                     *thr_l(self%O2s_dn,o2,1._rk))
         
         DcPOML_Mn3 = pos(self%K_POML_mn3*POML &
                      *Mn3/(Mn3+0.5_rk)&
-                     *thr_l(self%O2s_dn,o2))
+                     *thr_l(self%O2s_dn,o2,1._rk))
 
         DcDOMR_Mn3 = pos(self%K_DOMR_mn3*DOMR &
                      *Mn3/(Mn3+0.5_rk)&
-                     *thr_h_r(self%s_OM_refr,DOMR) &
-                     *thr_l(self%O2s_dn,o2))
+                     *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
+                     *thr_l(self%O2s_dn,o2,1._rk))
                         
         DcPOMR_Mn3 = pos(self%K_POMR_mn3*POMR &
                     *Mn3/(Mn3+0.5_rk) &
-                    *thr_h_r(self%s_OM_refr,POMR) &
-                    *thr_l(self%O2s_dn,o2))
+                    *thr_h(self%s_OM_refr,POMR,0.1_rk) &
+                    *thr_l(self%O2s_dn,o2,1._rk))
         
         DcDOML_Mn4 = pos(self%K_DOML_mn4*DOML &
                      *Mn4/(Mn4+0.5_rk) &
-                     *thr_l(self%O2s_dn,o2))
+                     *thr_l(self%O2s_dn,o2,1._rk))
         
         DcPOML_Mn4 = pos(self%K_POML_mn4*POML &
                      *Mn4/(Mn4+0.5_rk)&
-                     *thr_l(self%O2s_dn,o2))
+                     *thr_l(self%O2s_dn,o2,1._rk))
 
         DcPOMR_Mn4 = pos(self%K_POMR_mn4*POMR &
                     *Mn4/(Mn4+0.5_rk) &
-                    *thr_h_r(self%s_OM_refr,POMR) &
-                    *thr_l(self%O2s_dn,o2))
+                    *thr_h(self%s_OM_refr,POMR,0.1_rk) &
+                    *thr_l(self%O2s_dn,o2,1._rk))
         
         DcDOMR_Mn4 = pos(self%K_DOMR_mn4*DOMR &
                     *Mn4/(Mn4+0.5_rk) &
-                    *thr_h_r(self%s_OM_refr,DOMR) &
-                    *thr_l(self%O2s_dn,o2))
+                    *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
+                    *thr_l(self%O2s_dn,o2,1._rk))
         
         !Summariazed OM mineralization
         DcTOM_MnX = DcDOMR_Mn3+DcPOMR_Mn3+DcDOMR_Mn4+DcPOMR_Mn4
@@ -521,28 +521,18 @@ contains
     _LOOP_END_
     end subroutine do
   
-    real(rk) function thr_h(threshold_value,var_conc)
+    real(rk) function thr_h(threshold_value,var_conc,koef)
         ! Threshold value for the reaction 
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
     end function 
-    
-    real(rk) function thr_h_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h_r = 0.5+0.5*tanh((var_conc-threshold_value)*0.1)
-    end function
-      
-    real(rk) function thr_l(threshold_value,var_conc)
+          
+    real(rk) function thr_l(threshold_value,var_conc,koef)
         ! Threshold value for the reaction 
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function  
-    
-    real(rk) function thr_l_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l_r = 0.5-0.5*tanh((var_conc-threshold_value)*0.1)
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
     end function  
     
    real(rk) function pos(var)

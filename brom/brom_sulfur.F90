@@ -330,8 +330,8 @@ module fabm_niva_brom_sulfur
             !(Volkov, 1984)
             hs_no3 = self%K_hs_no3*H2S*NO3
             !Thresholds 
-            thr_o2 = thr_l(self%s_omso_o2,o2)
-            thr_no3 = thr_l(self%s_omso_no3,no3)       
+            thr_o2 = thr_l(self%s_omso_o2,o2,1._rk)
+            thr_no3 = thr_l(self%s_omso_no3,no3,1._rk)       
             !in anoxic conditions:
             !OM sulfatereduction (Boudreau, 1996)
             !(CH2O)106(NH3)16H3PO4 + 53SO42- = 106HCO3- + 16NH3 + H3PO4 + 53H2S
@@ -341,35 +341,28 @@ module fabm_niva_brom_sulfur
             !DOM sulfatereduction (1st stage):
             DcDOML_so4 = thr_o2 * thr_no3 &
                         *self%K_DOML_so4*SO4*DOML
-            !if (o2.gt.10._rk) then
-            !    DcPOML_so4=0._rk
-            !    DcDOML_so4=0._rk
-            !endif
             !POM sulfatereduction (2d stage):
             DcPOML_s2o3 = thr_o2 * thr_no3 &
                         *self%K_POML_s2o3*S2O3*POML
             !DOML sulfatereduction (2d stage):
             DcDOML_s2o3 = thr_o2 * thr_no3 &
                         *self%K_DOML_s2o3*S2O3*DOML
-            !if (o2.gt.10._rk) then
-            !    DcPOML_s2o3=0._rk
-            !    DcDOML_s2o3=0._rk
-            !endif
+            
             so4_rd   = (DcPOML_so4+DcDOML_so4)/self%r_n_s  !in S units
             s2o3_rd  = (DcPOML_s2o3+DcDOML_s2o3)/self%r_n_s
             ! POMR mineralization with SO4 and S2O3
             DcPOMR_SO4  = thr_o2 *thr_no3 &
-                        *thr_h_r(self%s_OM_refr,POMR) &
+                        *thr_h(self%s_OM_refr,POMR,0.1_rk) &
                         *self%K_POMR_so4 *SO4 *POMR
             DcPOMR_S2O3 = thr_o2 * thr_no3 &
-                        *thr_h_r(self%s_OM_refr,POMR) &
+                        *thr_h(self%s_OM_refr,POMR,0.1_rk) &
                         *self%K_POMR_s2o3*S2O3*POMR
             ! DOMR mineralization with SO4 and S2O3
             DcDOMR_SO4  = thr_o2 *thr_no3 &
-                        * thr_h_r(self%s_OM_refr,DOMR) &
+                        * thr_h(self%s_OM_refr,DOMR,0.1_rk) &
                         *self%K_DOMR_so4 *SO4 *DOMR
             DcDOMR_S2O3 = thr_o2 *thr_no3 &
-                        *thr_h_r(self%s_OM_refr,DOMR) &
+                        *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
                         *self%K_DOMR_s2o3*S2O3*DOMR
             !Summariazed total SO4 and S2O3 reduction for total OM in N units
             DcTOM_SOX=DcPOMR_SO4+DcPOMR_S2O3+DcDOMR_SO4+DcDOMR_S2O3
@@ -412,11 +405,7 @@ module fabm_niva_brom_sulfur
                     !-0.5_rk*s0_no3 &  !4S0 + 3NO3- + 7H2O -> 4SO4-- + 3NH4+ + 2H+
                     !-1._rk*s2o3_ox &  !S2O3-- + 2O2 + 2OH- -> 2SO4-- + H2O
                     !-0.4_rk*hs_no3 &  !5H2S + 8NO3- + 2OH+ -> 5SO4-- + 4N2 + 6H2O
-                    +d_NH4 &
-                    -d_NO3 &
-                    -d_PO4 &
-                    -d_SO4 &
-                    )
+                    +d_NH4 -d_NO3 -d_PO4 -d_SO4)
             _SET_ODE_(self%id_Alk,d_Alk)
 
             _SET_DIAGNOSTIC_(self%id_s2o3_no3,s2o3_no3)
@@ -440,19 +429,18 @@ module fabm_niva_brom_sulfur
         _LOOP_END_
     end subroutine do
   
-    real(rk) function thr_l(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_l = 0.5-0.5*tanh(var_conc-threshold_value)
-    end function  
-    
-    real(rk) function thr_h(threshold_value,var_conc)
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h = 0.5+0.5*tanh(var_conc-threshold_value)
+    real(rk) function thr_h(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        ! koef 1 gives regular tgh function 
+        ! 0.1 - smooth function 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
     end function 
-
-    real(rk) function thr_h_r(threshold_value,var_conc)
-        ! Smooth thershold function
-        real(rk), intent(in) :: threshold_value,var_conc
-        thr_h_r = 0.5+0.5*tanh((var_conc-threshold_value)*0.1)
-    end function    
+          
+    real(rk) function thr_l(threshold_value,var_conc,koef)
+        ! Threshold value for the reaction 
+        real(rk), intent(in) :: threshold_value,var_conc,koef
+        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
+    end function 
+    
 end module fabm_niva_brom_sulfur
