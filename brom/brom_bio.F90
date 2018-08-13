@@ -498,8 +498,9 @@ module fabm_niva_brom_bio
             
             kf = (O2/(O2+self%K_omox_o2))*&
                  (1._rk+self%beta_da*yy(self%tda,temp)) !koefficient   
-            
+           
             DcDOML_O2 = self%K_DOML_ox*DOML*kf 
+            DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf 
             DcPOML_O2 = self%K_POML_ox*POML*kf            
             DcPOMR_O2 = self%K_POMR_ox*POMR*kf           
             DcTOM_O2  = DcPOMR_O2+DcDOMR_O2
@@ -527,7 +528,7 @@ module fabm_niva_brom_bio
             !Components of temporal derivarives calculated in this module:
             dAlk = 0.0_rk -d_PO4 -d_NO3 -d_NO2 +d_NH4           
             ! -1 mole per 1 mole of NO3- or NO2- or PO4-          
-            ! +1 mole per 1 mole of NH4+
+            ! +1 mole per 1 mole of NH4+ (Wollf-Gladrow, Zeebe,.. 2007)
             
             
             _SET_ODE_(self%id_POML,d_POML)            

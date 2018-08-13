@@ -497,7 +497,22 @@ contains
         d_NH4 = DcDOML_Mn4+DcPOML_Mn4+DcDOML_Mn3+DcPOML_Mn3
         _SET_ODE_(self%id_NH4,d_NH4)
         !Alkalinity changes due to redox reactions:
-        d_Alk = (0._rk + d_NH4 -d_PO4 )                 
+        d_Alk =(&      !Alkalinity changes due to redox reactions:
+             +1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
+             -3._rk*mn_ox2 &   !2Mn3+ + 3H2O  + 0.5 O2 -> 2MnO2 + 6H+
+             +3._rk*mn_rd1 &   !2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
+             -1._rk*mn_rd2 &   !2Mn3+ + HS- -> 2Mn2+ + S0 + H+
+             !these 4 above, do we need it?
+             -2._rk*mns_form & !Mn2+ + H2S <-> MnS + 2H+
+             +2._rk*mns_diss &
+             -2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
+             +2._rk*mnco3_diss &
+             !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
+             ! 424HCO3- + 212Mn2+ + 16NH3 + H3PO4
+!             +26.5_rk*(Dc_OM_Mn_total) & !DcDM_Mn is in N-units,i.e.424/16
+             +d_NH4 &
+             -d_PO4 &
+             )
         _SET_ODE_(self%id_Alk,d_Alk)
 
         _SET_DIAGNOSTIC_(self%id_DcPOML_Mn3,DcPOML_Mn3)
@@ -542,17 +557,3 @@ contains
    end function
   
     end module fabm_niva_brom_manganese
-
-![1] Alkalinity changes due to redox reactions:
-    !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
-    ! 424HCO3- + 212Mn2+ + 16NH3 + H3PO4  
-    !+1._rk*mn_ox1 &   !4Mn2+ + O2 + 4H+ -> 4Mn3+ + 2H2O
-    !-3._rk*mn_ox2 &   !2Mn3+ + 3H2O  + 0.5 O2 -> 2MnO2 + 6H+
-    !+3._rk*mn_rd1 &   !2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
-    !-1._rk*mn_rd2 &   !2Mn3+ + HS- -> 2Mn2+ + S0 + H+
-    !!these 4 above, do we need it?
-    !-2._rk*mns_form & !Mn2+ + H2S <-> MnS + 2H+
-    !+2._rk*mns_diss &
-    !-2._rk*mnco3_form &!Mn2+ + CO3-- <-> MnCO3
-    !+2._rk*mnco3_diss &
-  

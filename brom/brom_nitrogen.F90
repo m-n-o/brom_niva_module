@@ -235,19 +235,21 @@ module fabm_niva_brom_nitrogen
         !N
         !coefficient for denitrification         
         thr_o2_l = thr_l(self%O2s_dn,o2,1._rk)        
-        !Nitrification 1st and 2d stages: [1][2]       
+        !Nitrification 1st and 2d stages: 
+        ![1] Nitrification 1st stage: NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O (Canfield,2005)
         Nitrif1 = self%K_nitrif1*NH4*o2*thr_h(self%O2s_nf,o2,1._rk)
+        ![2] Nitrification 2d stage: NO2- + 0.5 O2 -> NO3- (Canfield,2005)   
         Nitrif2 = self%K_nitrif2*NO2*o2*thr_h(self%O2s_nf,o2,1._rk) 
 
         !in suboxic conditions
-        !Anammox [3]
+        !Anammox: NO2- + NH4+ -> N2 + 2H2O (Canfield,2005)
         Anammox = self%K_annamox*NO2*NH4 * thr_o2_l 
-        
-        !OM denitrification [4]
+
         k_no3 = rate_coef(NO3,self%K_omno_no3) 
         k_no2 = rate_coef(NO2,self%K_omno_no2)
         
-        !POM and DOM denitrification (1st stage) [4] 
+        !POM and DOM denitrification 1st stage (Richards, 1965) :
+        !(CH2O)106(NH3)16H3PO4 + 84.8HNO3 =106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4
         DcPOML_NO3 = self%K_POML_NO3*POML &
         *thr_o2_l * k_no3       
         DcDOML_NO3 = self%K_DOML_NO3*DOML &
@@ -257,7 +259,8 @@ module fabm_niva_brom_nitrogen
         DcDOMR_NO3 = self%K_DOMR_NO3*DOMR *thr_o2_l &
         *thr_h(self%s_OM_refr,DOMR,0._rk) * k_no3
         
-        !POM and DOM denitrification (2d stage)[5]
+        !POM and DOM denitrification  2d stage (Anderson,1982): 
+        ! 1/2CH2O + NO3- -> NO2- + 1/2H2O + 1/2CO2
         DcPOML_NO2 = self%K_POML_NO2*POML &
         *thr_o2_l * k_no2
         DcDOML_NO2 = self%K_DOML_NO2*DOML &
@@ -295,8 +298,12 @@ module fabm_niva_brom_nitrogen
         d_PO4 = (DcDOML_NO3+DcDOML_NO2+DcPOML_NO3+DcPOML_NO2)/self%r_n_p
         _SET_ODE_(self%id_PO4,d_PO4)
         d_Alk = (&      
-        !Alkalinity changes due to redox reactions [7]:
-        +d_NH4 - d_PO4 -d_NO3-d_NO2 )
+        !Alkalinity changes due to redox reactions
+      !NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
+        -2._rk*Nitrif1 &  !(Wolf-Gladrow, Zeebe, 2007)
+      !3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 or
+      !5 CH2O + 4 H+ + 4 NO3- -> 2 N2 + 5 CO2 + 7H2O    
+         +d_NH4 - d_PO4 -d_NO3-d_NO2 )
         _SET_ODE_(self%id_Alk,d_Alk)
 
         _SET_DIAGNOSTIC_(self%id_anammox,Anammox)
@@ -337,20 +344,3 @@ module fabm_niva_brom_nitrogen
     end function    
     
     end module fabm_niva_brom_nitrogen
-    
-! Reactions    
-![1] Nitrification 1st stage:
-!NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O (Canfield,2005)
-![2] Nitrification 2d stage:
-!NO2- + 0.5 O2 -> NO3- (Canfield,2005)  
-![3] Anammox: 
-!NO2- + NH4+ -> N2 + 2H2O (Canfield,2005)   
-![4] OM Denitrification (Richards, 1965)
-!(CH2O)106(NH3)16H3PO4 + 84.8HNO3 =
-![5] 1st stage: 106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4
-![6] 2d stage: 1/2CH2O + NO3- -> NO2- + 1/2H2O + 1/2CO2 (Anderson,1982)
-![7] !Alkalinity changes due to redox reactions:        
-    !NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
-    !-2._rk*Nitrif1 &  !(Wolf-Gladrow, Zeebe, 2007)
-    !3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 or
-    !5 CH2O + 4 H+ + 4 NO3- -> 2 N2 + 5 CO2 + 7H2O    

@@ -580,23 +580,23 @@ contains
    d_NH4 = DcDOML_Fe+DcPOML_Fe
       _SET_ODE_(self%id_NH4,d_NH4)
    d_Alk = (&                  !Alkalinity changes due to redox reactions:
-            !-2._rk*fe_ox1 &   !4Fe2+ + O2 +10H2O-> 4Fe(OH)3 +8H+
-            !-1._rk*fe_ox2 &   !2Fe2+ + MnO2 +4H2O -> 2Fe(OH)3 + Mn2+ +2H+
-            !-3._rk*fe_ox3 &   !Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
-            !+2._rk*fe_rd &    !2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
-            !!(here and below d(AlK_H2S) is excluded, as give before)
-            !-1._rk*fes_form & !Fe2+ + H2S <-> FeS + H+
-            !+1._rk*fes_diss &
-            !-2._rk*fes_ox &  !FeS + 2.25O2 +H2O -> 0.5Fe2O3 + 2H+ +SO42-
-            !-2._rk*fes2_ox & !FeS2 + 3.5O2 + H2O -> Fe2+ + 2SO42- + 2H+
-            !-2._rk*feco3_form & !Fe2+ + CO3-- <-> FeCO3
-            !+2._rk*feco3_diss &
-            !(CH2O)106(NH3)16H3PO4 + 424Fe(OH)3 + 742CO2 ->
-            ! 848HCO3-+ 424Fe2+ +318H2O +16NH3 +H3PO4
-            ! + 53._rk*(DcDOML_Fe+DcPOML_Fe) & !DcDOML_Fe is in N-units,i.e.848/16
-            +d_NH4 &
-            -d_PO4 &
-            )
+             -2._rk*fe_ox1 &   !4Fe2+ + O2 +10H2O-> 4Fe(OH)3 +8H+
+             -1._rk*fe_ox2 &   !2Fe2+ + MnO2 +4H2O -> 2Fe(OH)3 + Mn2+ +2H+
+             -3._rk*fe_ox3 &   !Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
+             +2._rk*fe_rd &    !2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
+             !(here and below d(AlK_H2S) is excluded, as give before)
+             -1._rk*fes_form & !Fe2+ + H2S <-> FeS + H+
+             +1._rk*fes_diss &
+             -2._rk*fes_ox &  !FeS + 2.25O2 +H2O -> 0.5Fe2O3 + 2H+ +SO42-
+             -2._rk*fes2_ox & !FeS2 + 3.5O2 + H2O -> Fe2+ + 2SO42- + 2H+
+             -2._rk*feco3_form & !Fe2+ + CO3-- <-> FeCO3
+             +2._rk*feco3_diss &
+             !(CH2O)106(NH3)16H3PO4 + 424Fe(OH)3 + 742CO2 ->
+             ! 848HCO3-+ 424Fe2+ +318H2O +16NH3 +H3PO4
+             ! + 53._rk*(DcDOML_Fe+DcPOML_Fe) & !DcDOML_Fe is in N-units,i.e.848/16
+             +d_NH4 &
+             -d_PO4 &
+             )
       _SET_ODE_(self%id_Alk,d_Alk)
 
       _SET_DIAGNOSTIC_(self%id_DcDOMR_Fe,DcDOMR_Fe)
