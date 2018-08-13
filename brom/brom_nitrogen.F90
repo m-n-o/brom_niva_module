@@ -255,9 +255,9 @@ module fabm_niva_brom_nitrogen
         DcDOML_NO3 = self%K_DOML_NO3*DOML &
         *thr_o2_l* k_no3 
         DcPOMR_NO3 = self%K_POMR_NO3*POMR *thr_o2_l &
-        *thr_h(self%s_OM_refr,POMR,0._rk) * k_no3
+        *thr_h(self%s_OM_refr,POMR,0.1_rk) * k_no3
         DcDOMR_NO3 = self%K_DOMR_NO3*DOMR *thr_o2_l &
-        *thr_h(self%s_OM_refr,DOMR,0._rk) * k_no3
+        *thr_h(self%s_OM_refr,DOMR,0.1_rk) * k_no3
         
         !POM and DOM denitrification  2d stage (Anderson,1982): 
         ! 1/2CH2O + NO3- -> NO2- + 1/2H2O + 1/2CO2
@@ -266,9 +266,9 @@ module fabm_niva_brom_nitrogen
         DcDOML_NO2 = self%K_DOML_NO2*DOML &
         *thr_o2_l * k_no2
         DcPOMR_NO2 = self%K_POMR_NO2*POMR *thr_o2_l &
-        * thr_h(self%s_OM_refr,POMR,0._rk)* k_no2       
+        * thr_h(self%s_OM_refr,POMR,0.1_rk)* k_no2       
         DcDOMR_NO2 = self%K_DOMR_NO2*DOMR*thr_o2_l &
-        * thr_h(self%s_OM_refr,DOMR,0._rk) * k_no2
+        * thr_h(self%s_OM_refr,DOMR,0.1_rk) * k_no2
         !Denitrification as consumption of NOX and production of N2
         Denitr1 = self%r_n_no3*(DcPOMR_NO3+DcDOMR_NO3)
         Denitr2 = self%r_n_no2*(DcPOMR_NO2+DcDOMR_NO2)
