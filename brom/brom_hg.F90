@@ -28,7 +28,7 @@
 !     Variable identifiers
 ! variables defined in other modules
    type (type_state_variable_id)        :: id_H2S, id_O2, id_Mn4, id_Fe3, id_Baae,id_Bhae,id_Baan,id_Bhan
-   type (type_state_variable_id)        :: id_Phy, id_Het, id_POML,id_POMR, id_DON, id_SO4
+   type (type_state_variable_id)        :: id_Phy, id_Het, id_POML,id_DOML, id_SO4
 ! global dependencies
    type (type_dependency_id)            :: id_temp,id_par,id_depth
 ! diagnostic dependences defined in other modules
@@ -147,10 +147,8 @@
    call self%register_state_dependency(self%id_Bhae, 'Bhae', 'mmol/m**3','Aerobic Heterotrophic Bacteria')
    call self%register_state_dependency(self%id_Baan, 'Baan', 'mmol/m**3','Anaerobic Autotrophic Bacteria')
    call self%register_state_dependency(self%id_Bhan, 'Bhan', 'mmol/m**3','Anaerobic Heterotrophic Bacteria')
-   call self%register_state_dependency(self%id_POML,'POML','mmol/m**3','particulate organic nitrogen')
-   call self%register_state_dependency(self%id_POMR,'POMR','mmol/m**3','POM refractory')
-   call self%register_state_dependency(self%id_DON,'DON','mmol/m**3','dissolved organic nitrogen')
-   
+   call self%register_state_dependency(self%id_POML,'POML','mmol/m**3','POM labile')
+   call self%register_state_dependency(self%id_DOML,'DOML','mmol/m**3','DOM refractory')
 
     !call self%register_diagnostic_variable(&
     !     self%id_Hg2_free,'Hg2_free','mmol/m**3',&
@@ -251,7 +249,7 @@
 ! !LOCAL VARIABLES:
    real(rk) ::  temp, O2, Mn4, Fe3, depth
    real(rk) ::  Hg0, Hg2, MeHg, HgS, Iz, H2S, Om_HgS, Hg2_flux, SO4 
-   real(rk) ::  Phy, Het, Bhae, Baae, Bhan, Baan, DON, POML, POMR
+   real(rk) ::  Phy, Het, Bhae, Baae, Bhan, Baan, POML, DOML
    real(rk) ::  Hg2_biota, Hg2_POM, Hg2_DOM
    real(rk) ::  Hg2_Mn4, Hg2_Fe3, Hg2_free, Hg2_tot, Hg2_tot_diss
    real(rk) ::  MeHg_biota, MeHg_POM, MeHg_DOM
@@ -297,11 +295,10 @@
     _GET_(self%id_Phy,Phy) 
     _GET_(self%id_Het,Het)
     _GET_(self%id_POML,POML)
-    _GET_(self%id_POMR,POMR)
-    _GET_(self%id_DON,DON)
-    _GET_(self%id_Baae,Baae)   
+    _GET_(self%id_DOML,DOML)
+    _GET_(self%id_Baae,Baae)
     _GET_(self%id_Bhae,Bhae)
-    _GET_(self%id_Baan,Baan)   
+    _GET_(self%id_Baan,Baan)
     _GET_(self%id_Bhan,Bhan)
     _GET_(self%id_H2S,H2S)
     _GET_(self%id_SO4,SO4)
@@ -350,7 +347,7 @@
   !
   ! partitioning betweeen dissolved Hg(II) and OM
     call partit (Hg2, Hg2_biota, Hg2_POM, Hg2_DOM, &
-                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
+                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML, &
                  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                  self%Kow_bio_Hg2,self%Kow_POM_Hg2,self%Kow_DOM_Hg2)
     
@@ -390,7 +387,7 @@
   !
   ! partitioning betweeen dissolved MeHg and OM
     call partit (MeHg, MeHg_biota, MeHg_POM, MeHg_DOM, &
-                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
+                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML, &
                  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                  self%Kow_bio_MeHg,self%Kow_POM_MeHg,self%Kow_DOM_MeHg)
         
@@ -512,12 +509,12 @@
 
 !-----------------------------------------------------------------------
    subroutine partit (Subst_dis,Subst_biota, Subst_POM, Subst_DOM, &
-                      Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
+                      Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML, &
                       dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                       Kow_bio, Kow_pom, Kow_dom)
    ! !LOCAL VARIABLES:
    real(rk) :: Subst_dis, Subst_biota, Subst_POM, Subst_DOM,  Subst_tot 
-   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON
+   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML
    real(rk) :: dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, dSubst_tot
    real(rk) :: dSubst_tot_diss, dSubst_tot_part
    real(rk) :: pol_bio  ! pollutant in BIOTA,"ng?"/l
@@ -566,10 +563,10 @@
         sha_pom=uMn2lip/1000.*POML  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif     
        
-       if(DON<=0.) then 
+       if(DOML<=0.) then 
         sha_dom=0. 
        else
-        sha_dom=uMn2lip/1000.*DON  ! Volume(weight in kg, g->kg=/1000) of BIO
+        sha_dom=uMn2lip/1000.*DOML  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif    
 
       sha_free = 1.-sha_bio-sha_pom-sha_dom ! i.e Volume(weight in [kg]) of 1l of water minus volumes of org. and part. forms 
@@ -589,7 +586,6 @@
     dSubst_POM   = -Subst_POM   +pol_pom
     dSubst_DOM   = -Subst_DOM   +pol_dom
 
-   
     end subroutine partit
 
     real(rk) function thr_h(threshold_value,var_conc,koef)
