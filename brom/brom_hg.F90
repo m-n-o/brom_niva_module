@@ -194,11 +194,11 @@
     call self%register_diagnostic_variable(&
          self%id_Kad_Hg2,'Kad_Hg2','-',&
          'Kad_Hg2',&
-         output=output_time_step_integrated) ! conditional partitioning coef
+         output=output_time_step_integrated) ! sorption coeff. on Fe3
     call self%register_diagnostic_variable(&
          self%id_Kad_MeHg,'Kad_MeHg','-',&
          'Kad_MeHg',&
-         output=output_time_step_integrated) ! conditional partitioning coef
+         output=output_time_step_integrated) ! sorption coeff. on Fe3
     call self%register_diagnostic_variable(&
          self%id_hg2_fe3_compl,'hg2_fe3_compl','mmol/m**3',&
          'hg2_fe3_compl',&
@@ -259,7 +259,7 @@
    real(rk) ::  hg0_irr_ox, hg2_irr_red, mehg_irr_degr, hg2_mehg, mehg_hg2
    real(rk) ::  hg2_fe3_compl, hg2_mn4_compl, mehg_fe3_compl, mehg_mn4_compl
    real(rk) ::  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM
-   real(rk) ::  dHg2, dHg0, dMeHg, Kad_Hg2, Kad_MeHg,Iz_coef
+   real(rk) ::  dHg2, dHg0, dMeHg, Kad_Hg2, Kad_MeHg, Iz_coef
   !diagnostic variables dependencies
    real(rk):: Hplus
    
@@ -305,7 +305,7 @@
     _GET_(self%id_Mn4,Mn4)
     _GET_(self%id_Fe3,Fe3)
     _GET_(self%id_O2,O2)  
-    !diagnostic
+    !other modules diagnostics
     _GET_(self%id_Hplus,Hplus)
 !-----------------------------------------------------------------
     ! Hg species (Knigthes 2008)
@@ -331,7 +331,7 @@
     hgs_diss=self%K_hgs_diss*HgS*max(0._rk,(1._rk-Om_HgS))
     !    if (HgS<0.000001) hgs_diss=0._rk 
     !% HgS oxydation  HgS + 2O2 -> Hg2+ + SO42-  ()
-    hgs_ox=self%K_hgs_ox*HgS*(0.5_rk+0.5_rk*tanh(O2+1.0_rk))     
+    hgs_ox=self%K_hgs_ox*HgS*thr_h(1.0_rk,O2,1._rk)
     !hgs_form = 0.0_rk
     !hgs_diss = 0.0_rk
     !hgs_ox = 0.0_rk
