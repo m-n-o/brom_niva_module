@@ -32,30 +32,32 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_DcPOMR_O2,id_DcDOMR_O2,id_DcTOM_O2
     type(type_diagnostic_variable_id):: id_POMTot,id_DOMTot
     !primary producers
-    type(type_diagnostic_variable_id):: id_MortPhy,id_ExcrPhy,id_LimNH4
-    type(type_diagnostic_variable_id):: id_LimN,id_GrowthPhy
-    type(type_diagnostic_variable_id):: id_LimT,id_LimP,id_LimNO3,id_LimSi
-    type(type_diagnostic_variable_id):: id_LimLight,id_N_fixation
+    type(type_diagnostic_variable_id):: id_LimNH4,id_LimNO3,id_LimN
+    type(type_diagnostic_variable_id):: id_LimP,id_LimSi
+    type(type_diagnostic_variable_id):: id_GrowthPhy,id_MortPhy,id_ExcrPhy
+    type(type_diagnostic_variable_id):: id_ChlCratio,id_N_fixation
     !heterotrophs
-    type(type_diagnostic_variable_id):: id_MortHet,id_Grazing,id_RespHet
-    type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
-    type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
     type(type_diagnostic_variable_id):: id_GrazPhy,id_GrazPOP,id_GrazBact
+    type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
+    type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
+    type(type_diagnostic_variable_id):: id_Grazing,id_RespHet,id_MortHet
     !oxygen
     type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat
     !Model parameters
     !specific rates of biogeochemical processes
-    real(rk):: K_DOML_ox,K_POML_DOML,K_POML_ox,K_POMR_ox
-    real(rk):: K_DOMR_ox,K_POMR_DOMR,beta_da,Tda,K_omox_o2
-    !----Phy  ----------!
-    real(rk):: K_phy_gro,Iopt
-    real(rk):: K_phy_mrt,K_phy_exc
-    real(rk):: q10,treference
-    !----Het -----------!
-    real(rk):: K_het_phy_gro,K_het_phy_lim,K_het_pom_gro,K_het_pom_lim,K_het_bac_gro
-    real(rk):: K_het_res,K_het_mrt,Uz,Hz,limGrazBac
+    real(rk):: K_POML_DOML,K_POMR_DOMR !for autolysis
+    real(rk):: K_DOML_ox,K_DOMR_ox,K_POML_ox,K_POMR_ox !specific decay scales
+    real(rk):: tda,K_omox_o2 !for OM decay
     !---- N, P, Si--!
-    real(rk):: K_nox_lim,K_nh4_lim,K_psi,K_nfix,K_po4_lim,K_si_lim
+    real(rk):: K_nh4_lim,K_nox_lim,K_nfix,K_po4_lim,K_si_lim
+    !----Phy  ----------!
+    real(rk):: pbm,alpha
+    real(rk):: K_phy_mrt,K_phy_exc
+    !----Het -----------!
+    real(rk):: K_het_phy_gro,K_het_phy_lim
+    real(rk):: K_het_pom_gro,K_het_pom_lim
+    real(rk):: K_het_bac_gro,limGrazBac
+    real(rk):: K_het_res,K_het_mrt,Uz,Hz
     !---- Sinking---!
     real(rk):: Wsed,Wphy,Whet
     !---- Stoichiometric coefficients ----!
@@ -75,14 +77,8 @@ contains
 
     !----Phy----------!
     call self%get_parameter(&
-         self%Iopt,'Iopt','Watts/m**2/h','Optimal irradiance',&
-         default=25.0_rk)
-    call self%get_parameter(&
-         self%q10,'q10','-','q10 coefficien for a temperature limiter function',&
-         default=2._rk)
-    call self%get_parameter(&
-         self%treference,'treference','-','Temperature for a temperature limiter function',&
-         default=10._rk)
+         self%alpha,'alpha','-','Photosynthetic efficiency at low irradiance',&
+         default=.05_rk)
     call self%get_parameter(&
          self%K_po4_lim,'K_po4_lim','[mmol/m**3]',&
          'Half-sat. constant for uptake of PO4 by Phy',&
@@ -91,10 +87,6 @@ contains
          self%K_si_lim,'K_si_lim','[mmol/m**3]',&
          'Half-sat. constant for uptake of Si by Phy',&
          default=0.02_rk)
-    call self%get_parameter(&
-         self%K_psi,'K_psi','[nd]',&
-         'Strength of NH4 inhibition of NO3 uptake constant',&
-         default=1.46_rk)
     call self%get_parameter(&
          self%K_nox_lim,'K_nox_lim','[mmol/m**3]',&
          'Half-sat.const.for uptake of NO3+NO2',&
@@ -108,8 +100,8 @@ contains
          'Max. specific rate of mitrogen fixation',&
          default=10._rk)
     call self%get_parameter(&
-         self%K_phy_gro,'K_phy_gro','1/d','Maximum specific growth rate',&
-         default=2.0_rk)
+         self%pbm,'pbm','mg C (mg Chl a h)-1','Maximum hourly rate of photosynthesis',&
+         default=8.0_rk)
     call self%get_parameter(&
          self%K_phy_mrt,'K_phy_mrt','1/d','Specific rate of mortality',&
          default=0.10_rk)
@@ -187,7 +179,7 @@ contains
          'Temperature control coefficient for OM decay',&
          default=20.0_rk)
     call self%get_parameter(&
-         self%Tda,'Tda','[1/day]',&
+         self%tda,'tda','[1/day]',&
          'Temperature control coefficient for OM decay',&
          default=13.0_rk)
     call self%get_parameter(&
@@ -334,7 +326,7 @@ contains
          self%id_LimSi,'LimSi','mmol/m**3','LimSi',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimLight,'LimLight','mmol/m**3','LimLight',&
+         self%id_ChlCratio,'ChlCratio','dimensionless','ChlCratio',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_N_fixation,'N_fixation','mmol/m**3/d','N_fixation',&
@@ -379,9 +371,10 @@ contains
     real(rk):: LimT,LimP,LimNO3,LimNH4,LimN,LimSi,LimNut
     !biology
     real(rk):: Baae,Baan,Bhae,Bhan
-    real(rk):: Phy,ChlC,biorate,GrowthPhy,MortPhy,N_fixation
-    real(rk):: Het,GrazPhy,GrazPOP,GrazBaae,GrazBaan,GrazBhae
-    real(rk):: GrazBhan,GrazBact,Grazing,RespHet,MortHet
+    real(rk):: Phy,ChlC,biorate,GrowthPhy,ExcrPhy,MortPhy,N_fixation
+    real(rk):: Het,GrazPhy,GrazPOP
+    real(rk):: GrazBaae,GrazBaan,GrazBhae,GrazBhan,GrazBact
+    real(rk):: Grazing,RespHet,MortHet
     !OM
     real(rk):: POML,POMR,DOML,DOMR
     real(rk):: DcDOML_O2,DcPOML_O2,DcTOM_O2
@@ -392,7 +385,7 @@ contains
     !increments
     real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4,d_Sipart
     real(rk):: d_Phy,d_Het,d_Baae,d_Baan,d_Bhae,d_Bhan
-    real(rk):: dAlk,d_DOML,d_DOMR,d_POML,d_POMR
+    real(rk):: d_alk,d_DOML,d_DOMR,d_POML,d_POMR
 
     ! Enter spatial loops (if any)
     _LOOP_BEGIN_
@@ -470,7 +463,7 @@ contains
       !Mortality of Het
       MortHet = Het*(self%K_het_mrt&
                      + hyper_inhibitor(20._rk, O2, 1._rk)*0.3_rk&
-                     + hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk&
+                     + hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk
       !
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
@@ -484,39 +477,37 @@ contains
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
       kf = monod_squared(self%K_omox_o2, O2)*monod_squared(self%tda, temp))
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
-      DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
       DcPOML_O2 = self%K_POML_ox*POML*kf
+      DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
       DcPOMR_O2 = self%K_POMR_ox*POMR*kf
-      DcTOM_O2  = DcDOML_O2+DcDOMR_O2+DcPOML_O2+DcPOMR_O2
+      DcTOM_O2 = DcDOMR_O2+DcPOMR_O2
 
       !increments
-      d_NH4 = (DcPOML_O2+DcDOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN))
-      d_NO2 = (-GrowthPhy*(LimNO3/LimN)*(n_zero(NO2)/n_zero(NO2+NO3)))
-      d_NO3 = (-GrowthPhy*(LimNO3/LimN)*(n_zero(NO3)/n_zero(NO2+NO3)))
-      d_PO4 = ((DcPOML_O2+DcDOML_O2-GrowthPhy+RespHet)/self%r_n_p)
-      d_Si = ((-GrowthPhy+ExcrPhy)*self%r_si_n)
-
-      d_POML = (-Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
-               (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP)
-      d_DOML = (Autolysis_L-DcDOML_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz)
-      d_POMR = (DcPOML_O2-DcPOMR_O2-Autolysis_R)
-      d_DOMR = (DcDOML_O2-DcDOMR_O2+Autolysis_R)
-
-      d_DIC = ((DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n)
-      d_O2 = ((-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n)
-
-      d_Sipart = ((MortPhy+GrazPhy)*self%r_si_n)
-
-      d_Phy = (GrowthPhy-MortPhy-ExcrPhy-GrazPhy)
-      d_Het = (self%Uz*Grazing-MortHet-RespHet)
-
+      !nutrients
+      d_NH4 = DcDOML_O2+DcPOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN)
+      d_NO2 = -GrowthPhy*(LimNO3/LimN)*(NO2/n_zero(NO2+NO3))
+      d_NO3 = -GrowthPhy*(LimNO3/LimN)*(NO3/n_zero(NO2+NO3))
+      d_PO4 = (DcDOML_O2+DcPOML_O2-GrowthPhy+RespHet)/self%r_n_p
+      d_Si = (-GrowthPhy+ExcrPhy)*self%r_si_n
+      d_Sipart = (MortPhy+GrazPhy)*self%r_si_n
+      !alive
+      d_Phy = GrowthPhy-MortPhy-ExcrPhy-GrazPhy
+      d_Het = self%Uz*Grazing-MortHet-RespHet
       d_Baae = -GrazBaae
       d_Baan = -GrazBaan
       d_Bhae = -GrazBhae
       d_Bhan = -GrazBhan
-
+      !OM
+      d_POML = -Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
+               (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP
+      d_DOML = Autolysis_L-DcDOML_O2+ExcrPhy+Grazing*(1._rk-self%Uz)*self%Hz
+      d_POMR = DcPOML_O2-DcPOMR_O2-Autolysis_R
+      d_DOMR = DcDOML_O2-DcDOMR_O2+Autolysis_R
+      !
+      d_DIC = (DcDOMR_O2+DcPOMR_O2-GrowthPhy+RespHet)*self%r_c_n
+      d_O2 = (-DcDOMR_O2-DcPOMR_O2+GrowthPhy-RespHet)*self%r_o_n
       !Components of temporal derivarives calculated in this module:
-      dAlk = -d_PO4-d_NO3-d_NO2+d_NH4
+      d_alk = -d_PO4-d_NO3-d_NO2+d_NH4
       ! -1 mole per 1 mole of NO3- or NO2- or PO4-
       ! +1 mole per 1 mole of NH4+ (Wollf-Gladrow, Zeebe,.. 2007)
 
@@ -538,9 +529,9 @@ contains
       _SET_ODE_(self%id_Baan,d_Baan)
       _SET_ODE_(self%id_Bhae,d_Bhae)
       _SET_ODE_(self%id_Bhan,d_Bhan)
-      _SET_ODE_(self%id_Alk,dAlk)
+      _SET_ODE_(self%id_Alk,d_alk)
 
-      O2_sat = oxygen_saturation_concentration(temp,salt)
+      O2_sat = oxygen_saturation_concentration(temp, salt)
 
       POMTot=POML+POMR
       DOMTot=DOML+DOMR
@@ -571,12 +562,11 @@ contains
       _SET_DIAGNOSTIC_(self%id_LimP,LimP)
       _SET_DIAGNOSTIC_(self%id_LimNO3,LimNO3)
       _SET_DIAGNOSTIC_(self%id_LimSi,LimSi)
-      _SET_DIAGNOSTIC_(self%id_LimLight,LimLight)
+      _SET_DIAGNOSTIC_(self%id_ChlCratio,ChlC)
       _SET_DIAGNOSTIC_(self%id_DcTOM_O2,DcTOM_O2)
       _SET_DIAGNOSTIC_(self%id_DOMTot,DOMTot)
       _SET_DIAGNOSTIC_(self%id_POMTot,POMTot)
       _SET_DIAGNOSTIC_(self%id_N_fixation,N_fixation)
-
     _LOOP_END_
   end subroutine do
   !
@@ -795,9 +785,8 @@ contains
   !
   ! It is limiter type of function
   ! if concentration equals threshold_value hyper_limiter = 0.5
-  ! and growths
-  ! koef 1 gives hyperbolic function
-  ! larger koef gives larger gradients
+  ! and growths coef 1 gives hyperbolic function
+  ! larger coef gives larger gradients
   !
   pure real(rk) function hyper_limiter(threshold_value, r, coef)
     real(rk), intent(in) :: threshold_value, r, coef
@@ -813,5 +802,4 @@ contains
 
     hyper_inhibitor = 0.5_rk-0.5_rk*tanh((r-threshold_value)*coef)
   end function hyper_inhibitor
-
 end module fabm_niva_brom_bio
