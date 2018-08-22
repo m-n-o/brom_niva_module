@@ -26,6 +26,8 @@ module fabm_niva_brom_bio
     !standard variables dependencies
     type(type_dependency_id):: id_temp,id_salt,id_par
     type(type_horizontal_dependency_id):: id_windspeed
+    type(type_horizontal_dependency_id):: id_lat
+    type(type_global_dependency_id):: id_day
     !diagnostic variables
     !organic matter
     type(type_diagnostic_variable_id):: id_DcPOML_O2,id_DcDOML_O2
@@ -42,7 +44,7 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
     type(type_diagnostic_variable_id):: id_Grazing,id_RespHet,id_MortHet
     !oxygen
-    type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat
+    type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat,id_AOU
     !Model parameters
     !specific rates of biogeochemical processes
     real(rk):: K_POML_DOML,K_POMR_DOMR !for autolysis
@@ -66,6 +68,7 @@ module fabm_niva_brom_bio
     procedure :: initialize
     procedure :: do
     procedure :: do_surface
+    procedure :: graz
   end type
 contains
   !
@@ -79,6 +82,9 @@ contains
     call self%get_parameter(&
          self%alpha,'alpha','-','Photosynthetic efficiency at low irradiance',&
          default=.05_rk)
+    call self%get_parameter(&
+         self%pbm,'pbm','mg C (mg Chl a h)-1','Maximum rate of photosynthesis',&
+         default=8.0_rk)
     call self%get_parameter(&
          self%K_po4_lim,'K_po4_lim','[mmol/m**3]',&
          'Half-sat. constant for uptake of PO4 by Phy',&
@@ -100,9 +106,6 @@ contains
          'Max. specific rate of mitrogen fixation',&
          default=10._rk)
     call self%get_parameter(&
-         self%pbm,'pbm','mg C (mg Chl a h)-1','Maximum hourly rate of photosynthesis',&
-         default=8.0_rk)
-    call self%get_parameter(&
          self%K_phy_mrt,'K_phy_mrt','1/d','Specific rate of mortality',&
          default=0.10_rk)
     call self%get_parameter(&
@@ -122,13 +125,17 @@ contains
          'Max.spec.rate of grazing of Het on POM',&
          default=0.70_rk)
     call self%get_parameter(&
+         self%K_het_pom_lim,'K_het_pom_lim','nd',&
+         'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
+         default=0.2_rk)
+    call self%get_parameter(&
          self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
          'Max.spec.rate of grazing of Het on bacteria',&
          default=0.70_rk)
     call self%get_parameter(&
-         self%K_het_pom_lim,'K_het_pom_lim','nd',&
-         'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
-         default=0.2_rk)
+         self%limGrazBac,'limGrazBac','mmol/m**3',&
+         'Limiting parameter for bacteria grazing by Het',&
+         default=2._rk)
     call self%get_parameter(&
          self%K_het_res,'K_het_res','1/d',&
          'Specific respiration rate',&
@@ -145,11 +152,15 @@ contains
          self%Hz,'Hz','nd',&
          'Ratio betw. diss. and part. excretes of Het',&
          default=0.5_rk)
-    call self%get_parameter(&
-         self%limGrazBac,'limGrazBac','mmol/m**3',&
-         'Limiting parameter for bacteria grazing by Het',&
-         default=2._rk)
     !----OM-----------!
+    call self%get_parameter(&
+         self%K_POML_DOML, 'K_POML_DOML', '[1/day]',&
+         'Specific rate of Autolysis of POML to DOML',&
+         default=0.1_rk)
+    call self%get_parameter(&
+         self%K_POMR_DOMR, 'K_POMR_DOMR', '[1/day]',&
+         'Specific rate of Autolysis of POMR to DOMR',&
+         default=0.1_rk)
     call self%get_parameter(&
          self%K_DOML_ox,'K_DOML_ox','[1/day]',&
          'Specific rate of oxidation of DOML with O2',&
@@ -166,18 +177,6 @@ contains
          self%K_POMR_ox,'K_POMR_ox','[1/day]',&
          'Specific rate of oxidation of POMR with O2',&
          default=0.002_rk)
-    call self%get_parameter(&
-         self%K_POML_DOML, 'K_POML_DOML', '[1/day]',&
-         'Specific rate of Autolysis of POML to DOML',&
-         default=0.1_rk)
-    call self%get_parameter(&
-         self%K_POMR_DOMR, 'K_POMR_DOMR', '[1/day]',&
-         'Specific rate of Autolysis of POMR to DOMR',&
-         default=0.1_rk)
-    call self%get_parameter(&
-         self%beta_da,'beta_da','[1/day]',&
-         'Temperature control coefficient for OM decay',&
-         default=20.0_rk)
     call self%get_parameter(&
          self%tda,'tda','[1/day]',&
          'Temperature control coefficient for OM decay',&
@@ -314,9 +313,6 @@ contains
          self%id_GrowthPhy,'GrowthPhy','mmol/m**3','GrowthPhy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimT,'LimT','mmol/m**3','LimT',&
-         output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
          self%id_LimP,'LimP','mmol/m**3','LimP',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
@@ -336,6 +332,8 @@ contains
          standard_variable=standard_variables%fractional_saturation_of_oxygen)
     call self%register_diagnostic_variable(self%id_O2_sat, &
          'O2_sat','mmol O_2/m^3','oxygen saturation concentration')
+    call self%register_diagnostic_variable(self%id_AOU, &
+         'AOU','mmol O_2/m^3','apparent oxigen utilization')
     call self%register_diagnostic_variable(&
          self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
          'Total OM_ oxidation with O2',output=output_time_step_integrated)
@@ -355,6 +353,10 @@ contains
          self%id_salt,standard_variables%practical_salinity)
     call self%register_dependency(&
          self%id_windspeed,standard_variables%wind_speed)
+    call self%register_horizontal_dependency(self%id_lat,&
+         standard_variables%latitude)
+    call self%register_global_dependency(self%id_day,&
+         standard_variables%number_of_days_since_start_of_the_year)
     !Specify that are rates computed in this module are per day
     !(default: per second)
     self%dt = 86400._rk
@@ -365,7 +367,7 @@ contains
     class (type_niva_brom_bio),intent(in) :: self
 
     _DECLARE_ARGUMENTS_DO_
-    real(rk):: temp,salt,Iz
+    real(rk):: temp,salt,Iz,latitude,day
     !nutrients and limiters
     real(rk):: NH4,NO2,NO3,PO4,H2S,O2,Si,Sipart
     real(rk):: LimT,LimP,LimNO3,LimNH4,LimN,LimSi,LimNut
@@ -376,7 +378,7 @@ contains
     real(rk):: GrazBaae,GrazBaan,GrazBhae,GrazBhan,GrazBact
     real(rk):: Grazing,RespHet,MortHet
     !OM
-    real(rk):: POML,POMR,DOML,DOMR
+    real(rk):: POML,POMR,DOML,DOMR,kf
     real(rk):: DcDOML_O2,DcPOML_O2,DcTOM_O2
     real(rk):: DcPOMR_O2,DcDOMR_O2,DOMTot,POMTot
     real(rk):: Autolysis_L,Autolysis_R
@@ -393,6 +395,8 @@ contains
       _GET_(self%id_par,Iz) ! local photosynthetically active radiation
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! temperature
+      _GET_GLOBAL_(self%id_day,day)
+      _GET_HORIZONTAL_(self%id_lat,latitude)
       ! Retrieve current (local) state variable values.
       !state variables
       _GET_(self%id_NO2,NO2)
@@ -417,19 +421,22 @@ contains
       !
       !Phy
       !dependence on NH4
-      LimNH4 = hyper_limiter(self%K_nh4_lim, NH4, 1._rk)
+      LimNH4 = monod_squared(self%K_nh4_lim, NH4)
       !dependence on NO3+NO2
-      LimNO3 = hyper_limiter(self%K_nox_lim, NO3+NO2, 1._rk)&
-             * hyper_inhibitor(self%K_nh4_lim, NH4, 1._rk)
+      LimNO3 = monod_squared(self%K_nox_lim, NO3+NO2)&
+             * monod_squared_inhibitor(self%K_nh4_lim, NH4)
       !dependence on total nitrogen
       LimN = LimNO3+LimNH4
       !dependence on PO4
-      LimP = hyper_limiter(self%K_po4_lim, PO4, 1._rk)
+      LimP = monod_squared(self%K_po4_lim, PO4)
       !dependence on Si
-      LimSi = hyper_limiter(self%K_si_lim, Si, 1._rk)
+      LimSi = monod_squared(self%K_si_lim, Si)
       !total limiter
       LimNut = min(LimN, LimP, LimSi)
       !Chl a / Carbon ratio
+      !if (Iz>10) then
+      !    write(*,*) 'not sediments'
+      !end if
       ChlC = chl_c_ratio(temp, Iz, LimNut)
       !photosynthetic rate
       biorate = photosynthetic_rate(photoperiod(latitude, day),&
@@ -463,7 +470,7 @@ contains
       !Mortality of Het
       MortHet = Het*(self%K_het_mrt&
                      + hyper_inhibitor(20._rk, O2, 1._rk)*0.3_rk&
-                     + hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk
+                     + hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk)
       !
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
@@ -475,7 +482,7 @@ contains
       Autolysis_R = self%K_POMR_DOMR*POMR
       !OM decay in N units for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
-      kf = monod_squared(self%K_omox_o2, O2)*monod_squared(self%tda, temp))
+      kf = monod_squared(self%K_omox_o2, O2)*monod_squared(self%tda, temp)
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
       DcPOML_O2 = self%K_POML_ox*POML*kf
       DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
@@ -558,7 +565,6 @@ contains
       _SET_DIAGNOSTIC_(self%id_LimNH4,LimNH4)
       _SET_DIAGNOSTIC_(self%id_LimN,LimN)
       _SET_DIAGNOSTIC_(self%id_GrowthPhy,GrowthPhy)
-      _SET_DIAGNOSTIC_(self%id_LimT,LimT)
       _SET_DIAGNOSTIC_(self%id_LimP,LimP)
       _SET_DIAGNOSTIC_(self%id_LimNO3,LimNO3)
       _SET_DIAGNOSTIC_(self%id_LimSi,LimSi)
@@ -664,10 +670,10 @@ contains
   !Monod inhibitor
   !
   pure real(rk) function inhib(ks, r)
-      real(rk),intent(in):: ks
-      real(rk),intent(in):: r
+    real(rk),intent(in):: ks
+    real(rk),intent(in):: r
 
-      monod = ks/(r+ks)
+    inhib = ks/(r+ks)
   end function inhib
   !
   !This is a squared Michaelis-Menten type of limiter
@@ -678,12 +684,22 @@ contains
     monod_squared=r**2._rk/(ks**2._rk+r**2._rk)
   end function monod_squared
   !
+  !This is a squared Michaelis-Menten type of inhibitor
+  !
+  pure real(rk) function monod_squared_inhibitor(ks,r)
+    real(rk),intent(in):: ks,r
+
+    monod_squared_inhibitor=ks**2._rk/(r**2._rk+ks**2._rk)
+  end function monod_squared_inhibitor
+  !
   !Chl:C relationship, Cloern et al., 1995
   !
   pure real(rk) function chl_c_ratio(temperature, irradiance, nutrient_limiter)
-    real(rk),intent(in): temperature
-    real(rk),intent(in): irradiance
-    real(rk),intent(in): nutrient_limiter
+    real(rk),intent(in):: temperature
+    real(rk),intent(in):: irradiance
+    real(rk),intent(in):: nutrient_limiter
+
+    real(rk):: a0, a, b, c
 
     a0 = 0.003 ! minimal Chl:C ratio
     a = 0.0154; b = 0.050; c = 0.059 ! achieved by experiment
@@ -698,10 +714,11 @@ contains
     real(rk),intent(in):: latitude
     real(rk),intent(in):: day
 
-    real(rk):: pi = 3.141592_rk
+    real(rk):: pi
     real(rk):: a0, a1, a2, a3, b1, b2, b3
     real(rk):: th0, th02, th03, delta, wh
 
+    pi = 3.141592_rk
     a0 = 0.006918_rk
     a1 =-0.399912_rk
     a2 =-0.006758_rk
@@ -714,9 +731,9 @@ contains
     th02 = 2._rk*th0
     th03 = 3._rk*th0
 
-    delta =(a0
-           + a1*cos(th0)+b1*sin(th0)
-           + a2*cos(th02)+b2*sin(th02)
+    delta =(a0&
+           + a1*cos(th0)+b1*sin(th0)&
+           + a2*cos(th02)+b2*sin(th02)&
            + a3*cos(th03)+b3*sin(th03))
 
     wh = (2._rk*pi)/24._rk
@@ -732,7 +749,7 @@ contains
     real(rk),intent(in):: D, pbm, alpha, I
 
     photosynthetic_rate &
-        = D*pbm(1-exp(-1._rk*I*alpha/pbm))
+        = D*pbm*(1._rk-exp(-1._rk*I*alpha/pbm))
   end function photosynthetic_rate
   !
   !Coefficiens inside evaluate respiration;
