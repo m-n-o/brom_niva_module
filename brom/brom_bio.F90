@@ -1,6 +1,5 @@
 !-----------------------------------------------------------------------
-! fabm_niva_brom_bio is
-! free software: you can redistribute it and/or modify it under
+! brom_bio is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
@@ -12,6 +11,7 @@
 
 module fabm_niva_brom_bio
   use fabm_types
+  use brom_functions
 
   implicit none
   private
@@ -21,8 +21,9 @@ module fabm_niva_brom_bio
     type(type_state_variable_id):: id_O2,id_POML,id_POMR,id_DOML,id_DOMR
     !state dependencies
     type(type_state_variable_id):: id_NO2,id_NO3,id_NH4,id_PO4
-    type(type_state_variable_id):: id_Baae,id_Baan,id_Bhae,id_Bhan
-    type(type_state_variable_id):: id_DIC,id_H2S,id_Si,id_Sipart,id_Alk
+    !type(type_state_variable_id):: id_Baae,id_Baan,id_Bhae,id_Bhan
+    type(type_state_variable_id):: id_DIC,id_Si,id_Alk
+    !type(type_state_variable_id):: id_Sipart, id_H2S
     !standard variables dependencies
     type(type_dependency_id):: id_temp,id_salt,id_par
     type(type_horizontal_dependency_id):: id_windspeed
@@ -31,17 +32,18 @@ module fabm_niva_brom_bio
     !diagnostic variables
     !organic matter
     type(type_diagnostic_variable_id):: id_DcPOML_O2,id_DcDOML_O2
-    type(type_diagnostic_variable_id):: id_DcPOMR_O2,id_DcDOMR_O2,id_DcTOM_O2
-    type(type_diagnostic_variable_id):: id_POMTot,id_DOMTot
+    type(type_diagnostic_variable_id):: id_DcPOMR_O2,id_DcDOMR_O2!,id_DcTOM_O2
+    !type(type_diagnostic_variable_id):: id_POMTot,id_DOMTot
     !primary producers
     type(type_diagnostic_variable_id):: id_LimNH4,id_LimNO3,id_LimN
     type(type_diagnostic_variable_id):: id_LimP,id_LimSi
+    type(type_diagnostic_variable_id):: id_Biorate,id_growthrate
     type(type_diagnostic_variable_id):: id_GrowthPhy,id_MortPhy,id_ExcrPhy
     type(type_diagnostic_variable_id):: id_ChlCratio,id_N_fixation
     !heterotrophs
     type(type_diagnostic_variable_id):: id_GrazPhy,id_GrazPOP,id_GrazBact
-    type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
-    type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
+    !type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
+    !type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
     type(type_diagnostic_variable_id):: id_Grazing,id_RespHet,id_MortHet
     !oxygen
     type(type_diagnostic_variable_id):: id_O2_rel_sat,id_O2_sat,id_AOU
@@ -49,7 +51,7 @@ module fabm_niva_brom_bio
     !specific rates of biogeochemical processes
     real(rk):: K_POML_DOML,K_POMR_DOMR !for autolysis
     real(rk):: K_DOML_ox,K_DOMR_ox,K_POML_ox,K_POMR_ox !specific decay scales
-    real(rk):: tda,K_omox_o2 !for OM decay
+    real(rk):: tref,K_omox_o2 !for OM decay
     !---- N, P, Si--!
     real(rk):: K_nh4_lim,K_nox_lim,K_nfix,K_po4_lim,K_si_lim
     !----Phy  ----------!
@@ -104,7 +106,7 @@ contains
     call self%get_parameter(&
          self%K_nfix,'K_nfix','[1/d]',&
          'Max. specific rate of mitrogen fixation',&
-         default=10._rk)
+         default=0.4_rk)
     call self%get_parameter(&
          self%K_phy_mrt,'K_phy_mrt','1/d','Specific rate of mortality',&
          default=0.10_rk)
@@ -178,9 +180,9 @@ contains
          'Specific rate of oxidation of POMR with O2',&
          default=0.002_rk)
     call self%get_parameter(&
-         self%tda,'tda','[1/day]',&
-         'Temperature control coefficient for OM decay',&
-         default=13.0_rk)
+         self%tref,'tref','degrees celcius',&
+         'Reference temperature at which temperature factor = 1',&
+         default=0.0_rk)
     call self%get_parameter(&
          self%K_omox_o2,'K_omox_o2','[uM]',&
          'half sat. of o2 for OM mineralization',&
@@ -232,8 +234,8 @@ contains
          self%id_PO4,'PO4','mmol/m**3','PO4')
     call self%register_state_dependency(&
          self%id_Si,'Si','mmol/m**3','Si')
-    call self%register_state_dependency(&
-         self%id_Sipart,'Sipart','mmol/m**3','Si particulate')
+    !call self%register_state_dependency(&
+    !     self%id_Sipart,'Sipart','mmol/m**3','Si particulate')
     call self%register_state_dependency(&
          self%id_NO3,'NO3','mmol/m**3','NO3')
     call self%register_state_dependency(&
@@ -242,18 +244,18 @@ contains
          self%id_NO2,'NO2','mmol/m**3','NO2')
     call self%register_state_dependency(&
          self%id_DIC,'DIC','mmol/m**3','DIC')
-    call self%register_state_dependency(&
-         self%id_H2S,'H2S','mmol/m**3','H2S')
+    !call self%register_state_dependency(&
+    !     self%id_H2S,'H2S','mmol/m**3','H2S')
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
-    call self%register_state_dependency(&
-         self%id_Baae,'Baae','mmol/m**3','aerobic autotrophic bacteria')
-    call self%register_state_dependency(&
-         self%id_Bhae,'Bhae','mmol/m**3','aerobic heterotrophic bacteria')
-    call self%register_state_dependency(&
-         self%id_Baan,'Baan','mmol/m**3','anaerobic aurotrophic bacteria')
-    call self%register_state_dependency(&
-         self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
+    !call self%register_state_dependency(&
+    !     self%id_Baae,'Baae','mmol/m**3','aerobic autotrophic bacteria')
+    !call self%register_state_dependency(&
+    !     self%id_Bhae,'Bhae','mmol/m**3','aerobic heterotrophic bacteria')
+    !call self%register_state_dependency(&
+    !     self%id_Baan,'Baan','mmol/m**3','anaerobic aurotrophic bacteria')
+    !call self%register_state_dependency(&
+    !     self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_DcPOML_O2,'DcPOML_O2','mmol/m**3',&
@@ -276,27 +278,27 @@ contains
     call self%register_diagnostic_variable(&
          self%id_RespHet,'RespHet','mmol/m**3','Respiration rate of Het',&
          output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_GrazBhae,'GrazBhae','mmol/m**3','GrazBhae',&
-         output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_GrazBhan,'GrazBhan','mmol/m**3','GrazBhan',&
-         output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_GrazBaae,'GrazBaae','mmol/m**3','GrazBaae',&
-         output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_GrazBaan,'GrazBaan','mmol/m**3','GrazBaan',&
-         output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_GrazBhae,'GrazBhae','mmol/m**3','GrazBhae',&
+    !     output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_GrazBhan,'GrazBhan','mmol/m**3','GrazBhan',&
+    !     output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_GrazBaae,'GrazBaae','mmol/m**3','GrazBaae',&
+    !     output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_GrazBaan,'GrazBaan','mmol/m**3','GrazBaan',&
+    !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_GrazPhy,'GrazPhy','mmol/m**3','GrazPhy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_GrazPOP,'GrazPOP','mmol/m**3','GrazPOP',&
          output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_GrazBact,'GrazBact','mmol/m**3','GrazBact',&
-         output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_GrazBact,'GrazBact','mmol/m**3','GrazBact',&
+    !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_MortPhy,'MortPhy','mmol/m**3','MortPhy',&
          output=output_time_step_integrated)
@@ -308,6 +310,12 @@ contains
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_LimN,'LimN','mmol/m**3','LimN',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_Biorate,'Biorate','mg C(mg Chl a d)-1','Biorate',&
+         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_growthrate,'Growth_rate','d-1','Growth_rate',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_GrowthPhy,'GrowthPhy','mmol/m**3','GrowthPhy',&
@@ -334,15 +342,15 @@ contains
          'O2_sat','mmol O_2/m^3','oxygen saturation concentration')
     call self%register_diagnostic_variable(self%id_AOU, &
          'AOU','mmol O_2/m^3','apparent oxigen utilization')
-    call self%register_diagnostic_variable(&
-         self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
-         'Total OM_ oxidation with O2',output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_DOMTot,'DOMTot','mmol/m**3',&
-         'DOMTot: refractory+labile',output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-         self%id_POMTot,'POMTot','mmol/m**3',&
-         'POMTot: refractory+labile',output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
+    !     'Refractory OM oxidation with O2',output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_DOMTot,'DOMTot','mmol/m**3',&
+    !     'DOMTot: refractory+labile',output=output_time_step_integrated)
+    !call self%register_diagnostic_variable(&
+    !     self%id_POMTot,'POMTot','mmol/m**3',&
+    !     'POMTot: refractory+labile',output=output_time_step_integrated)
     !Register environmental dependencies
     call self%register_dependency(&
          self%id_par,&
@@ -367,32 +375,33 @@ contains
     class (type_niva_brom_bio),intent(in) :: self
 
     _DECLARE_ARGUMENTS_DO_
-    real(rk):: temp,salt,Iz,latitude,day
+    real(rk):: temp,salt,PAR,PAR_M_day,latitude,day
     !nutrients and limiters
-    real(rk):: NH4,NO2,NO3,PO4,H2S,O2,Si,Sipart
+    real(rk):: NH4,NO2,NO3,PO4,O2,Si!,H2S,Sipart
     real(rk):: LimT,LimP,LimNO3,LimNH4,LimN,LimSi,LimNut
     !biology
-    real(rk):: Baae,Baan,Bhae,Bhan
-    real(rk):: Phy,ChlC,biorate,GrowthPhy,ExcrPhy,MortPhy,N_fixation
+    !real(rk):: Baae,Baan,Bhae,Bhan
+    real(rk):: Phy,ChlC,biorate,growthrate
+    real(rk):: GrowthPhy,ExcrPhy,MortPhy,N_fixation
     real(rk):: Het,GrazPhy,GrazPOP
-    real(rk):: GrazBaae,GrazBaan,GrazBhae,GrazBhan,GrazBact
+    !real(rk):: GrazBaae,GrazBaan,GrazBhae,GrazBhan,GrazBact
     real(rk):: Grazing,RespHet,MortHet
     !OM
     real(rk):: POML,POMR,DOML,DOMR,kf
-    real(rk):: DcDOML_O2,DcPOML_O2,DcTOM_O2
-    real(rk):: DcPOMR_O2,DcDOMR_O2,DOMTot,POMTot
+    real(rk):: DcDOML_O2,DcPOML_O2!,DcTOM_O2
+    real(rk):: DcPOMR_O2,DcDOMR_O2!,DOMTot,POMTot
     real(rk):: Autolysis_L,Autolysis_R
     !etc.
     real(rk):: O2_sat,Alk
     !increments
-    real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4,d_Sipart
-    real(rk):: d_Phy,d_Het,d_Baae,d_Baan,d_Bhae,d_Bhan
+    real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4!,d_Sipart
+    real(rk):: d_Phy,d_Het!,d_Baae,d_Baan,d_Bhae,d_Bhan
     real(rk):: d_alk,d_DOML,d_DOMR,d_POML,d_POMR
 
     ! Enter spatial loops (if any)
     _LOOP_BEGIN_
       ! Retrieve current environmental conditions.
-      _GET_(self%id_par,Iz) ! local photosynthetically active radiation
+      _GET_(self%id_par,PAR) ! local photosynthetically active radiation microM/s
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! temperature
       _GET_GLOBAL_(self%id_day,day)
@@ -405,19 +414,21 @@ contains
       _GET_(self%id_Si,Si)
       _GET_(self%id_Alk,Alk)
       _GET_(self%id_NH4,NH4)
-      _GET_(self%id_H2S,H2S)
+      !_GET_(self%id_H2S,H2S)
       _GET_(self%id_O2,O2)
       _GET_(self%id_Phy,Phy)
       _GET_(self%id_Het,Het)
-      _GET_(self%id_Baae,Baae)
-      _GET_(self%id_Baan,Baan)
-      _GET_(self%id_Bhae,Bhae)
-      _GET_(self%id_Bhan,Bhan)
+      !_GET_(self%id_Baae,Baae)
+      !_GET_(self%id_Baan,Baan)
+      !_GET_(self%id_Bhae,Bhae)
+      !_GET_(self%id_Bhan,Bhan)
       _GET_(self%id_POML,POML)
       _GET_(self%id_POMR,POMR)
       _GET_(self%id_DOML,DOML)
       _GET_(self%id_DOMR,DOMR)
-      _GET_(self%id_Sipart,Sipart)
+      !_GET_(self%id_Sipart,Sipart)
+
+      PAR_M_day = PAR*86400._rk/1000000._rk !PAR M per day
       !
       !Phy
       !dependence on NH4
@@ -426,7 +437,7 @@ contains
       LimNO3 = monod_squared(self%K_nox_lim, NO3+NO2)&
              * monod_squared_inhibitor(self%K_nh4_lim, NH4)
       !dependence on total nitrogen
-      LimN = LimNO3+LimNH4
+      LimN = LimNO3!+LimNH4
       !dependence on PO4
       LimP = monod_squared(self%K_po4_lim, PO4)
       !dependence on Si
@@ -434,15 +445,13 @@ contains
       !total limiter
       LimNut = min(LimN, LimP, LimSi)
       !Chl a / Carbon ratio
-      !if (Iz>10) then
-      !    write(*,*) 'not sediments'
-      !end if
-      ChlC = chl_c_ratio(temp, Iz, LimNut)
+      ChlC = chl_c_ratio(temp, PAR_M_day, LimNut)
       !photosynthetic rate
       biorate = photosynthetic_rate(photoperiod(latitude, day),&
-                                    self%pbm, self%alpha, Iz)
+                                    self%pbm, self%alpha, PAR)
       !daily growth rate
-      GrowthPhy = daily_growth(biorate, ChlC, LimNut)*Phy
+      growthrate = daily_growth(biorate, ChlC, LimNut)
+      GrowthPhy = growthrate*Phy
       !excretion of phy
       ExcrPhy = self%K_phy_exc*Phy
       !mortality of phy
@@ -458,19 +467,19 @@ contains
       GrazPOP = self%K_het_pom_gro*Het*&
                 monod_squared(self%K_het_pom_lim, quota(POML, Het))
       !Grazing of Het on bacteria
-      GrazBaae = 1.0_rk*self%graz(Baae, Het)
-      GrazBaan = 0.5_rk*self%graz(Baan, Het)
-      GrazBhae = 1.0_rk*self%graz(Bhae, Het)
-      GrazBhan = 1.3_rk*self%graz(Bhan, Het)
-      GrazBact = GrazBaae+GrazBaan+GrazBhae+GrazBhan
+      !GrazBaae = 1.0_rk*self%graz(Baae, Het)
+      !GrazBaan = 0.5_rk*self%graz(Baan, Het)
+      !GrazBhae = 1.0_rk*self%graz(Bhae, Het)
+      !GrazBhan = 1.3_rk*self%graz(Bhan, Het)
+      !GrazBact = GrazBaae+GrazBaan+GrazBhae+GrazBhan
       !Total grazing of Het
-      Grazing = GrazPhy+GrazPOP+GrazBact
+      Grazing = GrazPhy+GrazPOP!+GrazBact
       !Respiration of Het
       RespHet = self%K_het_res*Het*hyper_limiter(20._rk, O2, 1._rk)
       !Mortality of Het
       MortHet = Het*(self%K_het_mrt&
-                     + hyper_inhibitor(20._rk, O2, 1._rk)*0.3_rk&
-                     + hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk)
+                     + hyper_inhibitor(20._rk, O2, 1._rk)*0.75)!*0.3_rk&
+                     !+ hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk)
       !
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
@@ -482,28 +491,28 @@ contains
       Autolysis_R = self%K_POMR_DOMR*POMR
       !OM decay in N units for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
-      kf = monod_squared(self%K_omox_o2, O2)*monod_squared(self%tda, temp)
+      kf = monod_squared(self%K_omox_o2, O2)*f_t(temp,2._rk,self%tref)
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
       DcPOML_O2 = self%K_POML_ox*POML*kf
       DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
       DcPOMR_O2 = self%K_POMR_ox*POMR*kf
-      DcTOM_O2 = DcDOMR_O2+DcPOMR_O2
+      !DcTOM_O2 = DcDOMR_O2+DcPOMR_O2
 
       !increments
       !nutrients
       d_NH4 = DcDOML_O2+DcPOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN)
-      d_NO2 = -GrowthPhy*(LimNO3/LimN)*(NO2/n_zero(NO2+NO3))
-      d_NO3 = -GrowthPhy*(LimNO3/LimN)*(NO3/n_zero(NO2+NO3))
+      d_NO2 = -GrowthPhy*(LimNO3/LimN)*(n_zero(NO2)/n_zero(NO2+NO3))
+      d_NO3 = -GrowthPhy*(LimNO3/LimN)*(n_zero(NO3)/n_zero(NO2+NO3))
       d_PO4 = (DcDOML_O2+DcPOML_O2-GrowthPhy+RespHet)/self%r_n_p
       d_Si = (-GrowthPhy+ExcrPhy)*self%r_si_n
-      d_Sipart = (MortPhy+GrazPhy)*self%r_si_n
+      !d_Sipart = (MortPhy+GrazPhy)*self%r_si_n
       !alive
       d_Phy = GrowthPhy-MortPhy-ExcrPhy-GrazPhy
       d_Het = self%Uz*Grazing-MortHet-RespHet
-      d_Baae = -GrazBaae
-      d_Baan = -GrazBaan
-      d_Bhae = -GrazBhae
-      d_Bhan = -GrazBhan
+      !d_Baae = -GrazBaae
+      !d_Baan = -GrazBaan
+      !d_Bhae = -GrazBhae
+      !d_Bhan = -GrazBhan
       !OM
       d_POML = -Autolysis_L-DcPOML_O2+MortPhy+MortHet+Grazing*&
                (1._rk-self%Uz)*(1._rk-self%Hz)-GrazPOP
@@ -522,57 +531,66 @@ contains
       _SET_ODE_(self%id_DOML,d_DOML)
       _SET_ODE_(self%id_POMR,d_POMR)
       _SET_ODE_(self%id_DOMR,d_DOMR)
+
+      _SET_ODE_(self%id_NH4,d_NH4)
       _SET_ODE_(self%id_NO2,d_NO2)
       _SET_ODE_(self%id_NO3,d_NO3)
       _SET_ODE_(self%id_PO4,d_PO4)
       _SET_ODE_(self%id_Si,d_Si)
+      !_SET_ODE_(self%id_Sipart,d_Sipart)
+
       _SET_ODE_(self%id_DIC,d_DIC)
       _SET_ODE_(self%id_O2,d_O2)
-      _SET_ODE_(self%id_NH4,d_NH4)
-      _SET_ODE_(self%id_Sipart,d_Sipart)
+
       _SET_ODE_(self%id_Phy,d_Phy)
       _SET_ODE_(self%id_Het,d_Het)
-      _SET_ODE_(self%id_Baae,d_Baae)
-      _SET_ODE_(self%id_Baan,d_Baan)
-      _SET_ODE_(self%id_Bhae,d_Bhae)
-      _SET_ODE_(self%id_Bhan,d_Bhan)
+      !_SET_ODE_(self%id_Baae,d_Baae)
+      !_SET_ODE_(self%id_Baan,d_Baan)
+      !_SET_ODE_(self%id_Bhae,d_Bhae)
+      !_SET_ODE_(self%id_Bhan,d_Bhan)
+
       _SET_ODE_(self%id_Alk,d_alk)
 
       O2_sat = oxygen_saturation_concentration(temp, salt)
 
-      POMTot=POML+POMR
-      DOMTot=DOML+DOMR
+      !POMTot=POML+POMR
+      !DOMTot=DOML+DOMR
 
-      _SET_DIAGNOSTIC_(self%id_O2_sat,O2_sat)
-      _SET_DIAGNOSTIC_(self%id_O2_rel_sat,max(0.0_rk,100.0_rk*O2/O2_sat))
-      _SET_DIAGNOSTIC_(self%id_AOU,(O2_sat-O2))
-      _SET_DIAGNOSTIC_(self%id_DcPOML_O2,DcPOML_O2)
-      _SET_DIAGNOSTIC_(self%id_DcPOMR_O2,DcPOMR_O2)
-      _SET_DIAGNOSTIC_(self%id_DcDOMR_O2,DcDOMR_O2)
-      _SET_DIAGNOSTIC_(self%id_DcDOML_O2,DcDOML_O2)
-      _SET_DIAGNOSTIC_(self%id_MortHet,MortHet)
-      _SET_DIAGNOSTIC_(self%id_Grazing,Grazing)
-      _SET_DIAGNOSTIC_(self%id_RespHet,RespHet)
-      _SET_DIAGNOSTIC_(self%id_GrazBhae,GrazBhae)
-      _SET_DIAGNOSTIC_(self%id_GrazBhan,GrazBhan)
-      _SET_DIAGNOSTIC_(self%id_GrazBaae,GrazBaae)
-      _SET_DIAGNOSTIC_(self%id_GrazBaan,GrazBaan)
-      _SET_DIAGNOSTIC_(self%id_GrazPhy,GrazPhy)
-      _SET_DIAGNOSTIC_(self%id_GrazPOP,GrazPOP)
-      _SET_DIAGNOSTIC_(self%id_GrazBact,GrazBact)
-      _SET_DIAGNOSTIC_(self%id_MortPhy,MortPhy)
-      _SET_DIAGNOSTIC_(self%id_ExcrPhy,ExcrPhy)
       _SET_DIAGNOSTIC_(self%id_LimNH4,LimNH4)
       _SET_DIAGNOSTIC_(self%id_LimN,LimN)
-      _SET_DIAGNOSTIC_(self%id_GrowthPhy,GrowthPhy)
       _SET_DIAGNOSTIC_(self%id_LimP,LimP)
       _SET_DIAGNOSTIC_(self%id_LimNO3,LimNO3)
       _SET_DIAGNOSTIC_(self%id_LimSi,LimSi)
       _SET_DIAGNOSTIC_(self%id_ChlCratio,ChlC)
-      _SET_DIAGNOSTIC_(self%id_DcTOM_O2,DcTOM_O2)
-      _SET_DIAGNOSTIC_(self%id_DOMTot,DOMTot)
-      _SET_DIAGNOSTIC_(self%id_POMTot,POMTot)
+      _SET_DIAGNOSTIC_(self%id_Biorate,biorate)
+      _SET_DIAGNOSTIC_(self%id_growthrate,growthrate)
+      _SET_DIAGNOSTIC_(self%id_GrowthPhy,GrowthPhy)
+      _SET_DIAGNOSTIC_(self%id_MortPhy,MortPhy)
+      _SET_DIAGNOSTIC_(self%id_ExcrPhy,ExcrPhy)
+
+      _SET_DIAGNOSTIC_(self%id_GrazPhy,GrazPhy)
+      !_SET_DIAGNOSTIC_(self%id_GrazBhae,GrazBhae)
+      !_SET_DIAGNOSTIC_(self%id_GrazBhan,GrazBhan)
+      !_SET_DIAGNOSTIC_(self%id_GrazBaae,GrazBaae)
+      !_SET_DIAGNOSTIC_(self%id_GrazBaan,GrazBaan)
+      _SET_DIAGNOSTIC_(self%id_GrazPOP,GrazPOP)
+      _SET_DIAGNOSTIC_(self%id_Grazing,Grazing)
+      !_SET_DIAGNOSTIC_(self%id_GrazBact,GrazBact)
+      _SET_DIAGNOSTIC_(self%id_MortHet,MortHet)
+      _SET_DIAGNOSTIC_(self%id_RespHet,RespHet)
+
+      _SET_DIAGNOSTIC_(self%id_O2_sat,O2_sat)
+      _SET_DIAGNOSTIC_(self%id_O2_rel_sat,max(0.0_rk,100.0_rk*O2/O2_sat))
+      _SET_DIAGNOSTIC_(self%id_AOU,(O2_sat-O2))
       _SET_DIAGNOSTIC_(self%id_N_fixation,N_fixation)
+
+      !_SET_DIAGNOSTIC_(self%id_DcTOM_O2,DcTOM_O2)
+      !_SET_DIAGNOSTIC_(self%id_DOMTot,DOMTot)
+      !_SET_DIAGNOSTIC_(self%id_POMTot,POMTot)
+      _SET_DIAGNOSTIC_(self%id_DcPOML_O2,DcPOML_O2)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_O2,DcPOMR_O2)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_O2,DcDOMR_O2)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_O2,DcDOML_O2)
     _LOOP_END_
   end subroutine do
   !
@@ -658,40 +676,6 @@ contains
     O2_sat = O2_sat * 1000._rk / VIDEAL
   end function oxygen_saturation_concentration
   !
-  !Monod limiter
-  !
-  pure real(rk) function monod(ks, r)
-      real(rk),intent(in):: ks
-      real(rk),intent(in):: r
-
-      monod = r/(r+ks)
-  end function monod
-  !
-  !Monod inhibitor
-  !
-  pure real(rk) function inhib(ks, r)
-    real(rk),intent(in):: ks
-    real(rk),intent(in):: r
-
-    inhib = ks/(r+ks)
-  end function inhib
-  !
-  !This is a squared Michaelis-Menten type of limiter
-  !
-  pure real(rk) function monod_squared(ks,r)
-    real(rk),intent(in):: ks,r
-
-    monod_squared=r**2._rk/(ks**2._rk+r**2._rk)
-  end function monod_squared
-  !
-  !This is a squared Michaelis-Menten type of inhibitor
-  !
-  pure real(rk) function monod_squared_inhibitor(ks,r)
-    real(rk),intent(in):: ks,r
-
-    monod_squared_inhibitor=ks**2._rk/(r**2._rk+ks**2._rk)
-  end function monod_squared_inhibitor
-  !
   !Chl:C relationship, Cloern et al., 1995
   !
   pure real(rk) function chl_c_ratio(temperature, irradiance, nutrient_limiter)
@@ -761,9 +745,7 @@ contains
 
     daily_growth &
         = 0.85_rk*biorate*ChlCratio*limiter-0.015_rk
-    daily_growth = max(0._rk, daily_growth)
-
-    if (daily_growth < 0._rk) daily_growth = 0._rk
+    !daily_growth = max(0._rk, daily_growth)
   end function daily_growth
   !
   !
@@ -776,14 +758,6 @@ contains
   !
   !
   !
-  pure real(rk) function n_zero(var)
-    real(rk),intent(in):: var
-
-    n_zero = max(var, 1.e-10_rk)
-  end function n_zero
-  !
-  !
-  !
   real(rk) function graz(self, var, Het)
     class (type_niva_brom_bio),intent(in):: self
     real(rk),intent(in):: var, Het
@@ -791,32 +765,4 @@ contains
     graz = self%K_het_bac_gro*Het&
          * monod_squared(self%limGrazBac, quota(var, Het))
   end function graz
-  !
-  !
-  !
-  pure real(rk) function quota(var, var2)
-    real(rk),intent(in):: var, var2
-
-    quota = var/n_zero(var2)
-  end function quota
-  !
-  ! It is limiter type of function
-  ! if concentration equals threshold_value hyper_limiter = 0.5
-  ! and growths coef 1 gives hyperbolic function
-  ! larger coef gives larger gradients
-  !
-  pure real(rk) function hyper_limiter(threshold_value, r, coef)
-    real(rk), intent(in) :: threshold_value, r, coef
-
-    hyper_limiter = 0.5_rk+0.5_rk*tanh((r-threshold_value)*coef)
-  end function hyper_limiter
-  !
-  ! It is inhibitor type of function
-  !
-  pure real(rk) function hyper_inhibitor(threshold_value, r, coef)
-    ! Threshold value for the reaction
-    real(rk), intent(in) :: threshold_value, r, coef
-
-    hyper_inhibitor = 0.5_rk-0.5_rk*tanh((r-threshold_value)*coef)
-  end function hyper_inhibitor
 end module fabm_niva_brom_bio

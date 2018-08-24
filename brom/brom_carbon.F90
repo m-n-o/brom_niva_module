@@ -1,11 +1,10 @@
 !-----------------------------------------------------------------------
-! BROM2 is free software: you can redistribute it and/or modify it under
+! brom_carbon is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
-! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the BROM2 distribution.
+! FITNESS FOR A PARTICULAR PURPOSE.
 !-----------------------------------------------------------------------
 
 #include "fabm_driver.h"
@@ -96,7 +95,7 @@ contains
       _GET_(self%id_temp,temp) !temperature
       _GET_(self%id_salt,salt) !salinity
       !previouss pCO2 which calculates here in the subroutine do
-      _GET_(self%id_pCO2w,pCO2w) 
+      _GET_(self%id_pCO2w,pCO2w)
       !Equilibrium constants
       _GET_(self%id_Kc0,Kc0)
       _GET_HORIZONTAL_(self%id_windspeed,windspeed)
