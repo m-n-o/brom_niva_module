@@ -41,7 +41,7 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_GrowthPhy,id_MortPhy,id_ExcrPhy
     type(type_diagnostic_variable_id):: id_ChlCratio,id_N_fixation
     !heterotrophs
-    type(type_diagnostic_variable_id):: id_GrazPhy,id_GrazPOP,id_GrazBact
+    type(type_diagnostic_variable_id):: id_GrazPhy,id_GrazPOP!,id_GrazBact
     !type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
     !type(type_diagnostic_variable_id):: id_GrazBhae,id_GrazBhan
     type(type_diagnostic_variable_id):: id_Grazing,id_RespHet,id_MortHet
@@ -60,7 +60,7 @@ module fabm_niva_brom_bio
     !----Het -----------!
     real(rk):: K_het_phy_gro,K_het_phy_lim
     real(rk):: K_het_pom_gro,K_het_pom_lim
-    real(rk):: K_het_bac_gro,limGrazBac
+    !real(rk):: K_het_bac_gro,limGrazBac
     real(rk):: K_het_res,K_het_mrt,Uz,Hz
     !---- Sinking---!
     real(rk):: Wsed,Wphy,Whet
@@ -70,7 +70,7 @@ module fabm_niva_brom_bio
     procedure :: initialize
     procedure :: do
     procedure :: do_surface
-    procedure :: graz
+    !procedure :: graz
   end type
 contains
   !
@@ -130,14 +130,14 @@ contains
          self%K_het_pom_lim,'K_het_pom_lim','nd',&
          'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
          default=0.2_rk)
-    call self%get_parameter(&
-         self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
-         'Max.spec.rate of grazing of Het on bacteria',&
-         default=0.70_rk)
-    call self%get_parameter(&
-         self%limGrazBac,'limGrazBac','mmol/m**3',&
-         'Limiting parameter for bacteria grazing by Het',&
-         default=2._rk)
+    !call self%get_parameter(&
+    !     self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
+    !     'Max.spec.rate of grazing of Het on bacteria',&
+    !     default=0.70_rk)
+    !call self%get_parameter(&
+    !     self%limGrazBac,'limGrazBac','mmol/m**3',&
+    !     'Limiting parameter for bacteria grazing by Het',&
+    !     default=2._rk)
     call self%get_parameter(&
          self%K_het_res,'K_het_res','1/d',&
          'Specific respiration rate',&
@@ -500,9 +500,9 @@ contains
 
       !increments
       !nutrients
-      d_NH4 = DcDOML_O2+DcPOML_O2+RespHet+N_fixation-GrowthPhy*(LimNH4/LimN)
-      d_NO2 = -GrowthPhy*(LimNO3/LimN)*(n_zero(NO2)/n_zero(NO2+NO3))
-      d_NO3 = -GrowthPhy*(LimNO3/LimN)*(n_zero(NO3)/n_zero(NO2+NO3))
+      d_NH4 = DcDOML_O2+DcPOML_O2+RespHet+N_fixation-GrowthPhy*quota(LimNH4,LimN)
+      d_NO2 = -GrowthPhy*quota(LimNO3,LimN)*quota(NO2,NO2+NO3)
+      d_NO3 = -GrowthPhy*quota(LimNO3,LimN)*quota(NO3,NO2+NO3)
       d_PO4 = (DcDOML_O2+DcPOML_O2-GrowthPhy+RespHet)/self%r_n_p
       d_Si = (-GrowthPhy+ExcrPhy)*self%r_si_n
       !d_Sipart = (MortPhy+GrazPhy)*self%r_si_n
@@ -745,7 +745,7 @@ contains
 
     daily_growth &
         = 0.85_rk*biorate*ChlCratio*limiter-0.015_rk
-    !daily_growth = max(0._rk, daily_growth)
+    daily_growth = max(0._rk, daily_growth)
   end function daily_growth
   !
   !
@@ -758,11 +758,11 @@ contains
   !
   !
   !
-  real(rk) function graz(self, var, Het)
-    class (type_niva_brom_bio),intent(in):: self
-    real(rk),intent(in):: var, Het
+  !real(rk) function graz(self, var, Het)
+  !  class (type_niva_brom_bio),intent(in):: self
+  !  real(rk),intent(in):: var, Het
 
-    graz = self%K_het_bac_gro*Het&
-         * monod_squared(self%limGrazBac, quota(var, Het))
-  end function graz
+  !  graz = self%K_het_bac_gro*Het&
+  !       * monod_squared(self%limGrazBac, quota(var, Het))
+  !end function graz
 end module fabm_niva_brom_bio
