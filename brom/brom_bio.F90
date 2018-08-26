@@ -437,7 +437,7 @@ contains
       LimNO3 = monod_squared(self%K_nox_lim, NO3+NO2)&
              * monod_squared_inhibitor(self%K_nh4_lim, NH4)
       !dependence on total nitrogen
-      LimN = LimNO3!+LimNH4
+      LimN = LimNO3+LimNH4
       !dependence on PO4
       LimP = monod_squared(self%K_po4_lim, PO4)
       !dependence on Si
@@ -478,7 +478,7 @@ contains
       RespHet = self%K_het_res*Het*hyper_limiter(20._rk, O2, 1._rk)
       !Mortality of Het
       MortHet = Het*(self%K_het_mrt&
-                     + hyper_inhibitor(20._rk, O2, 1._rk)*0.75)!*0.3_rk&
+                     + hyper_inhibitor(20._rk, O2, 1._rk)*0.75_rk)!*0.3_rk&
                      !+ hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk)
       !
       !Nitrogen fixation described as appearence of NH4 available for
