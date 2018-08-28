@@ -135,29 +135,29 @@ contains
     call self%register_state_dependency(&
          self%id_NO3,'NO3','mmol/m**3 N',&
          'nitrate')
-!    call self%register_state_dependency(&
-!         self%id_DIC,'DIC','mmol/m**3 C',&
-!         'total dissolved inorganic carbon',required=.false.)
+    !call self%register_state_dependency(&
+    !     self%id_DIC,'DIC','mmol/m**3 C',&
+    !     'total dissolved inorganic carbon',required=.false.)
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
     call self%register_state_dependency(&
          self%id_O2, 'O2', 'mmol/m**3 O2',&
          'dissolved oxygen')
-!    call self%register_state_dependency(&
-!         self%id_POML,'POML','mmol/m**3 N',&
-!         'particulate organic nitrogen')
-!    call self%register_state_dependency(&
-!         self%id_POMR,'POMR','mmol/m**3 N',&
-!         'POM refractory')
-!    call self%register_state_dependency(&
-!         self%id_DOMR,'DOMR','mmol/m**3 N',&
-!         'DOM refractory')
-!    call self%register_state_dependency(&
-!         self%id_DOML,'DOML','mmol/m**3 N',&
-!         'dissolved organic nitrogen')
-!    call self%register_state_dependency(&
-!         self%id_po4,'PO4','mmol/m**3 P',&
-!         'phosphate',required=.false.)
+    !call self%register_state_dependency(&
+    !     self%id_POML,'POML','mmol/m**3 N',&
+    !     'particulate organic nitrogen')
+    !call self%register_state_dependency(&
+    !     self%id_POMR,'POMR','mmol/m**3 N',&
+    !     'POM refractory')
+    !call self%register_state_dependency(&
+    !     self%id_DOMR,'DOMR','mmol/m**3 N',&
+    !     'DOM refractory')
+    !call self%register_state_dependency(&
+    !     self%id_DOML,'DOML','mmol/m**3 N',&
+    !     'dissolved organic nitrogen')
+    !call self%register_state_dependency(&
+    !     self%id_po4,'PO4','mmol/m**3 P',&
+    !     'phosphate',required=.false.)
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(self%id_Nitrif1,'Nitrif1','mmol/m**3 N',&
@@ -230,12 +230,12 @@ contains
 
       !N (Canfield,2005)
       !Nitrification 1st stage: NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
-      Nitrif1 = self%K_nitrif1*NH4*o2*hyper_limiter(self%O2s_nf, o2, 1._rk)
+      Nitrif1 = self%K_nitrif1*NH4*hyper_limiter(self%O2s_nf, o2, 1._rk)
       !Nitrification 2d stage: NO2- + 0.5 O2 -> NO3-
-      Nitrif2 = self%K_nitrif2*NO2*o2*hyper_limiter(self%O2s_nf, o2, 1._rk)
+      Nitrif2 = self%K_nitrif2*NO2*hyper_limiter(self%O2s_nf, o2, 1._rk)
       !in suboxic conditions
       !Anammox NO2- + NH4+ -> N2 + 2H2O
-      Anammox = self%K_annamox*NO2*NH4*hyper_inhibitor(self%O2s_dn, o2, 1._rk)
+      Anammox = 0._rk!self%K_annamox*NO2*NH4*hyper_inhibitor(self%O2s_dn, o2, 1._rk)
       !!OM denitrification (Richards, 1965)
       !!(CH2O)106(NH3)16H3PO4 + 84.8HNO3 = 106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4
       !!POM and DOM denitrification (1st stage) (Anderson,1982)

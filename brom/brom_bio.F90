@@ -82,54 +82,55 @@ contains
 
     !----Phy----------!
     call self%get_parameter(&
-         self%alpha,'alpha','-','Photosynthetic efficiency at low irradiance',&
+         self%alpha,'alpha','mg C (mg Chl a h)^-1 (microM quanta m^-2 s^-1)^-1',&
+         'Photosynthetic efficiency at low irradiance',&
          default=.05_rk)
     call self%get_parameter(&
-         self%pbm,'pbm','mg C (mg Chl a h)-1','Maximum rate of photosynthesis',&
+         self%pbm,'pbm','mg C (mg Chl a h)^-1','Maximum rate of photosynthesis',&
          default=8.0_rk)
     call self%get_parameter(&
-         self%K_po4_lim,'K_po4_lim','[mmol/m**3]',&
+         self%K_po4_lim,'K_po4_lim','mM P m^-3',&
          'Half-sat. constant for uptake of PO4 by Phy',&
          default=0.02_rk)
     call self%get_parameter(&
-         self%K_si_lim,'K_si_lim','[mmol/m**3]',&
+         self%K_si_lim,'K_si_lim','mM Si m^-3',&
          'Half-sat. constant for uptake of Si by Phy',&
          default=0.02_rk)
     call self%get_parameter(&
-         self%K_nox_lim,'K_nox_lim','[mmol/m**3]',&
-         'Half-sat.const.for uptake of NO3+NO2',&
+         self%K_nox_lim,'K_nox_lim','mM N m^-3',&
+         'Half-sat. constant for uptake of NO3+NO2',&
          default=0.15_rk)
     call self%get_parameter(&
-         self%K_nh4_lim,'K_nh4_lim','[mmol/m**3]',&
-         'Half-sat.const.for uptake of NH4',&
+         self%K_nh4_lim,'K_nh4_lim','mM N m^-3',&
+         'Half-sat. constant for uptake of NH4',&
          default=0.02_rk)
     call self%get_parameter(&
-         self%K_nfix,'K_nfix','[1/d]',&
-         'Max. specific rate of mitrogen fixation',&
+         self%K_nfix,'K_nfix','1 d^-1',&
+         'Max. specific rate of nitrogen fixation',&
          default=0.4_rk)
     call self%get_parameter(&
-         self%K_phy_mrt,'K_phy_mrt','1/d','Specific rate of mortality',&
-         default=0.10_rk)
-    call self%get_parameter(&
-         self%K_phy_exc,'K_phy_exc','1/d','Specific rate of excretion',&
+         self%K_phy_mrt,'K_phy_mrt','1 d^-1','Specific rate of mortality',&
          default=0.01_rk)
+    call self%get_parameter(&
+         self%K_phy_exc,'K_phy_exc','1 d^-1','Specific rate of excretion',&
+         default=0.001_rk)
     !----Het----------!
     call self%get_parameter(&
-         self%K_het_phy_gro,'K_het_phy_gro','1/d',&
-         'Max.spec. rate of grazing of Het on Phy',&
-         default=1.0_rk)
+         self%K_het_phy_gro,'K_het_phy_gro','1 d^-1',&
+         'Maximum rate of grazing of Het on Phy',&
+         default=0.5_rk)
     call self%get_parameter(&
-         self%K_het_phy_lim,'K_het_phy_lim','nd',&
-         'Half-sat.const.for grazing of Het on Phy for Phy/Het ratio',&
+         self%K_het_phy_lim,'K_het_phy_lim','dimensionless',&
+         'Half-sat. constant for grazing of Het on Phy for Phy/Het ratio',&
          default=1.1_rk)
     call self%get_parameter(&
-         self%K_het_pom_gro,'K_het_pom_gro','mmol/m**3',&
-         'Max.spec.rate of grazing of Het on POM',&
-         default=0.70_rk)
+         self%K_het_pom_gro,'K_het_pom_gro','1 d^-1',&
+         'Maximum rate of grazing of Het on POML (eats labile particulate organic))',&
+         default=0.50_rk)
     call self%get_parameter(&
-         self%K_het_pom_lim,'K_het_pom_lim','nd',&
-         'Half-sat.const.for grazing of Het on POM for POM/Het ratio',&
-         default=0.2_rk)
+         self%K_het_pom_lim,'K_het_pom_lim','dimensionless',&
+         'Half-sat. constant for grazing of Het on POM for POM/Het ratio',&
+         default=1.1_rk)
     !call self%get_parameter(&
     !     self%K_het_bac_gro,'K_het_bac_gro','mmol/m**3',&
     !     'Max.spec.rate of grazing of Het on bacteria',&
@@ -139,65 +140,65 @@ contains
     !     'Limiting parameter for bacteria grazing by Het',&
     !     default=2._rk)
     call self%get_parameter(&
-         self%K_het_res,'K_het_res','1/d',&
+         self%K_het_res,'K_het_res','1 d^-1',&
          'Specific respiration rate',&
-         default=0.02_rk)
+         default=0.1_rk)
     call self%get_parameter(&
-         self%K_het_mrt,'K_het_mrt','1/d',&
+         self%K_het_mrt,'K_het_mrt','1 d^-1',&
          'Maximum specific rate of mortality of Het',&
-         default=0.25_rk)
+         default=0.2_rk)
     call self%get_parameter(&
-         self%Uz,'Uz','nd',&
+         self%Uz,'Uz','dimensionless',&
          'Food absorbency for Het',&
          default=0.5_rk)
     call self%get_parameter(&
-         self%Hz,'Hz','nd',&
-         'Ratio betw. diss. and part. excretes of Het',&
+         self%Hz,'Hz','dimensionless',&
+         'Ratio between dissolved and particulate excretes of Het',&
          default=0.5_rk)
     !----OM-----------!
     call self%get_parameter(&
-         self%K_POML_DOML, 'K_POML_DOML', '[1/day]',&
+         self%K_POML_DOML, 'K_POML_DOML', '1 d^-1',&
          'Specific rate of Autolysis of POML to DOML',&
          default=0.1_rk)
     call self%get_parameter(&
-         self%K_POMR_DOMR, 'K_POMR_DOMR', '[1/day]',&
+         self%K_POMR_DOMR, 'K_POMR_DOMR', '1 d^-1',&
          'Specific rate of Autolysis of POMR to DOMR',&
+         default=0.00001_rk)
+    call self%get_parameter(&
+         self%K_DOML_ox,'K_DOML_ox','1 d^-1',&
+         'Specific rate of oxidation of DOML with O2',&
          default=0.1_rk)
     call self%get_parameter(&
-         self%K_DOML_ox,'K_DOML_ox','[1/day]',&
-         'Specific rate of oxidation of DOML with O2',&
-         default=0.01_rk)
-    call self%get_parameter(&
-         self%K_DOMR_ox,'K_DOMR_ox','[1/day]',&
+         self%K_DOMR_ox,'K_DOMR_ox','1 d^-1',&
          'Specific rate of oxidation of DOMR with O2',&
-         default=0.01_rk)
+         default=0.1_rk)
     call self%get_parameter(&
-         self%K_POML_ox,'K_POML_ox','[1/day]',&
+         self%K_POML_ox,'K_POML_ox','1 d^-1',&
          'Specific rate of oxidation of POML with O2',&
-         default=0.002_rk)
+         default=0.02_rk)
     call self%get_parameter(&
-         self%K_POMR_ox,'K_POMR_ox','[1/day]',&
+         self%K_POMR_ox,'K_POMR_ox','1 d^-1',&
          'Specific rate of oxidation of POMR with O2',&
          default=0.002_rk)
     call self%get_parameter(&
-         self%tref,'tref','degrees celcius',&
+         self%tref,'tref','degrees Celsius',&
          'Reference temperature at which temperature factor = 1',&
          default=0.0_rk)
     call self%get_parameter(&
-         self%K_omox_o2,'K_omox_o2','[uM]',&
-         'half sat. of o2 for OM mineralization',&
+         self%K_omox_o2,'K_omox_o2','mM O2 m^-3',&
+         'Half-sat. constant of O2 for OM mineralization',&
          default=1.0_rk)
     !----Sinking--------
     call self%get_parameter(&
-         self%Wsed,'Wsed','[1/day]',&
-         'Rate of sinking of detritus (POP, POM)',&
+         self%Wsed,'Wsed','m d^-1',&
+         'Rate of sinking of detritus',&
          default=5.00_rk)
     call self%get_parameter(&
-         self%Wphy,'Wphy','[m/day]',&
+         self%Wphy,'Wphy','m d^-1',&
          'Rate of sinking of Phy',&
          default=0.10_rk)
     call self%get_parameter(&
-         self%Whet,'Whet','[m/day]',&
+         self%Whet,'Whet','m d^-1',&
          'Rate of sinking of Het',&
          default=1.00_rk)
     !----Stoichiometric coefficients----!
@@ -211,39 +212,40 @@ contains
                             default=2.0_rk)
     !Register state variables
     call self%register_state_variable(&
-         self%id_Phy,'Phy','mmol/m**3','Phy',&
-         minimum=0.0001_rk,initial_value=0.0001_rk,&
+         self%id_Phy,'Phy','mM N m^-3','Phy',&
+         minimum=0.01253_rk,initial_value=0.01253_rk,&
          vertical_movement=-self%Wphy/86400._rk)
     call self%register_state_variable(&
-         self%id_Het,'Het','mmol/m**3','Het',minimum=0.0_rk,&
+         self%id_Het,'Het','mM N m^-3','Het',&
+         minimum=0.001_rk,initial_value=0.001_rk,&
          vertical_movement=-self%Whet/86400._rk)
     call self%register_state_variable(&
-         self%id_POML,'POML','mmol/m**3','POML labile',minimum=0.0_rk,&
+         self%id_POML,'POML','mM N m^-3','POML labile',minimum=0.0_rk,&
          vertical_movement=-self%Wsed/86400._rk)
     call self%register_state_variable(&
-         self%id_POMR,'POMR','mmol/m**3','POML refractory',minimum=0.0_rk,&
+         self%id_POMR,'POMR','mM N m^-3','POML refractory',minimum=0.0_rk,&
          vertical_movement=-self%Wsed/86400._rk)
     call self%register_state_variable(&
-         self%id_DOML,'DOML','mmol/m**3','DOML labile',minimum=0.0_rk)
+         self%id_DOML,'DOML','mM N m^-3','DOML labile',minimum=0.0_rk)
     call self%register_state_variable(&
-         self%id_DOMR,'DOMR','mmol/m**3','DOMR refractory',minimum=0.0_rk)
+         self%id_DOMR,'DOMR','mM N m^-3','DOMR refractory',minimum=0.0_rk)
     call self%register_state_variable(&
-         self%id_O2,'O2','mmol/m**3','O2',minimum=0.0_rk)
+         self%id_O2,'O2','mM O2 m^-3','O2',minimum=0.0_rk)
     !Register state dependencies
     call self%register_state_dependency(&
-         self%id_PO4,'PO4','mmol/m**3','PO4')
+         self%id_PO4,'PO4','mM P m^-3','PO4')
     call self%register_state_dependency(&
-         self%id_Si,'Si','mmol/m**3','Si')
+         self%id_Si,'Si','mM Si m^-3','Si')
     !call self%register_state_dependency(&
     !     self%id_Sipart,'Sipart','mmol/m**3','Si particulate')
     call self%register_state_dependency(&
-         self%id_NO3,'NO3','mmol/m**3','NO3')
+         self%id_NO3,'NO3','mM N m^-3','NO3')
     call self%register_state_dependency(&
-         self%id_NH4,'NH4','mmol/m**3','NH4')
+         self%id_NH4,'NH4','mM N m^-3','NH4')
     call self%register_state_dependency(&
-         self%id_NO2,'NO2','mmol/m**3','NO2')
+         self%id_NO2,'NO2','mM N m^-3','NO2')
     call self%register_state_dependency(&
-         self%id_DIC,'DIC','mmol/m**3','DIC')
+         self%id_DIC,'DIC','mM C m^-3','DIC')
     !call self%register_state_dependency(&
     !     self%id_H2S,'H2S','mmol/m**3','H2S')
     call self%register_state_dependency(self%id_Alk,&
@@ -258,25 +260,25 @@ contains
     !     self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-         self%id_DcPOML_O2,'DcPOML_O2','mmol/m**3',&
+         self%id_DcPOML_O2,'DcPOML_O2','mM N m^-3',&
          'POML with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcPOMR_O2,'DcPOMR_O2','mmol/m**3',&
+         self%id_DcPOMR_O2,'DcPOMR_O2','mM N m^-3',&
          'POMR with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDOMR_O2,'DcDOMR_O2','mmol/m**3',&
+         self%id_DcDOMR_O2,'DcDOMR_O2','mM N m^-3',&
          'DOMR with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDOML_O2,'DcDOML_O2','mmol/m**3',&
+         self%id_DcDOML_O2,'DcDOML_O2','mM N m^-3',&
          'DOM with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_MortHet,'MortHet','mmol/m**3','Mortality of Het',&
+         self%id_MortHet,'MortHet','mM N m^-3','Mortality of Het',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_Grazing,'Grazing','mmol/m**3','Grazing of Het',&
+         self%id_Grazing,'Grazing','mM N m^-3','Het total grazing',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_RespHet,'RespHet','mmol/m**3','Respiration rate of Het',&
+         self%id_RespHet,'RespHet','mM N m^-3','Respiration rate of Het',&
          output=output_time_step_integrated)
     !call self%register_diagnostic_variable(&
     !     self%id_GrazBhae,'GrazBhae','mmol/m**3','GrazBhae',&
@@ -291,57 +293,57 @@ contains
     !     self%id_GrazBaan,'GrazBaan','mmol/m**3','GrazBaan',&
     !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrazPhy,'GrazPhy','mmol/m**3','GrazPhy',&
+         self%id_GrazPhy,'GrazPhy','mM N m^-3','Het grazing on Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrazPOP,'GrazPOP','mmol/m**3','GrazPOP',&
+         self%id_GrazPOP,'GrazPOP','mM N m^-3','Het grazing on particulate labile OM',&
          output=output_time_step_integrated)
     !call self%register_diagnostic_variable(&
     !     self%id_GrazBact,'GrazBact','mmol/m**3','GrazBact',&
     !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_MortPhy,'MortPhy','mmol/m**3','MortPhy',&
+         self%id_MortPhy,'MortPhy','mM N m^-3','Mortality of Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_ExcrPhy,'ExcrPhy','mmol/m**3','ExcrPhy',&
+         self%id_ExcrPhy,'ExcrPhy','mM N m^-3','Excretion of Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimNH4,'LimNH4','mmol/m**3','LimNH4',&
+         self%id_LimNH4,'LimNH4','dimensionless','Limitation of Phy on NH4',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimN,'LimN','mmol/m**3','LimN',&
+         self%id_LimNO3,'LimNO3','dimensionless','Limitation of Phy on NO3',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_Biorate,'Biorate','mg C(mg Chl a d)-1','Biorate',&
+         self%id_LimN,'LimN','dimensionless','Limitation of Phy on total N',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_growthrate,'Growth_rate','d-1','Growth_rate',&
+         self%id_LimP,'LimP','dimensionless','Limitation of Phy on P',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrowthPhy,'GrowthPhy','mmol/m**3','GrowthPhy',&
+         self%id_LimSi,'LimSi','dimensionless','Limitation of Phy on Si',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimP,'LimP','mmol/m**3','LimP',&
+         self%id_Biorate,'Biorate','mg C(mg Chl a d)^-1','Biomass specific photosynthetic rate',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimNO3,'LimNO3','mmol/m**3','LimNO3',&
+         self%id_growthrate,'Growth_rate','1 d^-1','Daily Phy growth rate',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_LimSi,'LimSi','mmol/m**3','LimSi',&
+         self%id_GrowthPhy,'GrowthPhy','mM N m^-3','Daily growth of Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_ChlCratio,'ChlCratio','dimensionless','ChlCratio',&
+         self%id_ChlCratio,'ChlCratio','mg Chl a (mg C)^-1','Chl to C ratio',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_N_fixation,'N_fixation','mmol/m**3/d','N_fixation',&
+         self%id_N_fixation,'N_fixation','mM N m^-3','Daily N2 fixation',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_O2_rel_sat, &
-         'O2_rel_sat','1','relative oxygen saturation', &
+         'O2_rel_sat','dimensionless','Relative oxygen saturation', &
          standard_variable=standard_variables%fractional_saturation_of_oxygen)
     call self%register_diagnostic_variable(self%id_O2_sat, &
-         'O2_sat','mmol O_2/m^3','oxygen saturation concentration')
+         'O2_sat','mM O2 m^-3','Oxygen saturation concentration')
     call self%register_diagnostic_variable(self%id_AOU, &
-         'AOU','mmol O_2/m^3','apparent oxigen utilization')
+         'AOU','mM O2 m^-3','Apparent oxigen utilization')
     !call self%register_diagnostic_variable(&
     !     self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
     !     'Refractory OM oxidation with O2',output=output_time_step_integrated)
@@ -452,17 +454,27 @@ contains
       !daily growth rate
       growthrate = daily_growth(biorate, ChlC, LimNut)
       GrowthPhy = growthrate*Phy
-      !excretion of phy
-      ExcrPhy = self%K_phy_exc*Phy
-      !mortality of phy
-      MortPhy = Phy*(self%K_phy_mrt&
-                     + hyper_inhibitor(60._rk, O2, 1._rk)*0.45_rk&
-                     + hyper_inhibitor(20._rk, O2, 1._rk)*0.45_rk)
+      !0.01253 mM N/m^3 = 1 mg C/m^3, overwintering value
+      if (Phy < 0.01253_rk) then
+        ExcrPhy = 0._rk
+        MortPhy = 0._rk
+      else
+        !excretion of phy
+        ExcrPhy = self%K_phy_exc*Phy
+        !mortality of phy
+        MortPhy = Phy*(self%K_phy_mrt&
+                       + hyper_inhibitor(60._rk, O2, 1._rk)*0.45_rk&
+                       + hyper_inhibitor(20._rk, O2, 1._rk)*0.45_rk)
+      end if
       !
       !Het
       !Grazing of Het on phy
-      GrazPhy = self%K_het_phy_gro*Het*&
-                monod_squared(self%K_het_phy_lim, quota(Phy, Het))
+      if (Phy < 0.01253_rk) then
+        GrazPhy = 0._rk
+      else
+        GrazPhy = self%K_het_phy_gro*Het*&
+                  monod_squared(self%K_het_phy_lim, quota(Phy, Het))
+      end if
       !Grazing of Het on detritus
       GrazPOP = self%K_het_pom_gro*Het*&
                 monod_squared(self%K_het_pom_lim, quota(POML, Het))
@@ -483,8 +495,8 @@ contains
       !
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
-      N_fixation = self%K_nfix*LimP*&
-      1._rk/(1._rk+((NO3+NO2+NH4)/n_zero(PO4)*16._rk)**4._rk)*GrowthPhy
+      N_fixation = 0._rk!self%K_nfix*LimP*&
+      !1._rk/(1._rk+((NO3+NO2+NH4)/n_zero(PO4)*16._rk)**4._rk)*GrowthPhy
       !
       !POML and DOML (Savchuk, Wulff,1996)
       Autolysis_L = self%K_POML_DOML*POML
@@ -504,7 +516,7 @@ contains
       d_NO2 = -GrowthPhy*quota(LimNO3,LimN)*quota(NO2,NO2+NO3)
       d_NO3 = -GrowthPhy*quota(LimNO3,LimN)*quota(NO3,NO2+NO3)
       d_PO4 = (DcDOML_O2+DcPOML_O2-GrowthPhy+RespHet)/self%r_n_p
-      d_Si = (-GrowthPhy+ExcrPhy)*self%r_si_n
+      d_Si = (-GrowthPhy+ExcrPhy+MortPhy+GrazPhy)*self%r_si_n
       !d_Sipart = (MortPhy+GrazPhy)*self%r_si_n
       !alive
       d_Phy = GrowthPhy-MortPhy-ExcrPhy-GrazPhy
