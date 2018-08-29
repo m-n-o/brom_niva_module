@@ -452,7 +452,7 @@ contains
       biorate = photosynthetic_rate(photoperiod(latitude, day),&
                                     self%pbm, self%alpha, PAR)
       !daily growth rate
-      growthrate = daily_growth(biorate, ChlC, LimNut)
+      growthrate = daily_growth(biorate, ChlC)
       GrowthPhy = growthrate*Phy
       !0.01253 mM N/m^3 = 1 mg C/m^3, overwintering value
       if (Phy < 0.01253_rk) then
@@ -752,12 +752,12 @@ contains
   !biorate is the daily rate of photosynthesis, [mg C (mg Chl a d)-1]
   !ChlCratio, joint nutrients limiter
   !
-  pure real(rk) function daily_growth(biorate, ChlCratio, limiter)
-    real(rk),intent(in):: biorate, ChlCratio, limiter
+  pure real(rk) function daily_growth(biorate, ChlCratio)
+    real(rk),intent(in):: biorate, ChlCratio
 
     daily_growth &
-        = 0.85_rk*biorate*ChlCratio*limiter-0.015_rk
-    daily_growth = max(0._rk, daily_growth)
+        = 0.85_rk*biorate*ChlCratio-0.015_rk
+    !daily_growth = max(0._rk, daily_growth)
   end function daily_growth
   !
   !
