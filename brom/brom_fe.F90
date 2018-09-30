@@ -25,7 +25,7 @@ module fabm_niva_brom_fe
     type(type_state_variable_id):: id_H2S
     type(type_state_variable_id):: id_S0,id_SO4
     type(type_state_variable_id):: id_O2
-    type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_PO4,id_Si,id_NH4
+    type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_PO4,id_Si,id_NH4,id_Ni
     type(type_state_variable_id):: id_DIC,id_Alk,id_DOMR
 
     type(type_diagnostic_variable_id):: id_DcDOML_Fe,id_DcPOML_Fe,id_DcPOMR_Fe,id_DcDOMR_Fe
@@ -259,6 +259,9 @@ contains
          self%id_NH4,'NH4','mmol/m**3',&
          'NH4')
     call self%register_state_dependency(&
+         self%id_Ni,'Ni','mmol/m**3',&
+         'Ni')
+    call self%register_state_dependency(&
          self%id_O2, 'O2', 'mmol/m**3',&
          'dissolved oxygen')
     call self%register_state_dependency(&
@@ -384,14 +387,14 @@ contains
     real(rk):: Fe2,Fe3,FeS,FeS2,FeCO3,Fe3PO42,PO4_Fe3
     !state dependencies
     real(rk):: O2,POML,POMR,DOML,DOMR
-    real(rk):: Mn4,Mn3,H2S,NH4,PO4
+    real(rk):: Mn4,Mn3,Mn2,H2S,NH4,PO4,Ni
     !diagnostic variables dependencies
     real(rk):: Hplus,CO3
     !increments
     real(rk):: d_Mn2,d_Mn4,d_Mn3
     real(rk):: d_Fe2,d_Fe3,d_FeS,d_FeS2,d_FeCO3,d_Fe3PO42,d_PO4_Fe3
     real(rk):: d_SO4,d_S0,d_H2S,d_O2,d_DOML,d_POML,d_POMR,d_DOMR
-    real(rk):: d_DIC,d_Si,d_PO4,d_NH4
+    real(rk):: d_DIC,d_Si,d_PO4,d_NH4,d_Ni
     real(rk):: d_Alk
     !processes
     real(rk):: fe_ox1,fe_rd,fe_ox2,fe_ox3
@@ -408,8 +411,10 @@ contains
       !state
       _GET_(self%id_DOML,DOML)
       _GET_(self%id_Fe2,Fe2)
+      _GET_(self%id_Mn2,Mn2)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_NH4,NH4)
+      _GET_(self%id_Ni,Ni)
       !solids
       _GET_(self%id_POML,POML)
       _GET_(self%id_POMR,POMR)
@@ -431,19 +436,20 @@ contains
 
       !Fe
       !Fe2 oxidation1: 4Fe2+ + O2 + 10H2O -> 4Fe(OH)3 +8H+ (vanCappelen,96)
-      fe_ox1 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
-               self%K_fe_ox1*o2*Fe2
+      fe_ox1 = pos(thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+               self%K_fe_ox1*o2*Fe2)
       !
       !Fe2 oxidation2: Fe2+ + MnO2 + 4H+ -> Fe3+ + Mn2+ + 2H2O (vanCappelen,96)
-      !                2Fe2+ + MnO2 + 4H2O -> 2Fe(OH)3 + Mn2+ + 2H+ (Pakhomova, p.c.)
-      fe_ox2 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+      !                Fe2+ + MnO2 + H2O + H+-> Fe(OH)3 + Mn3+ (Pakhomova, p.c.)
+      !                2Fe2+ + MnO2 + 4H2O -> Fe(OH)3 + Mn2+ 2H+ (Pakhomova, p.c.)
+      fe_ox2 = pos(thr_h(self%s_feox_fe2,Fe2,1._rk)*&
                thr_h(self%s_feox_fe2,Mn4,1._rk)*&
-               self%K_fe_ox2*Mn4*Fe2
+               self%K_fe_ox2*Mn4*Fe2)
       
       !Fe2 oxidation2: Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
-      fe_ox3 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+      fe_ox3 = pos(thr_h(self%s_feox_fe2,Fe2,1._rk)*&
                thr_h(self%s_feox_fe2,Mn3,1._rk)*&
-               self%K_fe_ox2*Mn3*Fe2
+               self%K_fe_ox2*Mn3*Fe2)
       !
       !Fe3 reduction: 2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
       fe_rd = thr_h(self%s_ferd_fe3,Fe3,1._rk)*&
@@ -453,14 +459,14 @@ contains
       Om_FeS = H2S*Fe2/(self%K_fes*Hplus*1000000._rk)
       !
       !FeS formation Fe2+ + HS- -> FeS + H+ (Bektursunova,11)
-      fes_form = self%K_fes_form*max(0._rk,(Om_FeS-1._rk))
+      fes_form = self%K_fes_form*pos(Om_FeS-1._rk)
       !
       !FeS dissollution FeS + H+ -> Fe2+ + HS (Bektursunova,11)
-      fes_diss = self%K_fes_diss*FeS*max(0._rk,(1._rk-Om_FeS))
+      fes_diss = self%K_fes_diss*FeS*pos(1._rk-Om_FeS)
       !
       !FeS oxidation: FeS + 2.25O2 +H2O -> 0.5Fe2O3 + 2H+ +SO42-
       !(Soetaert,07) or FeS + 2O2 -> Fe2+ + SO42-(Bektursunova,11)
-      fes_ox = self%K_fes_ox*FeS*O2
+      fes_ox = self%K_fes_ox*FeS*o2
       !
       !Pyrite formation by FeS oxidation by H2S
       !FeS + H2S -> FeS2 + H2 (Rickard,97)
@@ -474,8 +480,8 @@ contains
       Om_FeCO3 = Fe2*CO3/(self%K_FeCO3)
       !
       !Fe2+ + CO3-- <-> FeCO3 (vanCappelen,96)
-      feco3_form = self%K_feco3_form*max(0._rk,(Om_FeCO3-1._rk))
-      feco3_diss = self%K_FeCO3_diss*FeCO3*max(0._rk,(1._rk-Om_FeCO3))
+      feco3_form = self%K_feco3_form*pos(Om_FeCO3-1._rk)
+      feco3_diss = self%K_FeCO3_diss*FeCO3*pos(1._rk-Om_FeCO3)
       !
       !FeCO3(s) + O2 + 2H2O = Fe2O3(s) + HCO3- + H+ (Morgan,05)
       !2FeCO3 + O2 + 4H2O = 2Fe(OH)3 + 2HCO3- + 6H+
@@ -485,8 +491,8 @@ contains
       !   Om_Fe3PO42=Fe2*PO4/(self%K_Fe3PO42*PO4)
         Om_Fe3PO42=Fe2*Fe2*Fe2*PO4*PO4/(self%K_fe3po42)
       ! ! 3Fe2+ + 2PO4--- <-> Fe3(PO4)2 (?):
-        fe3po42_form=self%K_fe3po42_form*max(0._rk,(Om_Fe3PO42-1._rk))
-        fe3po42_diss=self%K_Fe3PO42_diss*Fe3PO42*max(0._rk,(1._rk-Om_Fe3PO42))
+      fe3po42_form=self%K_fe3po42_form*pos(Om_Fe3PO42-1._rk)
+      fe3po42_diss=self%K_Fe3PO42_diss*Fe3PO42*pos(1._rk-Om_Fe3PO42)
       !%  4Fe3(PO4)2(s)  + 3O2  +   12H2O  =   6Fe2O3(s)  +   8PO4---  +   24H+ (?)=
         !fe3po42_ox=self%K_fe3po42_ox*Fe3PO42*O2
       !%  Fe3(PO4)2(s)  + 3H2S = 3FeS(s)  +   2PO4---  +   6H+ (?)=
@@ -494,23 +500,23 @@ contains
 
       !(CH2O)106(NH3)16H3PO4 + 424Fe(OH)3 + 742CO2 ->
       ! 848HCO3-+ 424Fe2+ +318H2O +16NH3 +H3PO4 (Boudreau,1996) Fe units
-      DcDOML_Fe = self%K_DOML_fe*DOML &
-               *Fe3/(Fe3+self%K_omno_no3) &
-               *thr_l(self%O2s_dn,o2,1._rk)
+      DcDOML_Fe = pos(self%K_DOML_fe*DOML*Fe3 &
+               *thr_h(self%K_omno_no3,Fe3,1._rk)& !*Fe3/(Fe3+self%K_omno_no3) & !*thr_h(self%s_mnrd_mn4,Mn4,1._rk)
+               *thr_l(self%O2s_dn,o2,1._rk))
 
-      DcPOML_Fe = self%K_POML_fe*POML &
-               *Fe3/(Fe3+self%K_omno_no3) &
-               *thr_l(self%O2s_dn,o2,1._rk)
+      DcPOML_Fe = pos(self%K_POML_fe*POML*Fe3 &
+               *thr_h(self%K_omno_no3,Fe3,1._rk)&
+               *thr_l(self%O2s_dn,o2,1._rk))
 
-      DcPOMR_Fe = self%K_POMR_fe*POMR&
-               *Fe3/(Fe3+self%K_omno_no3) &
+      DcPOMR_Fe = pos(self%K_POMR_fe*POMR*Fe3 &
+               *thr_h(self%K_omno_no3,Fe3,1._rk)&
                *thr_h(self%s_OM_refr,POMR,0.1_rk) &
-               *thr_l(self%O2s_dn,o2,1._rk)
+               *thr_l(self%O2s_dn,o2,1._rk))
 
-      DcDOMR_Fe = self%K_DOMR_fe*DOMR&
-               *Fe3/(Fe3+self%K_omno_no3) &
+      DcDOMR_Fe = pos(self%K_DOMR_fe*DOMR*Fe3 &
+               *thr_h(self%K_omno_no3,Fe3,1._rk)&
                *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
-               *thr_l(self%O2s_dn,o2,1._rk)
+               *thr_l(self%O2s_dn,o2,1._rk))
 
       !!!complexation of P with Fe(III)
       !fe_p_compl = ((fe_ox1+fe_ox2+fe_ox3+fes_ox+feco3_ox)*PO4/(PO4+0.1) &
@@ -531,13 +537,13 @@ contains
    !Summariazed OM mineralization
    DcTOM_Fe = DcDOMR_Fe+DcPOMR_Fe
    !Set increments
-   d_Mn2 = 0.5_rk*fe_ox2+fe_ox3
+   d_Mn2 = 0.5_rk*fe_ox2 + fe_ox3
    _SET_ODE_(self%id_Mn2,d_Mn2)
    d_Mn3 = -fe_ox3
    _SET_ODE_(self%id_Mn3,d_Mn3)
    d_Mn4 = -0.5_rk*fe_ox2
    _SET_ODE_(self%id_Mn4,d_Mn4)
-   d_Fe2 = -fe_ox1-fe_ox2-fe_ox3+fe_rd-fes_form+fes_diss &
+   d_Fe2 = -fe_ox1-fe_ox2-fe_ox3+fe_rd-fes_form+fes_diss & 
             -feco3_form+feco3_diss-fe3po42_form+fe3po42_diss &
             +(DcPOMR_Fe+DcDOMR_Fe)*self%r_fe_n+feS2_ox
      _SET_ODE_(self%id_Fe2,d_Fe2)
@@ -570,8 +576,8 @@ contains
       _SET_ODE_(self%id_DOMR,d_DOMR)
    d_DIC = (DcPOMR_Fe+DcDOMR_Fe)*self%r_c_n-feco3_form+feco3_diss+feco3_ox
       _SET_ODE_(self%id_DIC,d_DIC)
-   d_Si = 0.0_rk !fe_si_compl
-      _SET_ODE_(self%id_Si,d_Si)
+   !d_Si = fe_si_compl
+   !   _SET_ODE_(self%id_Si,d_Si)
    d_PO4 = (DcDOML_Fe+DcPOML_Fe)/self%r_n_p-fe_p_compl &
               -0.66_rk*fe3po42_form+0.66_rk*fe3po42_diss+0.66_rk*fe3po42_hs
    _SET_ODE_(self%id_PO4,d_PO4)
@@ -581,7 +587,7 @@ contains
       _SET_ODE_(self%id_NH4,d_NH4)
    d_Alk = (&                  !Alkalinity changes due to redox reactions:
              -2._rk*fe_ox1 &   !4Fe2+ + O2 +10H2O-> 4Fe(OH)3 +8H+
-             -1._rk*fe_ox2 &   !2Fe2+ + MnO2 +4H2O -> 2Fe(OH)3 + Mn2+ +2H+
+             -1._rk*fe_ox2 &   !2Fe2+ + MnO2 + 4H2O -> Fe(OH)3 + Mn2+ 2H+
              -3._rk*fe_ox3 &   !Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
              +2._rk*fe_rd &    !2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
              !(here and below d(AlK_H2S) is excluded, as give before)
@@ -638,4 +644,11 @@ contains
         thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
     end function    
     
+        
+   real(rk) function pos(var)
+   ! Returns 0 if value is negative       
+       real(rk), intent(in) :: var
+       pos =  max(0._rk,var)  
+   end function
+  
 end module fabm_niva_brom_fe
