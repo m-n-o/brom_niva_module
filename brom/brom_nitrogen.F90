@@ -194,7 +194,7 @@ contains
     self%dt = 86400._rk
   end subroutine initialize
   !
-  !check alkalinity
+  !
   !
   subroutine do(self,_ARGUMENTS_DO_)
     class (type_niva_brom_nitrogen),intent(in) :: self

@@ -70,7 +70,7 @@ contains
   pure real(rk) function monod_squared(ks,r)
     real(rk),intent(in):: ks,r
 
-    monod_squared=r**2._rk/(ks**2._rk+r**2._rk)
+    monod_squared = r**2._rk/(ks**2._rk+r**2._rk)
   end function monod_squared
   !
   !This is a squared Michaelis-Menten type of inhibitor
@@ -78,6 +78,13 @@ contains
   pure real(rk) function monod_squared_inhibitor(ks,r)
     real(rk),intent(in):: ks,r
 
-    monod_squared_inhibitor=ks**2._rk/(r**2._rk+ks**2._rk)
+    monod_squared_inhibitor = ks**2._rk/(r**2._rk+ks**2._rk)
   end function monod_squared_inhibitor
+
+  pure real(rk) function carbon_g_to_mole(carbon)
+    real(rk), intent(in):: carbon
+
+    carbon_g_to_mole = carbon/12.011_rk
+  end function carbon_g_to_mole
+
 end module brom_functions

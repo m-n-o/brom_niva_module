@@ -40,8 +40,6 @@ contains
 
     call self%register_state_variable(&
          self%id_DIC,'DIC','mmol/m**3','DIC',minimum=0.0_rk)
-    call self%add_to_aggregate_variable(&
-         standard_variables%total_carbon,self%id_DIC)
     call self%register_state_variable(&
          self%id_Alk,'Alk','umol/kg','Alk',2300._rk,minimum=1.e-4_rk,&
          standard_variable=&
