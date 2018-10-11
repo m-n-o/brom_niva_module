@@ -415,7 +415,7 @@ contains
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! salinity
       _GET_GLOBAL_(self%id_day,day)
-      _GET_HORIZONTAL_(self%id_lat,latitude)
+      !_GET_HORIZONTAL_(self%id_lat,latitude)
       ! Retrieve current (local) state variable values.
       !state variables
       _GET_(self%id_NO2,NO2)
@@ -438,6 +438,7 @@ contains
       _GET_(self%id_DOMR,DOMR)
       !_GET_(self%id_Sipart,Sipart)
 
+      latitude =  54.88_rk
       PAR_M_day = PAR*86400._rk/1000000._rk !PAR M per day
       !
       !Phy
