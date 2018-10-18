@@ -219,18 +219,18 @@ contains
          minimum=0._rk,initial_value=1._rk,&
          vertical_movement=-self%Whet/86400._rk)
     call self%register_state_variable(&
-         self%id_POML,'POML','mg C m^-3','POML labile',&
+         self%id_POML,'POML','mg C m^-3','POM labile',&
          minimum=0._rk,initial_value=0._rk,&
          vertical_movement=-self%Wsed/86400._rk)
     call self%register_state_variable(&
-         self%id_POMR,'POMR','mg C m^-3','POML refractory',&
+         self%id_POMR,'POMR','mg C m^-3','POM refractory',&
          minimum=0.0_rk,initial_value=0._rk,&
          vertical_movement=-self%Wsed/86400._rk)
     call self%register_state_variable(&
-         self%id_DOML,'DOML','mg C m^-3','DOML labile',&
+         self%id_DOML,'DOML','mg C m^-3','DOM labile',&
          minimum=0.0_rk,initial_value=0._rk)
     call self%register_state_variable(&
-         self%id_DOMR,'DOMR','mg C m^-3','DOMR refractory',&
+         self%id_DOMR,'DOMR','mg C m^-3','DOM refractory',&
          minimum=0.0_rk,initial_value=0._rk)
     call self%register_state_variable(&
          self%id_O2,'O2','mM O2 m^-3','O2',&
@@ -462,7 +462,12 @@ contains
                                     self%pbm, self%alpha, PAR)
       !daily growth rate
       growthrate = daily_growth(biorate, ChlC)
-      GrowthPhy = growthrate*Phy
+      if (LimNut < 0.01_rk) then
+        GrowthPhy = 0._rk
+      else
+        GrowthPhy = growthrate*Phy
+      end if
+
       !1 mg C m^-3, overwintering value
       if (Phy < 1.01_rk) then
         ExcrPhy = 0._rk
@@ -494,11 +499,10 @@ contains
       !Total grazing of Het
       Grazing = GrazPhy+GrazPOP!+GrazBact
       !Respiration of Het
-      RespHet = self%K_het_res*Het!*hyper_limiter(20._rk, O2, 1._rk)
+      RespHet = self%K_het_res*Het*hyper_limiter(20._rk, O2, 1._rk)
       !Mortality of Het
-      MortHet = Het*self%K_het_mrt
-                     !+ hyper_inhibitor(20._rk, O2, 1._rk)*0.75_rk)!*0.3_rk&
-                     !+ hyper_limiter(10._rk, H2S, 1._rk)*0.45_rk)
+      MortHet = Het*(self%K_het_mrt&
+                     +hyper_inhibitor(20._rk, O2, 1._rk)*(1._rk-self%K_het_mrt))
       !
       !Nitrogen fixation described as appearence of NH4 available for
       !phytoplankton: N2 -> NH4 :
@@ -511,6 +515,9 @@ contains
       !OM decay in N units for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
       kf = monod_squared(self%K_omox_o2, O2)*f_t(temp,2._rk,self%tref)
+      if (O2 < self%k_POMR_ox*POMR*kf .or. &
+          O2 < self%k_DOMR_ox*DOMR*kf) kf = 0._rk
+
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
       DcPOML_O2 = self%K_POML_ox*POML*kf
       DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
