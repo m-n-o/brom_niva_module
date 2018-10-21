@@ -407,15 +407,17 @@ contains
     real(rk):: dphy_in_m,dzoo_resp_in_m
     real(rk):: ddoml_o2_in_m,dpoml_o2_in_m
     real(rk):: ddomr_o2_in_m,dpomr_o2_in_m
+    real(rk):: bright_hours
 
+    _GET_HORIZONTAL_(self%id_lat,latitude)
+    _GET_GLOBAL_(self%id_day,day)
+    bright_hours = photoperiod(latitude, day)
     ! Enter spatial loops (if any)
     _LOOP_BEGIN_
       ! Retrieve current environmental conditions.
       _GET_(self%id_par,PAR) ! local photosynthetically active radiation microM/s
       _GET_(self%id_temp,temp) ! temperature
       _GET_(self%id_salt,salt) ! salinity
-      _GET_GLOBAL_(self%id_day,day)
-      !_GET_HORIZONTAL_(self%id_lat,latitude)
       ! Retrieve current (local) state variable values.
       !state variables
       _GET_(self%id_NO2,NO2)
@@ -438,7 +440,6 @@ contains
       _GET_(self%id_DOMR,DOMR)
       !_GET_(self%id_Sipart,Sipart)
 
-      latitude =  54.88_rk
       PAR_M_day = PAR*86400._rk/1000000._rk !PAR M per day
       !
       !Phy
@@ -458,7 +459,7 @@ contains
       !Chl a / Carbon ratio
       ChlC = chl_c_ratio(temp, PAR_M_day, LimNut)
       !photosynthetic rate
-      biorate = photosynthetic_rate(photoperiod(latitude, day),&
+      biorate = photosynthetic_rate(bright_hours,&
                                     self%pbm, self%alpha, PAR)
       !daily growth rate
       growthrate = daily_growth(biorate, ChlC)
@@ -770,6 +771,7 @@ contains
 
     wh = (2._rk*pi)/24._rk
     photoperiod = (2/wh)*acos(-tan((pi/180._rk)*latitude)*tan(delta))
+    if (isnan(photoperiod)) photoperiod = 0._rk
   end function photoperiod
   !
   !D is photoperiod, hours
