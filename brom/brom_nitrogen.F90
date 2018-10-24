@@ -19,29 +19,25 @@ module fabm_niva_brom_nitrogen
     !all descriptions are in the initialize subroutine
     !state variables dependencies
     type(type_state_variable_id):: id_NH4,id_NO2,id_NO3
-    !type(type_state_variable_id):: id_PO4
+    type(type_state_variable_id):: id_PO4,id_Si
     type(type_state_variable_id):: id_O2
-    !type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_DOMR
-    type(type_state_variable_id):: id_Alk!,id_DIC
+    type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_DOMR
+    type(type_state_variable_id):: id_Alk,id_DIC
 
     type(type_diagnostic_variable_id):: id_anammox
-    type(type_diagnostic_variable_id):: id_Nitrif1, id_Nitrif2
-    !type(type_diagnostic_variable_id):: id_DcPOML_NO3,id_DcDOML_NO3
-    !type(type_diagnostic_variable_id):: id_DcPOML_NO2,id_DcDOML_NO2
-    !type(type_diagnostic_variable_id):: id_DcPOMR_NO3,id_DcDOMR_NO3
-    !type(type_diagnostic_variable_id):: id_DcPOMR_NO2,id_DcDOMR_NO2
-    !type(type_diagnostic_variable_id):: id_DcTOM_NOX
-    !type(type_diagnostic_variable_id):: id_Denitr1,id_Denitr2
+    type(type_diagnostic_variable_id):: id_Nitrif1,id_Nitrif2
+    type(type_diagnostic_variable_id):: id_Denitr1,id_Denitr2
+    type(type_diagnostic_variable_id):: id_dAlk
     !Model parameters
     !specific rates of biogeochemical processes
     !----N--------!
     real(rk):: K_nitrif1,K_nitrif2,O2s_nf
     real(rk):: K_annamox,O2s_dn
-    !real(rk):: K_omno_no3,K_omno_no2
-    !real(rk):: K_POML_NO3,K_POMR_NO3,K_POML_NO2,K_POMR_NO2
-    !real(rk):: K_DOML_NO3,K_DOMR_NO3,K_DOML_NO2,K_DOMR_NO2
+    real(rk):: K_omno_no3,K_omno_no2,s_OM_refr
+    real(rk):: K_POML_NO3,K_POMR_NO3,K_POML_NO2,K_POMR_NO2
+    real(rk):: K_DOML_NO3,K_DOMR_NO3,K_DOML_NO2,K_DOMR_NO2
     !---- Stoichiometric coefficients ----!
-    !real(rk):: r_c_n,r_n_p,r_n_no3,r_n_no2,s_OM_refr
+    real(rk):: c_to_n, c_to_si, c_to_p
   contains
     procedure :: initialize
     procedure :: do
@@ -75,55 +71,57 @@ contains
          self%O2s_dn, 'O2s_dn', '[uM O]',&
          'half saturation for annamox and denitrification',&
          default=10.0_rk)
-    !call self%get_parameter(&
-    !     self%K_POML_NO3, 'K_POML_NO3', '[1/day]',&
-    !     'Spec.rate of 1 stage of denitrif of POML',&
-    !     default=0.20_rk)
-    !call self%get_parameter(&
-    !     self%K_POML_NO2, 'K_POML_NO2', '[1/day]',&
-    !     'Spec.rate of 2 stage of denitrif of POML',&
-    !     default=0.25_rk)
-    !call self%get_parameter(&
-    !     self%K_POMR_NO3, 'K_POMR_NO3', '[1/day]',&
-    !     'Spec.rate of 1 stage of denitrif of POMR',&
-    !     default=0.20_rk)
-    !call self%get_parameter(&
-    !     self%K_POMR_NO2, 'K_POMR_NO2', '[1/day]',&
-    !     'Spec.rate of 1 stage of denitrif of POMR',&
-    !     default=0.25_rk)
-    !call self%get_parameter(&
-    !     self%K_DOML_NO3, 'K_DOML_NO3', '[1/day]',&
-    !     'Spec.rate of 1 stage of denitrif of DOML',&
-    !     default=0.20_rk)
-    !call self%get_parameter(&
-    !     self%K_DOML_NO2, 'K_DOML_NO2', '[1/day]',&
-    !     'Spec.rate of 2 stage of denitrif of DOML',&
-    !     default=0.25_rk)
-    !call self%get_parameter(&
-    !     self%K_DOMR_NO3, 'K_DOMR_NO3', '[1/day]',&
-    !     'Spec.rate of 1 stage of denitrif of DOMR',&
-    !     default=0.20_rk)
-    !call self%get_parameter(&
-    !     self%K_DOMR_NO2, 'K_DOMR_NO2', '[1/day]',&
-    !     'Spec.rate of 1 stage of denitrif of DOMR',&
-    !     default=0.25_rk)
-    !call self%get_parameter(&
-    !     self%K_omno_no3, 'K_omno_no3', '[uM N]',&
-    !     'half sat. of no3 for OM denitr.',&
-    !     default=0.001_rk)
-    !call self%get_parameter(&
-    !     self%K_omno_no2, 'K_omno_no2', '[uM N]',&
-    !     'half sat. of no2 for OM denitr.',&
-    !     default=0.001_rk)
-    !call self%get_parameter(&
-    !     self%s_OM_refr, 's_OM_refr', '[uM N]',&
-    !     'threshold of decay of refractory OM',&
-    !     default=5.0_rk)
+    call self%get_parameter(&
+         self%K_POML_NO3, 'K_POML_NO3', '[1/day]',&
+         'Spec.rate of 1 stage of denitrif of POML',&
+         default=0.20_rk)
+    call self%get_parameter(&
+         self%K_POML_NO2, 'K_POML_NO2', '[1/day]',&
+         'Spec.rate of 2 stage of denitrif of POML',&
+         default=0.25_rk)
+    call self%get_parameter(&
+         self%K_POMR_NO3, 'K_POMR_NO3', '[1/day]',&
+         'Spec.rate of 1 stage of denitrif of POMR',&
+         default=0.20_rk)
+    call self%get_parameter(&
+         self%K_POMR_NO2, 'K_POMR_NO2', '[1/day]',&
+         'Spec.rate of 1 stage of denitrif of POMR',&
+         default=0.25_rk)
+    call self%get_parameter(&
+         self%K_DOML_NO3, 'K_DOML_NO3', '[1/day]',&
+         'Spec.rate of 1 stage of denitrif of DOML',&
+         default=0.20_rk)
+    call self%get_parameter(&
+         self%K_DOML_NO2, 'K_DOML_NO2', '[1/day]',&
+         'Spec.rate of 2 stage of denitrif of DOML',&
+         default=0.25_rk)
+    call self%get_parameter(&
+         self%K_DOMR_NO3, 'K_DOMR_NO3', '[1/day]',&
+         'Spec.rate of 1 stage of denitrif of DOMR',&
+         default=0.20_rk)
+    call self%get_parameter(&
+         self%K_DOMR_NO2, 'K_DOMR_NO2', '[1/day]',&
+         'Spec.rate of 1 stage of denitrif of DOMR',&
+         default=0.25_rk)
+    call self%get_parameter(&
+         self%K_omno_no3, 'K_omno_no3', '[uM N]',&
+         'half sat. of no3 for OM denitr.',&
+         default=0.001_rk)
+    call self%get_parameter(&
+         self%K_omno_no2, 'K_omno_no2', '[uM N]',&
+         'half sat. of no2 for OM denitr.',&
+         default=0.001_rk)
+    call self%get_parameter(&
+         self%s_OM_refr, 's_OM_refr', '[uM N]',&
+         'threshold of decay of refractory OM',&
+         default=5.0_rk)
     !----Stoichiometric coefficients----!
-    !call self%get_parameter(self%r_c_n,  'r_c_n',  '[-]','C[uM]/N[uM]',  default=8.0_rk)
-    !call self%get_parameter(self%r_n_p,  'r_n_p',  '[-]','N[uM]/P[uM]',  default=16.0_rk)
-    !call self%get_parameter(self%r_n_no3,'r_n_no3','[-]','N[uM]/NO3[uM]',default=0.075_rk)
-    !call self%get_parameter(self%r_n_no2,'r_n_no2','[-]','N[uM]/NO2[uM]',default=0.113_rk)
+    call self%get_parameter(self%c_to_n,'c_to_n','[-]','C[uM]/N[uM]',&
+                            default=106._rk/16._rk)
+    call self%get_parameter(self%c_to_si,'c_to_si','[-]','C[uM]/Si[uM]',&
+                            default=106._rk/15._rk)
+    call self%get_parameter(self%c_to_p,'c_to_p','[-]','C[uM]/P[uM]',&
+                            default=106._rk)
 
     !Register state dependencies
     call self%register_state_dependency(&
@@ -135,29 +133,33 @@ contains
     call self%register_state_dependency(&
          self%id_NO3,'NO3','mmol/m**3 N',&
          'nitrate')
-    !call self%register_state_dependency(&
-    !     self%id_DIC,'DIC','mmol/m**3 C',&
-    !     'total dissolved inorganic carbon',required=.false.)
-    call self%register_state_dependency(self%id_Alk,&
-         standard_variables%alkalinity_expressed_as_mole_equivalent)
+    call self%register_state_dependency(&
+         self%id_PO4,'PO4','mmol/m**3 P',&
+         'phosphate')
+    call self%register_state_dependency(&
+         self%id_Si,'Si','mmol/m**3 Si',&
+         'silicate')
+    call self%register_state_dependency(&
+         self%id_DIC,'DIC','mmol/m**3 C',&
+         'total dissolved inorganic carbon')
+    call self%register_state_dependency(&
+         self%id_Alk,'Alk','mmol/m**3',&
+         'alkalinity')
     call self%register_state_dependency(&
          self%id_O2, 'O2', 'mmol/m**3 O2',&
          'dissolved oxygen')
-    !call self%register_state_dependency(&
-    !     self%id_POML,'POML','mmol/m**3 N',&
-    !     'particulate organic nitrogen')
-    !call self%register_state_dependency(&
-    !     self%id_POMR,'POMR','mmol/m**3 N',&
-    !     'POM refractory')
-    !call self%register_state_dependency(&
-    !     self%id_DOMR,'DOMR','mmol/m**3 N',&
-    !     'DOM refractory')
-    !call self%register_state_dependency(&
-    !     self%id_DOML,'DOML','mmol/m**3 N',&
-    !     'dissolved organic nitrogen')
-    !call self%register_state_dependency(&
-    !     self%id_po4,'PO4','mmol/m**3 P',&
-    !     'phosphate',required=.false.)
+    call self%register_state_dependency(&
+         self%id_POML,'POML','mg C m^-3',&
+         'POM labile')
+    call self%register_state_dependency(&
+         self%id_POMR,'POMR','mg C m^-3',&
+         'POM refractory')
+    call self%register_state_dependency(&
+         self%id_DOMR,'DOMR','mg C m^-3',&
+         'DOM refractory')
+    call self%register_state_dependency(&
+         self%id_DOML,'DOML','mg C m^-3',&
+         'DOM labile')
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(self%id_Nitrif1,'Nitrif1','mmol/m**3 N',&
@@ -166,28 +168,16 @@ contains
          'Nitrification 2 stage',output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_anammox,'Anammox','mmol/m**3 N',&
          'Anammox',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcPOML_NO3,'DcPOML_NO3','mmol/m**3 N',&
-    !     'POML denitrification 1 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcDOML_NO3,'DcDOML_NO3','mmol/m**3 N',&
-    !     'DOML denitrification 1 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcPOML_NO2,'DcPOML_NO2','mmol/m**3 N',&
-    !     'POML denitrification 2 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcDOML_NO2,'DcDOML_NO2','mmol/m**3 N',&
-    !     'DOML denitrification 2 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcPOMR_NO3,'DcPOMR_NO3','mmol/m**3 N',&
-    !     'POML denitrification 1 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcDOMR_NO3,'DcDOMR_NO3','mmol/m**3 N',&
-    !     'DOML denitrification 1 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcPOMR_NO2,'DcPOMR_NO2','mmol/m**3 N',&
-    !     'POML denitrification 2 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcDOMR_NO2,'DcDOMR_NO2','mmol/m**3 N',&
-    !     'DOML denitrification 2 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_DcTOM_NOX,'DcTOM_NOX','mmol/m**3 N',&
-    !     'Total OM denitrification all stages',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_Denitr1,'Denitr1','mmol/m**3 N',&
-    !     '(POML+DOML) denitrification 1 stage',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(self%id_Denitr2,'Denitr2','mmol/m**3 N',&
-    !     '(POML+DOML) denitrification 2 stage',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_Denitr1,'Denitr1','mmol/m**3 N',&
+         'Denitrification 1 stage',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_Denitr2,'Denitr2','mmol/m**3 N',&
+         'Denitrification 2 stage',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_dAlk,&
+         'd_alk','mM m^-3',&
+         'Alkalinity generation due to nitrification and denitrification',&
+         output=output_time_step_integrated)
+    !call self%add_to_aggregate_variable(&
+    !     standard_variables%alkalinity_expressed_as_mole_equivalent,self%id_dAlk)
 
     !Specify that are rates computed in this module are per day
     !(default: per second)
@@ -201,130 +191,159 @@ contains
 
     _DECLARE_ARGUMENTS_DO_
     !state variables
-    real(rk):: O2!,POML,POMR,DOML,DOMR
+    real(rk):: O2,POML,POMR,DOML,DOMR
     real(rk):: NO2,NO3,NH4
     !increments
-    real(rk):: d_O2!,d_DOML,d_POML,d_POMR,d_DOMR
+    real(rk):: d_O2,d_DOML,d_POML,d_POMR,d_DOMR
     real(rk):: d_NO2,d_NO3,d_NH4
-    real(rk):: d_Alk!,d_DIC
-    !real(rk):: d_PO4
+    real(rk):: d_PO4,d_Si
+    real(rk):: d_alk,d_DIC
     !processes
     real(rk):: Nitrif1,Nitrif2,Anammox
-    !real(rk):: DcPOML_NO3,DcDOML_NO3,DcPOML_NO2,DcDOML_NO2
-    !real(rk):: DcPOMR_NO3,DcDOMR_NO3,DcPOMR_NO2,DcDOMR_NO2
-    !real(rk):: Denitr1,Denitr2,DcTOM_NOX
+    real(rk):: denitrification_1, denitrification_2
+    real(rk):: DcPOML_NO3,DcDOML_NO3,DcPOML_NO2,DcDOML_NO2
+    real(rk):: DcPOMR_NO3,DcDOMR_NO3,DcPOMR_NO2,DcDOMR_NO2
+
+    real(rk):: dpoml_no3_in_m,dpoml_no2_in_m
+    real(rk):: ddoml_no3_in_m,ddoml_no2_in_m
+    real(rk):: dpomr_no3_in_m,dpomr_no2_in_m
+    real(rk):: ddomr_no3_in_m,ddomr_no2_in_m
 
     _LOOP_BEGIN_
       !Retrieve current variable values
       !state
-      !_GET_(self%id_DOML,DOML)
-      !_GET_(self%id_DOMR,DOMR)
+      _GET_(self%id_DOML,DOML)
+      _GET_(self%id_DOMR,DOMR)
       _GET_(self%id_NO2,NO2)
       _GET_(self%id_NO3,NO3)
       !solids
-      !_GET_(self%id_POML,POML)
-      !_GET_(self%id_POMR,POMR)
+      _GET_(self%id_POML,POML)
+      _GET_(self%id_POMR,POMR)
       !gases
       _GET_(self%id_O2,O2)
       _GET_(self%id_NH4,NH4)
 
-      !N (Canfield,2005)
+      !
       !Nitrification 1st stage: NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
       Nitrif1 = self%K_nitrif1*NH4*hyper_limiter(self%O2s_nf, o2, 1._rk)
       !Nitrification 2d stage: NO2- + 0.5 O2 -> NO3-
       Nitrif2 = self%K_nitrif2*NO2*hyper_limiter(self%O2s_nf, o2, 1._rk)
-      !in suboxic conditions
+      !
       !Anammox NO2- + NH4+ -> N2 + 2H2O
       Anammox = 0._rk!self%K_annamox*NO2*NH4*hyper_inhibitor(self%O2s_dn, o2, 1._rk)
-      !!OM denitrification (Richards, 1965)
-      !!(CH2O)106(NH3)16H3PO4 + 84.8HNO3 = 106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4
-      !!POM and DOM denitrification (1st stage) (Anderson,1982)
-      !!1/2CH2O + NO3- -> NO2- + 1/2H2O + 1/2CO2
-      !DcPOML_NO3 = self%K_POML_NO3*POML&
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *monod(self%K_omno_no3, NO3)
-      !DcDOML_NO3 = self%K_DOML_NO3*DOML &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *monod(self%K_omno_no3, NO3)
-      !DcPOMR_NO3 = self%K_POMR_NO3*POMR &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *hyper_limiter(self%s_OM_refr, POMR, 0.1_rk)&
-      !            *monod(self%K_omno_no3, NO3)
-      !DcDOMR_NO3 = self%K_DOMR_NO3*DOMR &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
-      !            *monod(self%K_omno_no3, NO3)
-      !!POM and DOM denitrification (2d stage)
-      !!3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 (Anderson,1982)
-      !DcPOML_NO2 = self%K_POML_NO2*POML &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *monod(self%K_omno_no2, NO2)
-      !DcDOML_NO2 = self%K_DOML_NO2*DOML &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *monod(self%K_omno_no2, NO2)
-      !DcPOMR_NO2 = self%K_POMR_NO2*POMR &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *hyper_limiter(self%s_OM_refr, POMR, 0.1_rk)&
-      !            *monod(self%K_omno_no2, NO2)
-      !DcDOMR_NO2 = self%K_DOMR_NO2*DOMR &
-      !            *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-      !            *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
-      !            *monod(self%K_omno_no2, NO2)
-      !!Denitrification as consumpation of NOX and production of N2
-      !Denitr1 = self%r_n_no3*(DcPOMR_NO3+DcDOMR_NO3)
-      !Denitr2 = self%r_n_no2*(DcPOMR_NO2+DcDOMR_NO2)
-      !!Summariazed OM mineralization in N (released NH4) units
-      !DcTOM_NOX = DcPOMR_NO3+DcPOMR_NO2+DcDOMR_NO3+DcDOMR_NO2
+      !
+      !OM denitrification (Richards, 1965)
+      !(CH2O)106(NH3)16H3PO4 + 84.8HNO3 = 106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4
+      !
+      !POM and DOM denitrification (1st stage) (Anderson,1982)
+      !1/2CH2O + NO3- -> NO2- + 1/2H2O + 1/2CO2
+      !It should be in the units of OM, so mg C m^-3
+      DcPOML_NO3 = self%K_POML_NO3*POML&
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *monod(self%K_omno_no3, NO3)
+      DcDOML_NO3 = self%K_DOML_NO3*DOML &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *monod(self%K_omno_no3, NO3)
+      DcPOMR_NO3 = self%K_POMR_NO3*POMR &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *hyper_limiter(self%s_OM_refr, POMR, 0.1_rk)&
+                  *monod(self%K_omno_no3, NO3)
+      DcDOMR_NO3 = self%K_DOMR_NO3*DOMR &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
+                  *monod(self%K_omno_no3, NO3)
+      !recalculate to moles
+      dpoml_no3_in_m = carbon_g_to_mole(DcPOML_NO3)
+      ddoml_no3_in_m = carbon_g_to_mole(DcDOML_NO3)
+      dpomr_no3_in_m = carbon_g_to_mole(DcPOMR_NO3)
+      ddomr_no3_in_m = carbon_g_to_mole(DcDOMR_NO3)
+      !
+      !POM and DOM denitrification (2d stage)
+      !3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 (Anderson,1982)
+      !It should be in the units of OM, so mg C m^-3
+      DcPOML_NO2 = self%K_POML_NO2*POML &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *monod(self%K_omno_no2, NO2)
+      DcDOML_NO2 = self%K_DOML_NO2*DOML &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *monod(self%K_omno_no2, NO2)
+      DcPOMR_NO2 = self%K_POMR_NO2*POMR &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *hyper_limiter(self%s_OM_refr, POMR, 0.1_rk)&
+                  *monod(self%K_omno_no2, NO2)
+      DcDOMR_NO2 = self%K_DOMR_NO2*DOMR &
+                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
+                  *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
+                  *monod(self%K_omno_no2, NO2)
+      !recalculate to moles
+      dpoml_no2_in_m = carbon_g_to_mole(DcPOML_NO2)
+      ddoml_no2_in_m = carbon_g_to_mole(DcDOML_NO2)
+      dpomr_no2_in_m = carbon_g_to_mole(DcPOMR_NO2)
+      ddomr_no2_in_m = carbon_g_to_mole(DcDOMR_NO2)
+      !
+      !Set increments
+      d_DOML = -DcDOML_NO3-DcDOML_NO2
+      d_DOMR = DcDOML_NO3+DcDOML_NO2-DcDOMR_NO3-DcDOMR_NO2
+      d_POML = -DcPOML_NO3-DcPOML_NO2
+      d_POMR = DcPOML_NO3+DcPOML_NO2-DcPOMR_NO3-DcPOMR_NO2
 
-      !!Set increments
-      !d_DOML = -DcDOML_NO3-DcDOML_NO2
-      !d_DOMR = DcDOML_NO3+DcDOML_NO2-DcDOMR_NO3-DcDOMR_NO2
-      !d_POML = -DcPOML_NO3-DcPOML_NO2
-      !d_POMR = DcPOML_NO3+DcPOML_NO2-DcPOMR_NO3-DcPOMR_NO2
+      !amount of NO3 consumed / NO2 excreted
+      denitrification_1 = 2._rk*(ddomr_no3_in_m+dpomr_no3_in_m)
+      !amount of NO2 consumed
+      denitrification_2 = (4._rk/3._rk)*(ddomr_no2_in_m+dpomr_no2_in_m)
 
-      d_NO2 = Nitrif1-Nitrif2-Anammox!&
-             !+self%r_n_no3*(DcDOMR_NO3+DcPOMR_NO3)&
-             !-self%r_n_no2*(DcPOMR_NO2+DcDOMR_NO2)
-      d_NO3 = Nitrif2!-DcDOMR_NO3&
-             !-self%r_n_no3*(DcDOMR_NO3+DcPOMR_NO3)
-      d_NH4 =-Nitrif1-Anammox!+DcDOML_NO3+DcDOML_NO2+DcPOML_NO3+DcPOML_NO2
-      !d_PO4 = (DcDOML_NO3+DcDOML_NO2+DcPOML_NO3+DcPOML_NO2)/self%r_n_p
+      d_NO2 = Nitrif1-Nitrif2-Anammox&
+             +denitrification_1&
+             -denitrification_2
 
-      d_O2 =-1.5_rk*Nitrif1-0.5_rk*Nitrif2
-      !d_DIC = (DcDOMR_NO3+DcDOMR_NO2+DcPOMR_NO3+DcPOMR_NO2)*self%r_c_n
+      d_NO3 = Nitrif2&
+             -denitrification_1
 
-      d_Alk = d_NH4-d_NO3-d_NO2!-d_PO4
+      d_NH4 =-Nitrif1-Anammox&
+             +(ddoml_no3_in_m&
+              +dpoml_no3_in_m&
+              +ddoml_no2_in_m&
+              +dpoml_no2_in_m)/self%c_to_n
+
+      d_PO4 =+(ddoml_no3_in_m&
+              +dpoml_no3_in_m&
+              +ddoml_no2_in_m&
+              +dpoml_no2_in_m)/self%c_to_p
+
+      d_Si  =+(ddoml_no3_in_m&
+              +dpoml_no3_in_m&
+              +ddoml_no2_in_m&
+              +dpoml_no2_in_m)/self%c_to_si
+
+      d_O2  =-1.5_rk*Nitrif1-0.5_rk*Nitrif2
+
+      d_DIC = ddomr_no3_in_m+dpomr_no3_in_m&
+             +ddomr_no2_in_m+dpomr_no2_in_m
+
+      d_alk = d_NH4-d_NO3-d_NO2-d_PO4
 
       _SET_ODE_(self%id_NO2,d_NO2)
       _SET_ODE_(self%id_NO3,d_NO3)
       _SET_ODE_(self%id_NH4,d_NH4)
+      _SET_ODE_(self%id_PO4,d_PO4)
+      _SET_ODE_(self%id_Si,d_Si)
 
       _SET_ODE_(self%id_O2,d_O2)
+      _SET_ODE_(self%id_DIC,d_DIC)
 
       _SET_ODE_(self%id_Alk,d_Alk)
 
-      !_SET_ODE_(self%id_DOML,d_DOML)
-      !_SET_ODE_(self%id_DOMR,d_DOMR)
-      !_SET_ODE_(self%id_POML,d_POML)
-      !_SET_ODE_(self%id_POMR,d_POMR)
-      !_SET_ODE_(self%id_DIC,d_DIC)
-      !_SET_ODE_(self%id_PO4,d_PO4)
+      _SET_ODE_(self%id_DOML,d_DOML)
+      _SET_ODE_(self%id_DOMR,d_DOMR)
+      _SET_ODE_(self%id_POML,d_POML)
+      _SET_ODE_(self%id_POMR,d_POMR)
 
       _SET_DIAGNOSTIC_(self%id_anammox,Anammox)
       _SET_DIAGNOSTIC_(self%id_Nitrif1,Nitrif1)
       _SET_DIAGNOSTIC_(self%id_Nitrif2,Nitrif2)
-
-      !_SET_DIAGNOSTIC_(self%id_DcPOML_NO3,DcPOML_NO3)
-      !_SET_DIAGNOSTIC_(self%id_DcDOML_NO3,DcDOML_NO3)
-      !_SET_DIAGNOSTIC_(self%id_DcPOML_NO2,DcPOML_NO2)
-      !_SET_DIAGNOSTIC_(self%id_DcDOML_NO2,DcDOML_NO2)
-      !_SET_DIAGNOSTIC_(self%id_DcPOMR_NO3,DcPOMR_NO3)
-      !_SET_DIAGNOSTIC_(self%id_DcDOMR_NO3,DcDOMR_NO3)
-      !_SET_DIAGNOSTIC_(self%id_DcPOMR_NO2,DcPOMR_NO2)
-      !_SET_DIAGNOSTIC_(self%id_DcDOMR_NO2,DcDOMR_NO2)
-      !_SET_DIAGNOSTIC_(self%id_DcTOM_NOX,DcTOM_NOX)
-      !_SET_DIAGNOSTIC_(self%id_Denitr1,Denitr1)
-      !_SET_DIAGNOSTIC_(self%id_Denitr2,Denitr2)
+      _SET_DIAGNOSTIC_(self%id_Denitr1,denitrification_1)
+      _SET_DIAGNOSTIC_(self%id_Denitr2,denitrification_2)
+      _SET_DIAGNOSTIC_(self%id_dAlk,d_alk)
     _LOOP_END_
   end subroutine do
 end module fabm_niva_brom_nitrogen

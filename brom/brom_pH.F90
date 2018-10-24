@@ -43,8 +43,8 @@ contains
     call self%register_state_dependency(&
          self%id_DIC,'DIC','mmol/m**3',&
          'total dissolved inorganic carbon',required=.false.)
-    call self%register_state_dependency(self%id_Alk,&
-         standard_variables%alkalinity_expressed_as_mole_equivalent)
+    call self%register_state_dependency(&
+         self%id_Alk,'Alk','mM m^-3','Alk')
     call self%register_state_dependency(&
          self%id_po4,'PO4','mmol/m**3','phosphate',required=.false.)
     call self%register_state_dependency(&

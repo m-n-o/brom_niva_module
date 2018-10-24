@@ -21,8 +21,8 @@ module fabm_niva_brom_bio
     type(type_state_variable_id):: id_O2,id_POML,id_POMR,id_DOML,id_DOMR
     !state dependencies
     type(type_state_variable_id):: id_NO2,id_NO3,id_NH4,id_PO4
-    !type(type_state_variable_id):: id_Baae,id_Baan,id_Bhae,id_Bhan
     type(type_state_variable_id):: id_DIC,id_Si,id_Alk
+    !type(type_state_variable_id):: id_Baae,id_Baan,id_Bhae,id_Bhan
     !type(type_state_variable_id):: id_Sipart, id_H2S
     !standard variables dependencies
     type(type_dependency_id):: id_temp,id_salt,id_par
@@ -32,8 +32,8 @@ module fabm_niva_brom_bio
     !diagnostic variables
     !organic matter
     type(type_diagnostic_variable_id):: id_DcPOML_O2,id_DcDOML_O2
-    type(type_diagnostic_variable_id):: id_DcPOMR_O2,id_DcDOMR_O2!,id_DcTOM_O2
-    !type(type_diagnostic_variable_id):: id_POMTot,id_DOMTot
+    type(type_diagnostic_variable_id):: id_DcPOMR_O2,id_DcDOMR_O2
+    type(type_diagnostic_variable_id):: id_dAlk
     !primary producers
     type(type_diagnostic_variable_id):: id_LimNH4,id_LimNO3,id_LimN
     type(type_diagnostic_variable_id):: id_LimP,id_LimSi
@@ -71,7 +71,6 @@ module fabm_niva_brom_bio
     procedure :: initialize
     procedure :: do
     procedure :: do_surface
-    !procedure :: graz
   end type
 contains
   !
@@ -252,8 +251,8 @@ contains
          self%id_DIC,'DIC','mM C m^-3','DIC')
     !call self%register_state_dependency(&
     !     self%id_H2S,'H2S','mmol/m**3','H2S')
-    call self%register_state_dependency(self%id_Alk,&
-         standard_variables%alkalinity_expressed_as_mole_equivalent)
+    call self%register_state_dependency(&
+         self%id_Alk,'Alk','mM m^-3','Alk')
     !call self%register_state_dependency(&
     !     self%id_Baae,'Baae','mmol/m**3','aerobic autotrophic bacteria')
     !call self%register_state_dependency(&
@@ -264,22 +263,22 @@ contains
     !     self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-         self%id_DcPOML_O2,'DcPOML_O2','mM N m^-3',&
+         self%id_DcPOML_O2,'DcPOML_O2','mg C m^-3',&
          'POML with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcPOMR_O2,'DcPOMR_O2','mM N m^-3',&
+         self%id_DcPOMR_O2,'DcPOMR_O2','mg C m^-3',&
          'POMR with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDOMR_O2,'DcDOMR_O2','mM N m^-3',&
+         self%id_DcDOMR_O2,'DcDOMR_O2','mg C m^-3',&
          'DOMR with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_DcDOML_O2,'DcDOML_O2','mM N m^-3',&
-         'DOM with O2 mineralization',output=output_time_step_integrated)
+         self%id_DcDOML_O2,'DcDOML_O2','mg C m^-3',&
+         'DOML with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_MortHet,'MortHet','mM N m^-3','Mortality of Het',&
+         self%id_MortHet,'MortHet','mg C m^-3','Mortality of Het',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_RespHet,'RespHet','mM N m^-3','Respiration rate of Het',&
+         self%id_RespHet,'RespHet','mg C m^-3','Respiration rate of Het',&
          output=output_time_step_integrated)
     !call self%register_diagnostic_variable(&
     !     self%id_GrazBhae,'GrazBhae','mmol/m**3','GrazBhae',&
@@ -294,22 +293,22 @@ contains
     !     self%id_GrazBaan,'GrazBaan','mmol/m**3','GrazBaan',&
     !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrazPhy,'GrazPhy','mM N m^-3','Het grazing on Phy',&
+         self%id_GrazPhy,'GrazPhy','mg C m^-3','Het grazing on Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrazPOP,'GrazPOP','mM N m^-3','Het grazing on particulate labile OM',&
+         self%id_GrazPOP,'GrazPOP','mg C m^-3','Het grazing on particulate labile OM',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_Grazing,'Grazing','mM N m^-3','Het total grazing',&
+         self%id_Grazing,'Grazing','mg C m^-3','Het total grazing',&
          output=output_time_step_integrated)
     !call self%register_diagnostic_variable(&
     !     self%id_GrazBact,'GrazBact','mmol/m**3','GrazBact',&
     !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_MortPhy,'MortPhy','mM N m^-3','Mortality of Phy',&
+         self%id_MortPhy,'MortPhy','mg C m^-3','Mortality of Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_ExcrPhy,'ExcrPhy','mM N m^-3','Excretion of Phy',&
+         self%id_ExcrPhy,'ExcrPhy','mg C m^-3','Excretion of Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_LimNH4,'LimNH4','dimensionless','Limitation of Phy on NH4',&
@@ -348,15 +347,11 @@ contains
          'O2_sat','mM O2 m^-3','Oxygen saturation concentration')
     call self%register_diagnostic_variable(self%id_AOU, &
          'AOU','mM O2 m^-3','Apparent oxigen utilization')
-    !call self%register_diagnostic_variable(&
-    !     self%id_DcTOM_O2,'DcTOM_O2','mmol/m**3',&
-    !     'Refractory OM oxidation with O2',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(&
-    !     self%id_DOMTot,'DOMTot','mmol/m**3',&
-    !     'DOMTot: refractory+labile',output=output_time_step_integrated)
-    !call self%register_diagnostic_variable(&
-    !     self%id_POMTot,'POMTot','mmol/m**3',&
-    !     'POMTot: refractory+labile',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_dAlk,'d_alk','mM m^-3',&
+         'Alkalinity generation due to biological processes',&
+         output=output_time_step_integrated)
+    !call self%add_to_aggregate_variable(&
+    !     standard_variables%alkalinity_expressed_as_mole_equivalent,self%id_dAlk)
     !Register environmental dependencies
     call self%register_dependency(&
          self%id_par,&
@@ -394,11 +389,11 @@ contains
     real(rk):: Grazing,RespHet,MortHet
     !OM
     real(rk):: POML,POMR,DOML,DOMR,kf
-    real(rk):: DcDOML_O2,DcPOML_O2!,DcTOM_O2
-    real(rk):: DcPOMR_O2,DcDOMR_O2!,DOMTot,POMTot
+    real(rk):: DcDOML_O2,DcPOML_O2
+    real(rk):: DcPOMR_O2,DcDOMR_O2
     real(rk):: Autolysis_L,Autolysis_R
     !etc.
-    real(rk):: O2_sat,Alk
+    real(rk):: O2_sat
     !increments
     real(rk):: d_NO2,d_NO3,d_PO4,d_Si,d_DIC,d_O2,d_NH4!,d_Sipart
     real(rk):: d_Phy,d_Het!,d_Baae,d_Baan,d_Bhae,d_Bhan
@@ -424,7 +419,6 @@ contains
       _GET_(self%id_NO3,NO3)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_Si,Si)
-      _GET_(self%id_Alk,Alk)
       _GET_(self%id_NH4,NH4)
       !_GET_(self%id_H2S,H2S)
       _GET_(self%id_O2,O2)
@@ -513,18 +507,20 @@ contains
       !POML and DOML (Savchuk, Wulff,1996)
       Autolysis_L = self%K_POML_DOML*POML
       Autolysis_R = self%K_POMR_DOMR*POMR
-      !OM decay in N units for release of DIC and consumption of O2
+      !OM decay for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
       kf = monod_squared(self%K_omox_o2, O2)*f_t(temp,2._rk,self%tref)
-      if (O2 < self%k_POMR_ox*POMR*kf .or. &
-          O2 < self%k_DOMR_ox*DOMR*kf) kf = 0._rk
+      if (O2 < carbon_g_to_mole(self%K_POMR_ox*POMR*kf) .or. &
+          O2 < carbon_g_to_mole(self%k_DOMR_ox*DOMR*kf)) kf = 0._rk
 
+      !These ones supposed to me in C mg units
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
       DcPOML_O2 = self%K_POML_ox*POML*kf
       DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
       DcPOMR_O2 = self%K_POMR_ox*POMR*kf
       !DcTOM_O2 = DcDOMR_O2+DcPOMR_O2
 
+      !Transforming to C mM units
       dphy_in_m = carbon_g_to_mole(GrowthPhy)
       dzoo_resp_in_m = carbon_g_to_mole(RespHet)
       ddoml_o2_in_m = carbon_g_to_mole(DcDOML_O2)
@@ -640,6 +636,7 @@ contains
       _SET_DIAGNOSTIC_(self%id_DcPOMR_O2,DcPOMR_O2)
       _SET_DIAGNOSTIC_(self%id_DcDOMR_O2,DcDOMR_O2)
       _SET_DIAGNOSTIC_(self%id_DcDOML_O2,DcDOML_O2)
+      _SET_DIAGNOSTIC_(self%id_dAlk,d_alk)
     _LOOP_END_
   end subroutine do
   !

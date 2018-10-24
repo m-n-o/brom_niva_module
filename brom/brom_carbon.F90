@@ -19,7 +19,7 @@ module fabm_niva_brom_carbon
     type(type_state_variable_id):: id_DIC,id_Alk
 
     type(type_diagnostic_variable_id):: id_pCO2
-    type(type_diagnostic_variable_id):: id_CO3
+    type(type_diagnostic_variable_id):: id_CO3,id_dAlk
     !diagnostic dependencies
     type(type_dependency_id):: id_Hplus,id_Kc0,id_Kc1,id_Kc2
     !for do_surface
@@ -41,9 +41,7 @@ contains
     call self%register_state_variable(&
          self%id_DIC,'DIC','mmol/m**3','DIC',minimum=0.0_rk)
     call self%register_state_variable(&
-         self%id_Alk,'Alk','umol/kg','Alk',2300._rk,minimum=1.e-4_rk,&
-         standard_variable=&
-         standard_variables%alkalinity_expressed_as_mole_equivalent)
+         self%id_Alk,'Alk','mmol/m**3','Alk',2300._rk,minimum=1.e-4_rk)
 
     !register diagnostic variables
     call self%register_diagnostic_variable(&
@@ -52,6 +50,10 @@ contains
          self%id_CO3,'CO3','mmol/m**3','CO3--',standard_variable=&
          standard_variables%&
          mole_concentration_of_carbonate_expressed_as_carbon)
+    !call self%register_diagnostic_variable(&
+    !     self%id_dAlk,'dAlk','mmol/m**3','total alkalinity increments',&
+    !     standard_variable=&
+    !     standard_variables%alkalinity_expressed_as_mole_equivalent)
 
     !dependencies
     !for do_surface
