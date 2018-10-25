@@ -275,6 +275,10 @@ contains
                   *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
                   *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
                   *monod(self%K_omno_no2, NO2)
+      !DcPOML_NO2 = 0._rk
+      !DcDOML_NO2 = 0._rk
+      !DcPOMR_NO2 = 0._rk
+      !DcDOMR_NO2 = 0._rk
       !recalculate to moles
       dpoml_no2_in_m = carbon_g_to_mole(DcPOML_NO2)
       ddoml_no2_in_m = carbon_g_to_mole(DcDOML_NO2)
