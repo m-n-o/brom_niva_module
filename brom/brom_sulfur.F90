@@ -278,14 +278,20 @@ module fabm_niva_brom_sulfur
       !S
       !S0 disportionation: 4S0 + 3H2O -> 2H2S + S2O3= + 2H+
       s0_disp = self%K_s0_disp*S0
-      !HS oxidation with O2: 2H2S + O2 -> 2S0 + 2H2O
-      hs_ox = self%K_hs_ox*H2S*O2*hyper_limiter(self%O2_sr, O2, 1._rk)
-      !S0 oxidation with O2: 2S0 + O2 + H2O -> S2O3= + 2H+
-      s0_ox = self%K_s0_ox*O2*S0*hyper_limiter(self%O2_sr, O2, 1._rk)
+      if (O2 < 0.5_rk) then
+        hs_ox = 0._rk
+        s0_ox = 0._rk
+        s2o3_ox = 0._rk
+      else
+        !HS oxidation with O2: 2H2S + O2 -> 2S0 + 2H2O
+        hs_ox = self%K_hs_ox*H2S*O2*hyper_limiter(self%O2_sr, O2, 1._rk)
+        !S0 oxidation with O2: 2S0 + O2 + H2O -> S2O3= + 2H+
+        s0_ox = self%K_s0_ox*O2*S0*hyper_limiter(self%O2_sr, O2, 1._rk)
+        !S2O3 oxidation with O2: S2O3= + 2O2 + 2OH- -> 2SO4= + H2O
+        s2o3_ox = self%K_s2o3_ox*O2*S2O3*hyper_limiter(self%O2_sr, O2, 1._rk)
+      end if
       !S0 oxidation with NO3: 4S0 + 3NO3- + 7H2O -> 4SO4= + 3NH4+ + 2H+
       s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, O2, 1._rk)
-      !S2O3 oxidation with O2: S2O3= + 2O2 + 2OH- -> 2SO4= + H2O
-      s2o3_ox = self%K_s2o3_ox*O2*S2O3*hyper_limiter(self%O2_sr, O2, 1._rk)
       !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
       s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, O2, 1._rk)
       !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O

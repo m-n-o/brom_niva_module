@@ -224,13 +224,18 @@ contains
       _GET_(self%id_NH4,NH4)
 
       !
-      !Nitrification 1st stage: NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
-      Nitrif1 = self%K_nitrif1*NH4*hyper_limiter(self%O2s_nf, o2, 1._rk)
-      !Nitrification 2d stage: NO2- + 0.5 O2 -> NO3-
-      Nitrif2 = self%K_nitrif2*NO2*hyper_limiter(self%O2s_nf, o2, 1._rk)
+      if (o2 < 0.5_rk) then
+        Nitrif1 = 0._rk
+        Nitrif2 = 0._rk
+      else
+        !Nitrification 1st stage: NH4+ + 1.5 O2 -> NO2- + 2H+ + H2O
+        Nitrif1 = self%K_nitrif1*NH4*hyper_limiter(self%O2s_nf, o2, 1._rk)
+        !Nitrification 2d stage: NO2- + 0.5 O2 -> NO3-
+        Nitrif2 = self%K_nitrif2*NO2*hyper_limiter(self%O2s_nf, o2, 1._rk)
+      end if
       !
       !Anammox NO2- + NH4+ -> N2 + 2H2O
-      Anammox = 0._rk!self%K_annamox*NO2*NH4*hyper_inhibitor(self%O2s_dn, o2, 1._rk)
+      Anammox = self%K_annamox*NO2*NH4*hyper_inhibitor(self%O2s_dn, o2, 1._rk)
       !
       !OM denitrification (Richards, 1965)
       !(CH2O)106(NH3)16H3PO4 + 84.8HNO3 = 106CO2 + 42.4N2 + 148.4H2O + 16NH3 + H3PO4
