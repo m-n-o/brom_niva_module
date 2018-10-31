@@ -24,6 +24,7 @@ contains
       use fabm_niva_brom_nitrogen
       use fabm_niva_brom_pH
       use fabm_niva_brom_sulfur
+      use fabm_niva_brom_methane
       ! Add new NIVA models here
 
       class (type_factory),intent(in) :: self
@@ -37,6 +38,7 @@ contains
          case ('brom_main_nutrients');allocate(type_niva_brom_main_nutrients::model)
          case ('brom_nitrogen');      allocate(type_niva_brom_nitrogen::model)
          case ('brom_sulfur');        allocate(type_niva_brom_sulfur::model)
+         case ('brom_methane');        allocate(type_niva_brom_methane::model)
          case ('brom_pH');            allocate(type_niva_brom_pH::model)
          ! Add new NIVA models here
       end select
