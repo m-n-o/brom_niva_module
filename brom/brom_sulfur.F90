@@ -291,11 +291,11 @@ module fabm_niva_brom_sulfur
         s2o3_ox = self%K_s2o3_ox*O2*S2O3*hyper_limiter(self%O2_sr, O2, 1._rk)
       end if
       !S0 oxidation with NO3: 4S0 + 3NO3- + 7H2O -> 4SO4= + 3NH4+ + 2H+
-      s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, O2, 1._rk)
+      s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, NO3, 1._rk)
       !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
-      s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, O2, 1._rk)
+      s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
       !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
-      hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, O2, 1._rk)
+      hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
 
       !
       thr_O2 = hyper_inhibitor(self%s_omso_O2, O2, 1._rk)
