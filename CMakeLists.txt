@@ -5,6 +5,7 @@ add_library(fabm_models_niva OBJECT
             brom/brom_eq_constants.F90
             brom/brom_main_nutrients.F90
             brom/brom_nitrogen.F90
+            brom/brom_sulfur.F90
             brom/brom_pH.F90
             brom/brom_functions.F90
            )
