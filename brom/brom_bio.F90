@@ -510,8 +510,9 @@ contains
       !OM decay for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
       kf = monod_squared(self%K_omox_o2, O2)*f_t(temp,2._rk,self%tref)
-      if (O2 < carbon_g_to_mole(self%K_POMR_ox*POMR*kf) .or. &
-          O2 < carbon_g_to_mole(self%k_DOMR_ox*DOMR*kf)) kf = 0._rk
+      !to prevent negative values of O2 after summation outside FABM
+      if (O2 < carbon_g_to_mole(self%K_POMR_ox*POMR*kf)/self%dt &
+              +carbon_g_to_mole(self%k_DOMR_ox*DOMR*kf)/self%dt) kf = 0._rk
 
       !These ones supposed to me in C mg units
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
