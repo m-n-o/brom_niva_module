@@ -86,5 +86,14 @@ contains
 
     carbon_g_to_mole = carbon/12.011_rk
   end function carbon_g_to_mole
+  !
+  !temperature limiter (q10 type)
+  !
+  pure real(rk) function f_t(temperature,q10,treference)
+    real(rk),intent(in):: temperature
+    real(rk),intent(in):: q10
+    real(rk),intent(in):: treference
 
+    f_t = exp((temperature - treference)/10 * log(q10))
+  end function f_t
 end module brom_functions

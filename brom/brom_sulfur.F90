@@ -23,6 +23,8 @@ module fabm_niva_brom_sulfur
     type(type_state_variable_id):: id_O2,id_NO3,id_NH4,id_PO4,id_Si
     type(type_state_variable_id):: id_POML,id_POMR,id_DOML,id_DOMR
     type(type_state_variable_id):: id_DIC,id_Alk
+    !standard variables
+    type(type_dependency_id):: id_temp
     !diagnostic variables - processes
     type(type_diagnostic_variable_id):: id_DcPOMR_so4, id_DcDOMR_so4
     type(type_diagnostic_variable_id):: id_DcPOML_so4, id_DcDOML_so4
@@ -37,6 +39,7 @@ module fabm_niva_brom_sulfur
     real(rk):: K_POMR_so4,K_POML_so4
     real(rk):: K_DOMR_so4,K_DOML_so4
     real(rk):: K_s2o3_ox,K_s2o3_no3,K_hs_no3
+    real(rk):: tref
     !---- Switches-------!
     real(rk):: s_omso_o2,s_omso_no3
     real(rk):: K_omso_so4,O2_sr,NO3_sr
@@ -100,6 +103,10 @@ module fabm_niva_brom_sulfur
             self%K_DOMR_so4,'K_DOMR_so4','[1/day]',&
             'Specific rate of DOMR sulfate reduction with sulfate',&
             default=0.000005_rk)
+    call self%get_parameter(&
+         self%tref,'tref','degrees Celsius',&
+         'Reference temperature at which temperature factor = 1',&
+         default=0.0_rk)
     !----Inhibitors----!
     call self%get_parameter(&
             self%s_omso_o2, 's_omso_o2', '[uM O2]',&
@@ -178,6 +185,9 @@ module fabm_niva_brom_sulfur
     call self%register_state_dependency(&
             self%id_DOMR,'DOMR','mmol/m**3',&
             'POM refractory')
+    !Register standard variables
+    call self%register_dependency(&
+         self%id_temp,standard_variables%temperature)
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
@@ -240,6 +250,8 @@ module fabm_niva_brom_sulfur
     class (type_niva_brom_sulfur),intent(in) :: self
 
     _DECLARE_ARGUMENTS_DO_
+    !standard variables
+    real(rk):: temp
     !state variables
     real(rk):: H2S,S0,S2O3,SO4
     !state dependencies
@@ -258,9 +270,11 @@ module fabm_niva_brom_sulfur
     real(rk):: dpomr_so4_in_m, ddomr_so4_in_m
     !parameters
     real(rk):: thr_no3,thr_o2
+    real(rk):: kf
 
     _LOOP_BEGIN_
       !Retrieve current state variable values
+      _GET_(self%id_temp,temp) ! temperature
       !state
       _GET_(self%id_DOML,DOML)
       _GET_(self%id_DOMR,DOMR)
@@ -304,17 +318,18 @@ module fabm_niva_brom_sulfur
       thr_no3 = hyper_inhibitor(self%s_omso_no3, no3, 1._rk)
 
       !in anoxic conditions:
+      kf = monod_squared(self%K_omso_so4, SO4)*f_t(temp,2._rk,self%tref)
       !OM sulfatereduction (Boudreau, 1996)
       !(CH2O)106(NH3)16H3PO4 + 53SO42- = 106HCO3- + 16NH3 + H3PO4 + 53H2S
       !It should be in the units of OM, so mg C m^-3
       !POML sulfatereduction (1st stage):
       DcPOML_so4 = thr_O2*thr_no3 &
                   *self%K_POML_so4*POML &
-                  *monod(self%K_omso_so4, SO4)
+                  *kf
       !DOML sulfatereduction (1st stage):
       DcDOML_so4 = thr_O2*thr_no3 &
                   *self%K_DOML_so4*DOML &
-                  *monod(self%K_omso_so4, SO4)
+                  *kf
       !recalculate to moles
       dpoml_so4_in_m = carbon_g_to_mole(DcPOML_so4)
       ddoml_so4_in_m = carbon_g_to_mole(DcDOML_so4)
@@ -322,11 +337,11 @@ module fabm_niva_brom_sulfur
       !POMR sulfatereduction (1st stage):
       DcPOMR_so4  = thr_O2*thr_no3 &
                   *self%K_POMR_so4*POMR &
-                  *monod(self%K_omso_so4, SO4)
+                  *kf
       !DOMR sulfatereduction (1st stage):
       DcDOMR_so4  = thr_O2*thr_no3 &
                   *self%K_DOMR_so4*DOMR &
-                  *monod(self%K_omso_so4, SO4)
+                  *kf
       !recalculate to moles
       dpomr_so4_in_m = carbon_g_to_mole(DcPOMR_so4)
       ddomr_so4_in_m = carbon_g_to_mole(DcDOMR_so4)
