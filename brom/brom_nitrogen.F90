@@ -289,6 +289,14 @@ contains
       ddoml_no2_in_m = carbon_g_to_mole(DcDOML_NO2)
       dpomr_no2_in_m = carbon_g_to_mole(DcPOMR_NO2)
       ddomr_no2_in_m = carbon_g_to_mole(DcDOMR_NO2)
+      !to prevent negative values of NO2 after summation outside FABM
+      !if (NO2 < (4._rk/3._rk)*(ddomr_no2_in_m+dpomr_no2_in_m)/self%dt) then
+      !if (NO2 < 1e-3_rk) then
+      !  DcPOML_NO2 = 0._rk; dpoml_no2_in_m = 0._rk
+      !  DcDOML_NO2 = 0._rk; ddoml_no2_in_m = 0._rk
+      !  DcPOMR_NO2 = 0._rk; dpomr_no2_in_m = 0._rk
+      !  DcDOMR_NO2 = 0._rk; ddomr_no2_in_m = 0._rk
+      !end if
       !
       !Set increments
       d_DOML = -DcDOML_NO3-DcDOML_NO2

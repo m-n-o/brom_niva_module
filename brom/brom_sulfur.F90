@@ -236,7 +236,7 @@ module fabm_niva_brom_sulfur
             output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_dAlk,&
          'd_alk','mM m^-3',&
-         'Alkalinity generation due to nitrification and denitrification',&
+         'Alkalinity generation due to sulfur transformation',&
          output=output_time_step_integrated)
 
     !Specify that are rates computed in this module are per day
