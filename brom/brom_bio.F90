@@ -457,7 +457,7 @@ contains
                                     self%pbm, self%alpha, PAR)
       !daily growth rate
       growthrate = daily_growth(biorate, ChlC)
-      if (LimNut < 0.01_rk) then
+      if (LimNut < 0.05_rk) then
         GrowthPhy = 0._rk
       else
         GrowthPhy = growthrate*Phy
@@ -510,16 +510,11 @@ contains
       !OM decay for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
       kf = monod_squared(self%K_omox_o2, O2)*f_t(temp,2._rk,self%tref)
-      !to prevent negative values of O2 after summation outside FABM
-      if (O2 < carbon_g_to_mole(self%K_POMR_ox*POMR*kf)/self%dt &
-              +carbon_g_to_mole(self%k_DOMR_ox*DOMR*kf)/self%dt) kf = 0._rk
-
       !These ones supposed to me in C mg units
       DcDOML_O2 = self%K_DOML_ox*DOML*kf
       DcPOML_O2 = self%K_POML_ox*POML*kf
       DcDOMR_O2 = self%K_DOMR_ox*DOMR*kf
       DcPOMR_O2 = self%K_POMR_ox*POMR*kf
-      !DcTOM_O2 = DcDOMR_O2+DcPOMR_O2
 
       !Transforming to C mM units
       dphy_in_m = carbon_g_to_mole(GrowthPhy)
@@ -528,6 +523,14 @@ contains
       dpoml_o2_in_m = carbon_g_to_mole(DcPOML_O2)
       ddomr_o2_in_m = carbon_g_to_mole(DcDOMR_O2)
       dpomr_o2_in_m = carbon_g_to_mole(DcPOMR_O2)
+
+      !to prevent negative values of O2 after summation outside FABM
+      if (O2 < (ddomr_o2_in_m+dpomr_o2_in_m)/self%dt*300._rk) then
+        ddoml_o2_in_m = 0._rk; DcDOML_O2 = 0._rk
+        dpoml_o2_in_m = 0._rk; DcPOML_O2 = 0._rk
+        ddomr_o2_in_m = 0._rk; DcDOMR_O2 = 0._rk
+        dpomr_o2_in_m = 0._rk; DcPOMR_O2 = 0._rk
+      end if
 
       !increments
       !alive

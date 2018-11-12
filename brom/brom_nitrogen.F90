@@ -33,7 +33,7 @@ module fabm_niva_brom_nitrogen
     !----N--------!
     real(rk):: K_nitrif1,K_nitrif2,O2s_nf
     real(rk):: K_annamox,O2s_dn
-    real(rk):: K_omno_no3,K_omno_no2,s_OM_refr
+    real(rk):: K_omno_no3,K_omno_no2
     real(rk):: K_POML_NO3,K_POMR_NO3,K_POML_NO2,K_POMR_NO2
     real(rk):: K_DOML_NO3,K_DOMR_NO3,K_DOML_NO2,K_DOMR_NO2
     !---- Stoichiometric coefficients ----!
@@ -111,10 +111,6 @@ contains
          self%K_omno_no2, 'K_omno_no2', '[uM N]',&
          'half sat. of no2 for OM denitr.',&
          default=0.001_rk)
-    call self%get_parameter(&
-         self%s_OM_refr, 's_OM_refr', '[uM N]',&
-         'threshold of decay of refractory OM',&
-         default=5.0_rk)
     !----Stoichiometric coefficients----!
     call self%get_parameter(self%c_to_n,'c_to_n','[-]','C[uM]/N[uM]',&
                             default=106._rk/16._rk)
@@ -209,6 +205,8 @@ contains
     real(rk):: dpomr_no3_in_m,dpomr_no2_in_m
     real(rk):: ddomr_no3_in_m,ddomr_no2_in_m
 
+    real(rk):: kf
+
     _LOOP_BEGIN_
       !Retrieve current variable values
       !state
@@ -243,20 +241,12 @@ contains
       !POM and DOM denitrification (1st stage) (Anderson,1982)
       !1/2CH2O + NO3- -> NO2- + 1/2H2O + 1/2CO2
       !It should be in the units of OM, so mg C m^-3
-      DcPOML_NO3 = self%K_POML_NO3*POML&
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *monod(self%K_omno_no3, NO3)
-      DcDOML_NO3 = self%K_DOML_NO3*DOML &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *monod(self%K_omno_no3, NO3)
-      DcPOMR_NO3 = self%K_POMR_NO3*POMR &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *hyper_limiter(self%s_OM_refr, POMR, 0.1_rk)&
-                  *monod(self%K_omno_no3, NO3)
-      DcDOMR_NO3 = self%K_DOMR_NO3*DOMR &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
-                  *monod(self%K_omno_no3, NO3)
+      kf = monod_squared(self%K_omno_no3, NO3)&
+          *hyper_inhibitor(self%O2s_dn, o2, 1._rk)
+      DcPOML_NO3 = self%K_POML_NO3*POML*kf
+      DcDOML_NO3 = self%K_DOML_NO3*DOML*kf
+      DcPOMR_NO3 = self%K_POMR_NO3*POMR*kf
+      DcDOMR_NO3 = self%K_DOMR_NO3*DOMR*kf
       !recalculate to moles
       dpoml_no3_in_m = carbon_g_to_mole(DcPOML_NO3)
       ddoml_no3_in_m = carbon_g_to_mole(DcDOML_NO3)
@@ -266,48 +256,43 @@ contains
       !POM and DOM denitrification (2d stage)
       !3/4CH2O + H+ + NO2- -> 1/2N2 + 5/4H2O + 3/4CO2 (Anderson,1982)
       !It should be in the units of OM, so mg C m^-3
-      DcPOML_NO2 = self%K_POML_NO2*POML &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *monod(self%K_omno_no2, NO2)
-      DcDOML_NO2 = self%K_DOML_NO2*DOML &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *monod(self%K_omno_no2, NO2)
-      DcPOMR_NO2 = self%K_POMR_NO2*POMR &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *hyper_limiter(self%s_OM_refr, POMR, 0.1_rk)&
-                  *monod(self%K_omno_no2, NO2)
-      DcDOMR_NO2 = self%K_DOMR_NO2*DOMR &
-                  *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-                  *hyper_limiter(self%s_OM_refr, DOMR, 0.1_rk)&
-                  *monod(self%K_omno_no2, NO2)
-      !DcPOML_NO2 = 0._rk
-      !DcDOML_NO2 = 0._rk
-      !DcPOMR_NO2 = 0._rk
-      !DcDOMR_NO2 = 0._rk
+      kf = monod_squared(self%K_omno_no2, NO2)&
+          *hyper_inhibitor(self%O2s_dn, o2, 1._rk)
+      DcPOML_NO2 = self%K_POML_NO2*POML*kf
+      DcDOML_NO2 = self%K_DOML_NO2*DOML*kf
+      DcPOMR_NO2 = self%K_POMR_NO2*POMR*kf
+      DcDOMR_NO2 = self%K_DOMR_NO2*DOMR*kf
       !recalculate to moles
       dpoml_no2_in_m = carbon_g_to_mole(DcPOML_NO2)
       ddoml_no2_in_m = carbon_g_to_mole(DcDOML_NO2)
       dpomr_no2_in_m = carbon_g_to_mole(DcPOMR_NO2)
       ddomr_no2_in_m = carbon_g_to_mole(DcDOMR_NO2)
+
+      !amount of NO3 consumed / NO2 excreted
+      denitrification_1 = 2._rk*(ddomr_no3_in_m+dpomr_no3_in_m)
+      !amount of NO2 consumed
+      denitrification_2 = (4._rk/3._rk)*(ddomr_no2_in_m+dpomr_no2_in_m)
+
       !to prevent negative values of NO2 after summation outside FABM
-      !if (NO2 < (4._rk/3._rk)*(ddomr_no2_in_m+dpomr_no2_in_m)/self%dt) then
-      !if (NO2 < 1e-3_rk) then
-      !  DcPOML_NO2 = 0._rk; dpoml_no2_in_m = 0._rk
-      !  DcDOML_NO2 = 0._rk; ddoml_no2_in_m = 0._rk
-      !  DcPOMR_NO2 = 0._rk; dpomr_no2_in_m = 0._rk
-      !  DcDOMR_NO2 = 0._rk; ddomr_no2_in_m = 0._rk
-      !end if
+      if (NO3 < denitrification_1/self%dt*300._rk) then
+        dpoml_no3_in_m = 0._rk; DcPOML_NO3 = 0._rk
+        ddoml_no3_in_m = 0._rk; DcDOML_NO3 = 0._rk
+        dpomr_no3_in_m = 0._rk; DcPOMR_NO3 = 0._rk
+        ddomr_no3_in_m = 0._rk; DcDOMR_NO3 = 0._rk
+      end if
+      if (NO2 < denitrification_2/self%dt*300._rk) then
+        dpoml_no2_in_m = 0._rk; DcPOML_NO2 = 0._rk
+        ddoml_no2_in_m = 0._rk; DcDOML_NO2 = 0._rk
+        dpomr_no2_in_m = 0._rk; DcPOMR_NO2 = 0._rk
+        ddomr_no2_in_m = 0._rk; DcDOMR_NO2 = 0._rk
+      end if
+
       !
       !Set increments
       d_DOML = -DcDOML_NO3-DcDOML_NO2
       d_DOMR = DcDOML_NO3+DcDOML_NO2-DcDOMR_NO3-DcDOMR_NO2
       d_POML = -DcPOML_NO3-DcPOML_NO2
       d_POMR = DcPOML_NO3+DcPOML_NO2-DcPOMR_NO3-DcPOMR_NO2
-
-      !amount of NO3 consumed / NO2 excreted
-      denitrification_1 = 2._rk*(ddomr_no3_in_m+dpomr_no3_in_m)
-      !amount of NO2 consumed
-      denitrification_2 = (4._rk/3._rk)*(ddomr_no2_in_m+dpomr_no2_in_m)
 
       d_NO2 = Nitrif1-Nitrif2-Anammox&
              +denitrification_1&

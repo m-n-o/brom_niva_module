@@ -292,7 +292,7 @@ module fabm_niva_brom_sulfur
       !S
       !S0 disportionation: 4S0 + 3H2O -> 2H2S + S2O3= + 2H+
       s0_disp = self%K_s0_disp*S0
-      if (O2 < 0.5_rk) then
+      if (O2 < 0.1_rk) then
         hs_ox = 0._rk
         s0_ox = 0._rk
         s2o3_ox = 0._rk
@@ -305,46 +305,54 @@ module fabm_niva_brom_sulfur
         !S2O3 oxidation with O2: S2O3= + 2O2 + 2OH- -> 2SO4= + H2O
         s2o3_ox = self%K_s2o3_ox*O2*S2O3*hyper_limiter(self%O2_sr, O2, 1._rk)
       end if
-      !S0 oxidation with NO3: 4S0 + 3NO3- + 7H2O -> 4SO4= + 3NH4+ + 2H+
-      s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, NO3, 1._rk)
-      !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
-      s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
-      !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
-      hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, NO3, 1._rk) &
-              *hyper_limiter(1e-3_rk, H2S, 1._rk)
-
       !
-      thr_O2 = hyper_inhibitor(self%s_omso_O2, O2, 1._rk)
-      thr_no3 = hyper_inhibitor(self%s_omso_no3, no3, 1._rk)
+      if (NO3 < 0.1_rk) then
+        s0_no3 = 0._rk
+        s2o3_no3 = 0._rk
+        hs_no3 = 0._rk
+      else
+        !S0 oxidation with NO3: 4S0 + 3NO3- + 7H2O -> 4SO4= + 3NH4+ + 2H+
+        s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, NO3, 1._rk)
+        !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
+        s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
+        !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
+        hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, NO3, 1._rk) &
+                *hyper_limiter(1e-3_rk, H2S, 1._rk)
+      end if
 
       !in anoxic conditions:
+      thr_O2 = hyper_inhibitor(self%s_omso_O2, O2, 1._rk)
+      thr_no3 = hyper_inhibitor(self%s_omso_no3, no3, 1._rk)
       kf = monod_squared(self%K_omso_so4, SO4)*f_t(temp,2._rk,self%tref)
       !OM sulfatereduction (Boudreau, 1996)
       !(CH2O)106(NH3)16H3PO4 + 53SO42- = 106HCO3- + 16NH3 + H3PO4 + 53H2S
       !It should be in the units of OM, so mg C m^-3
       !POML sulfatereduction (1st stage):
       DcPOML_so4 = thr_O2*thr_no3 &
-                  *self%K_POML_so4*POML &
-                  *kf
+                  *self%K_POML_so4*POML*kf
       !DOML sulfatereduction (1st stage):
       DcDOML_so4 = thr_O2*thr_no3 &
-                  *self%K_DOML_so4*DOML &
-                  *kf
+                  *self%K_DOML_so4*DOML*kf
       !recalculate to moles
       dpoml_so4_in_m = carbon_g_to_mole(DcPOML_so4)
       ddoml_so4_in_m = carbon_g_to_mole(DcDOML_so4)
 
       !POMR sulfatereduction (1st stage):
       DcPOMR_so4  = thr_O2*thr_no3 &
-                  *self%K_POMR_so4*POMR &
-                  *kf
+                   *self%K_POMR_so4*POMR*kf
       !DOMR sulfatereduction (1st stage):
       DcDOMR_so4  = thr_O2*thr_no3 &
-                  *self%K_DOMR_so4*DOMR &
-                  *kf
+                   *self%K_DOMR_so4*DOMR*kf
       !recalculate to moles
       dpomr_so4_in_m = carbon_g_to_mole(DcPOMR_so4)
       ddomr_so4_in_m = carbon_g_to_mole(DcDOMR_so4)
+
+      if (SO4 < 0.5_rk*(dpomr_so4_in_m+ddomr_so4_in_m)/self%dt*300._rk) then
+        dpomr_so4_in_m = 0._rk; DcPOMR_so4 = 0._rk
+        ddomr_so4_in_m = 0._rk; DcDOMR_so4 = 0._rk
+        dpoml_so4_in_m = 0._rk; DcPOML_so4 = 0._rk
+        ddoml_so4_in_m = 0._rk; DcDOML_so4 = 0._rk
+      end if
 
       !Set increments
       d_SO4 = hs_no3+2._rk*s2o3_ox+s0_no3+2._rk*s2o3_no3 &
