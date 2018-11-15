@@ -457,7 +457,7 @@ contains
                                     self%pbm, self%alpha, PAR)
       !daily growth rate
       growthrate = daily_growth(biorate, ChlC)
-      if (LimNut < 0.05_rk) then
+      if (LimNut < 0.01_rk) then
         GrowthPhy = 0._rk
       else
         GrowthPhy = growthrate*Phy
@@ -533,6 +533,12 @@ contains
       end if
 
       !increments
+      d_NO3 = -dphy_in_m/self%c_to_n*quota(LimNO3,LimN)*quota(NO3,NO2+NO3)
+      if (NO3+d_NO3/self%dt*300._rk <= 0._rk) then
+        GrowthPhy = 0._rk
+        dphy_in_m = 0._rk
+        d_NO3 = 0._rk
+      end if
       !alive
       d_Phy = GrowthPhy-MortPhy-ExcrPhy-GrazPhy
       d_Het = self%Uz*Grazing-MortHet-RespHet
@@ -547,7 +553,6 @@ contains
               +ddoml_o2_in_m&
               +dpoml_o2_in_m)/self%c_to_n
       d_NO2 = -dphy_in_m/self%c_to_n*quota(LimNO3,LimN)*quota(NO2,NO2+NO3)
-      d_NO3 = -dphy_in_m/self%c_to_n*quota(LimNO3,LimN)*quota(NO3,NO2+NO3)
       d_PO4 =(-dphy_in_m&
               +dzoo_resp_in_m&
               +ddoml_o2_in_m&

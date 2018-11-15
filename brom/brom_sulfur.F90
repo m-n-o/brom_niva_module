@@ -306,19 +306,13 @@ module fabm_niva_brom_sulfur
         s2o3_ox = self%K_s2o3_ox*O2*S2O3*hyper_limiter(self%O2_sr, O2, 1._rk)
       end if
       !
-      if (NO3 < 0.1_rk) then
-        s0_no3 = 0._rk
-        s2o3_no3 = 0._rk
-        hs_no3 = 0._rk
-      else
-        !S0 oxidation with NO3: 4S0 + 3NO3- + 7H2O -> 4SO4= + 3NH4+ + 2H+
-        s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, NO3, 1._rk)
-        !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
-        s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
-        !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
-        hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, NO3, 1._rk) &
-                *hyper_limiter(1e-3_rk, H2S, 1._rk)
-      end if
+      !S0 oxidation with NO3: 4S0 + 3NO3- + 7H2O -> 4SO4= + 3NH4+ + 2H+
+      s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, NO3, 1._rk)
+      !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
+      s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
+      !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
+      hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, NO3, 1._rk) &
+              *hyper_limiter(1e-3_rk, H2S, 1._rk)
 
       !in anoxic conditions:
       thr_O2 = hyper_inhibitor(self%s_omso_O2, O2, 1._rk)
@@ -354,7 +348,24 @@ module fabm_niva_brom_sulfur
         ddoml_so4_in_m = 0._rk; DcDOML_so4 = 0._rk
       end if
 
+      d_NO3 = -(4._rk/3._rk)*hs_no3-0.75_rk*s0_no3-s2o3_no3
+      if (NO3+d_NO3/self%dt*300._rk <= 0._rk) then
+        hs_no3 = 0._rk
+        s0_no3 = 0._rk
+        s2o3_no3 = 0._rk
+        d_NO3 = 0._rk
+      end if
+
       !Set increments
+      _SET_ODE_(self%id_NO3,d_NO3)
+      d_NH4 = 0.75_rk*s0_no3+s2o3_no3 &
+             +(dpoml_so4_in_m+ddoml_so4_in_m)/self%c_to_n
+      _SET_ODE_(self%id_NH4,d_NH4)
+      d_PO4 = (dpoml_so4_in_m+ddoml_so4_in_m)/self%c_to_p
+      _SET_ODE_(self%id_PO4,d_PO4)
+      d_Si = (dpoml_so4_in_m+ddoml_so4_in_m)/self%c_to_si
+      _SET_ODE_(self%id_Si,d_Si)
+
       d_SO4 = hs_no3+2._rk*s2o3_ox+s0_no3+2._rk*s2o3_no3 &
              -0.5_rk*(dpomr_so4_in_m+ddomr_so4_in_m)
       _SET_ODE_(self%id_SO4,d_SO4)
@@ -379,16 +390,6 @@ module fabm_niva_brom_sulfur
       _SET_ODE_(self%id_POMR,d_POMR)
       d_DOMR = DcPOML_so4-DcDOMR_so4
       _SET_ODE_(self%id_DOMR,d_DOMR)
-
-      d_NO3 = -(4._rk/3._rk)*hs_no3-0.75_rk*s0_no3-s2o3_no3
-      _SET_ODE_(self%id_NO3,d_NO3)
-      d_NH4 = 0.75_rk*s0_no3+s2o3_no3 &
-             +(dpoml_so4_in_m+ddoml_so4_in_m)/self%c_to_n
-      _SET_ODE_(self%id_NH4,d_NH4)
-      d_PO4 = (dpoml_so4_in_m+ddoml_so4_in_m)/self%c_to_p
-      _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = (dpoml_so4_in_m+ddoml_so4_in_m)/self%c_to_si
-      _SET_ODE_(self%id_Si,d_Si)
 
       d_alk = d_NH4-d_NO3-d_PO4-2._rk*d_SO4
       _SET_ODE_(self%id_Alk,d_alk)

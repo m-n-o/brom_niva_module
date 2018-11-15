@@ -279,14 +279,15 @@ contains
         ddoml_no3_in_m = 0._rk; DcDOML_NO3 = 0._rk
         dpomr_no3_in_m = 0._rk; DcPOMR_NO3 = 0._rk
         ddomr_no3_in_m = 0._rk; DcDOMR_NO3 = 0._rk
+        denitrification_1 = 0._rk
       end if
       if (NO2 < denitrification_2/self%dt*300._rk) then
         dpoml_no2_in_m = 0._rk; DcPOML_NO2 = 0._rk
         ddoml_no2_in_m = 0._rk; DcDOML_NO2 = 0._rk
         dpomr_no2_in_m = 0._rk; DcPOMR_NO2 = 0._rk
         ddomr_no2_in_m = 0._rk; DcDOMR_NO2 = 0._rk
+        denitrification_2 = 0._rk
       end if
-
       !
       !Set increments
       d_DOML = -DcDOML_NO3-DcDOML_NO2
