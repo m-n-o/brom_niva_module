@@ -26,7 +26,10 @@ module fabm_niva_brom_nitrogen
 
     type(type_diagnostic_variable_id):: id_anammox
     type(type_diagnostic_variable_id):: id_Nitrif1,id_Nitrif2
-    type(type_diagnostic_variable_id):: id_Denitr1,id_Denitr2
+    type(type_diagnostic_variable_id):: id_DcPOML_NO3,id_DcDOML_NO3
+    type(type_diagnostic_variable_id):: id_DcPOMR_NO3,id_DcDOMR_NO3
+    type(type_diagnostic_variable_id):: id_DcPOML_NO2,id_DcDOML_NO2
+    type(type_diagnostic_variable_id):: id_DcPOMR_NO2,id_DcDOMR_NO2
     type(type_diagnostic_variable_id):: id_dAlk
     !Model parameters
     !specific rates of biogeochemical processes
@@ -164,10 +167,30 @@ contains
          'Nitrification 2 stage',output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_anammox,'Anammox','mmol/m**3 N',&
          'Anammox',output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_Denitr1,'Denitr1','mmol/m**3 N',&
-         'Denitrification 1 stage',output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_Denitr2,'Denitr2','mmol/m**3 N',&
-         'Denitrification 2 stage',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPOML_NO2,'DcPOML_NO2','mg C m^-3',&
+         'POML with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPOMR_NO2,'DcPOMR_NO2','mg C m^-3',&
+         'POMR with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOMR_NO2,'DcDOMR_NO2','mg C m^-3',&
+         'DOMR with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOML_NO2,'DcDOML_NO2','mg C m^-3',&
+         'DOML with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPOML_NO3,'DcPOML_NO3','mg C m^-3',&
+         'POML with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcPOMR_NO3,'DcPOMR_NO3','mg C m^-3',&
+         'POMR with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOMR_NO3,'DcDOMR_NO3','mg C m^-3',&
+         'DOMR with O2 mineralization',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(&
+         self%id_DcDOML_NO3,'DcDOML_NO3','mg C m^-3',&
+         'DOML with O2 mineralization',output=output_time_step_integrated)
     call self%register_diagnostic_variable(self%id_dAlk,&
          'd_alk','mM m^-3',&
          'Alkalinity generation due to nitrification and denitrification',&
@@ -344,8 +367,14 @@ contains
       _SET_DIAGNOSTIC_(self%id_anammox,Anammox)
       _SET_DIAGNOSTIC_(self%id_Nitrif1,Nitrif1)
       _SET_DIAGNOSTIC_(self%id_Nitrif2,Nitrif2)
-      _SET_DIAGNOSTIC_(self%id_Denitr1,denitrification_1)
-      _SET_DIAGNOSTIC_(self%id_Denitr2,denitrification_2)
+      _SET_DIAGNOSTIC_(self%id_DcPOML_NO2,DcPOML_NO2)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_NO2,DcPOMR_NO2)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_NO2,DcDOMR_NO2)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_NO2,DcDOML_NO2)
+      _SET_DIAGNOSTIC_(self%id_DcPOML_NO3,DcPOML_NO3)
+      _SET_DIAGNOSTIC_(self%id_DcPOMR_NO3,DcPOMR_NO3)
+      _SET_DIAGNOSTIC_(self%id_DcDOMR_NO3,DcDOMR_NO3)
+      _SET_DIAGNOSTIC_(self%id_DcDOML_NO3,DcDOML_NO3)
       _SET_DIAGNOSTIC_(self%id_dAlk,d_alk)
     _LOOP_END_
   end subroutine do

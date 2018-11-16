@@ -191,19 +191,19 @@ module fabm_niva_brom_sulfur
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-            self%id_DcPOMR_SO4,'DcPOMR_SO4','mmol/m**3',&
+            self%id_DcPOMR_SO4,'DcPOMR_SO4','mg C m^-3',&
             'POMR sulfatereduction',&
             output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-            self%id_DcDOMR_SO4,'DcDOMR_SO4','mmol/m**3',&
+            self%id_DcDOMR_SO4,'DcDOMR_SO4','mg C m^-3',&
             'DOMR sulfatereduction',&
             output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-            self%id_DcPOML_SO4,'DcPOML_SO4','mmol/m**3',&
+            self%id_DcPOML_SO4,'DcPOML_SO4','mg C m^-3',&
             'POML sulfatereduction',&
             output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-            self%id_DcDOML_SO4,'DcDOML_SO4','mmol/m**3',&
+            self%id_DcDOML_SO4,'DcDOML_SO4','mg C m^-3',&
             'DOML sulfatereduction',&
             output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
