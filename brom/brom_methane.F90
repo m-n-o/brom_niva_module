@@ -243,11 +243,6 @@ module fabm_niva_brom_methane
       _GET_(self%id_POML,POML)
       _GET_(self%id_POMR,POMR)
 
-      !Correct for methane max solubility value
-      if (CH4 > 1340._rk) then
-          CH4 = 1340._rk
-      end if
-
       !CH4 production from POML and DOML
       !(CH2O)106(NH3)16H3PO4 -> 53 CO2 + 53 CH4 + 16 NH3 + H3PO4
       thr_o2_l = hyper_inhibitor(self%s_omso_o2,o2,1._rk)
@@ -293,6 +288,12 @@ module fabm_niva_brom_methane
       d_Si = (dpoml_ch4_in_m+ddoml_ch4_in_m)/self%c_to_si
       _SET_ODE_(self%id_Si,d_Si)
 
+
+      !Correct for methane max solubility value
+      if (CH4 > 1340._rk) then
+          d_CH4 = (-CH4+1340._rk)*self%dt/300._rk
+      end if
+      
       !Set increments
       _SET_ODE_(self%id_DOML,d_DOML)
       _SET_ODE_(self%id_POML,d_POML)
