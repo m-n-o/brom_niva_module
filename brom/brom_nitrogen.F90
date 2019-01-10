@@ -283,7 +283,7 @@ contains
       !It should be in the units of OM, so mg C m^-3
       kf = monod_squared(self%K_omno_no2, NO2)&
           *hyper_inhibitor(self%O2s_dn, o2, 1._rk)&
-          *hyper_inhibitor(self%K_omno_no3, o2, 1._rk)
+          *hyper_inhibitor(self%K_omno_no3, no3, 1._rk)
       !hydrolysis
       DcPOM_NO2 = self%K_POM_NO2*POM*kf
       DcDOM_NO2 = self%K_DOM_NO2*DOM*kf

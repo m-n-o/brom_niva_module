@@ -310,7 +310,7 @@ module fabm_niva_brom_sulfur
       s0_no3 = self%K_s0_no3*NO3*S0*hyper_limiter(self%NO3_sr, NO3, 1._rk)
       !S2O3 oxidation with NO3: S2O3= + NO3- + 2H2O --> 2SO4= + NH4+
       s2o3_no3 = self%K_s2o3_no3*NO3*S2O3*hyper_limiter(self%NO3_sr, NO3, 1._rk)
-      !Thiodenitrification: 3H2S + 4NO3- + 6OH- -> 3SO4= + 2N2 + 6H2O
+      !Thiodenitrification: 5H2S + 8NO3- + 2OH- -> 5SO4= + 4N2 + 6H2O
       hs_no3 = self%K_hs_no3*H2S*NO3*hyper_limiter(self%NO3_sr, NO3, 1._rk) &
               *hyper_limiter(1e-3_rk, H2S, 1._rk)
 
@@ -346,7 +346,7 @@ module fabm_niva_brom_sulfur
         dDOM_so4_in_m = 0._rk; DcDOM_so4 = 0._rk
       end if
 
-      d_NO3 = -(4._rk/3._rk)*hs_no3-0.75_rk*s0_no3-s2o3_no3
+      d_NO3 = -(8._rk/5._rk)*hs_no3-0.75_rk*s0_no3-s2o3_no3
       if (NO3+d_NO3/self%dt*300._rk <= 0._rk) then
         hs_no3 = 0._rk
         s0_no3 = 0._rk
