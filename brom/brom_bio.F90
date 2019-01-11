@@ -792,7 +792,7 @@ contains
     real(rk),intent(in):: biorate, ChlCratio
 
     daily_growth &
-        = 0.85_rk*biorate*ChlCratio
+        = 0.85_rk*biorate*ChlCratio - 0.015_rk
   end function daily_growth
   !
   !
