@@ -25,8 +25,8 @@ module fabm_niva_brom_methane
     !diagnostic variables by bacteria needed
     type(type_diagnostic_variable_id):: id_DcPOML_ch4,id_DcDOML_ch4
     type(type_diagnostic_variable_id):: id_DcPOMR_ch4,id_DcDOMR_ch4
-    !for do_surface
-    type(type_dependency_id):: id_temp,id_salt
+    !for do_surface and methane_sat_solubility
+    type(type_dependency_id):: id_temp,id_salt,id_pres
     type(type_horizontal_dependency_id):: id_windspeed
     !Model parameters
     !specific rates of biogeochemical processes
@@ -142,6 +142,8 @@ module fabm_niva_brom_methane
     call self%register_dependency(&
         self%id_salt,standard_variables%practical_salinity)
     call self%register_dependency(&
+        self%id_pres,standard_variables%pressure)
+    call self%register_dependency(&
         self%id_windspeed,standard_variables%wind_speed)
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
@@ -219,6 +221,7 @@ module fabm_niva_brom_methane
     real(rk):: DIC,SO4,NO3,NH4
     real(rk):: O2,CH4
     real(rk):: POML,POMR,DOML,DOMR
+    real(rk):: temp, salt, abs_temp, pres
     !processes
     real(rk):: DcDOML_ch4,DcPOML_ch4,DcPOMR_ch4,DcDOMR_ch4
     real(rk):: DcTOM_CH4, ch4_o2,ch4_so4
@@ -231,6 +234,9 @@ module fabm_niva_brom_methane
 
     _LOOP_BEGIN_
       !state variables
+      _GET_(self%id_temp,temp) !temperature
+      _GET_(self%id_salt,salt) !salinity
+      _GET_(self%id_pres,pres) !pressure
       _GET_(self%id_DOML,DOML)
       _GET_(self%id_DOMR,DOMR)
       _GET_(self%id_SO4,SO4)
