@@ -37,6 +37,7 @@ contains
       use fabm_niva_brom_silicon
       use fabm_niva_brom_sulfur
       use fabm_niva_brom_ba
+      use fabm_niva_brom_bubble
       !use fabm_niva_brom_halite
       !use fabm_niva_brom_minerals
       !use fabm_niva_brom_volumes
@@ -68,6 +69,7 @@ contains
          case ('brom_silicon');       allocate(type_niva_brom_silicon::model)
          case ('brom_sulfur');        allocate(type_niva_brom_sulfur::model)
          case ('brom_ba');            allocate(type_niva_brom_ba::model)
+         case ('brom_bubble');        allocate(type_niva_brom_bubble::model)
          !case ('brom_halite');        allocate(type_niva_brom_halite::model)
          !case ('brom_minerals');      allocate(type_niva_brom_minerals::model)
          !case ('brom_volumes');      allocate(type_niva_brom_volumes::model)

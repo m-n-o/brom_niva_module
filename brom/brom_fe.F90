@@ -384,7 +384,7 @@ contains
     real(rk):: Fe2,Fe3,FeS,FeS2,FeCO3,Fe3PO42,PO4_Fe3
     !state dependencies
     real(rk):: O2,POML,POMR,DOML,DOMR
-    real(rk):: Mn4,Mn3,H2S,NH4,PO4
+    real(rk):: Mn4,Mn3,Mn2,H2S,NH4,PO4
     !diagnostic variables dependencies
     real(rk):: Hplus,CO3
     !increments
@@ -408,6 +408,7 @@ contains
       !state
       _GET_(self%id_DOML,DOML)
       _GET_(self%id_Fe2,Fe2)
+      _GET_(self%id_Mn2,Mn2)
       _GET_(self%id_PO4,PO4)
       _GET_(self%id_NH4,NH4)
       !solids
@@ -435,15 +436,16 @@ contains
                self%K_fe_ox1*o2*Fe2
       !
       !Fe2 oxidation2: Fe2+ + MnO2 + 4H+ -> Fe3+ + Mn2+ + 2H2O (vanCappelen,96)
-      !                2Fe2+ + MnO2 + 4H2O -> 2Fe(OH)3 + Mn2+ + 2H+ (Pakhomova, p.c.)
-      fe_ox2 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+      !                Fe2+ + MnO2 + H2O + H+-> Fe(OH)3 + Mn3+ (Pakhomova, p.c.)
+      !                2Fe2+ + MnO2 + 4H2O -> Fe(OH)3 + Mn2+ 2H+ (Pakhomova, p.c.)
+      fe_ox2 = max(0._rk, thr_h(self%s_feox_fe2,Fe2,1._rk)*&
                thr_h(self%s_feox_fe2,Mn4,1._rk)*&
-               self%K_fe_ox2*Mn4*Fe2
+               self%K_fe_ox2*Mn4*Fe2)
       
       !Fe2 oxidation2: Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
-      fe_ox3 = thr_h(self%s_feox_fe2,Fe2,1._rk)*&
+      fe_ox3 = max(0._rk, thr_h(self%s_feox_fe2,Fe2,1._rk)*&
                thr_h(self%s_feox_fe2,Mn3,1._rk)*&
-               self%K_fe_ox2*Mn3*Fe2
+               self%K_fe_ox2*Mn3*Fe2)
       !
       !Fe3 reduction: 2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
       fe_rd = thr_h(self%s_ferd_fe3,Fe3,1._rk)*&
@@ -531,7 +533,7 @@ contains
    !Summariazed OM mineralization
    DcTOM_Fe = DcDOMR_Fe+DcPOMR_Fe
    !Set increments
-   d_Mn2 = 0.5_rk*fe_ox2+fe_ox3
+   d_Mn2 =  fe_ox3+0.5_rk*fe_ox2
    _SET_ODE_(self%id_Mn2,d_Mn2)
    d_Mn3 = -fe_ox3
    _SET_ODE_(self%id_Mn3,d_Mn3)
@@ -581,7 +583,7 @@ contains
       _SET_ODE_(self%id_NH4,d_NH4)
    d_Alk = (&                  !Alkalinity changes due to redox reactions:
              -2._rk*fe_ox1 &   !4Fe2+ + O2 +10H2O-> 4Fe(OH)3 +8H+
-             -1._rk*fe_ox2 &   !2Fe2+ + MnO2 +4H2O -> 2Fe(OH)3 + Mn2+ +2H+
+             +1._rk*fe_ox2 &   !Fe2+ + MnO2 + H2O + H+-> Fe(OH)3 + Mn3+
              -3._rk*fe_ox3 &   !Fe2+ + Mn3+ 3H2O->  Fe(OH)3 + Mn2+ + 3H+ (Pakhomova, p.c.)
              +2._rk*fe_rd &    !2Fe(OH)3 + HS- + 5H+ -> 2Fe2+ + S0 + 6H2O
              !(here and below d(AlK_H2S) is excluded, as give before)

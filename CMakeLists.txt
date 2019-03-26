@@ -20,6 +20,7 @@ add_library(fabm_models_niva OBJECT
             brom/brom_silicon.F90
             brom/brom_sulfur.F90
             brom/brom_ba.F90
+            brom/brom_bubble.F90
             brom/oxydep.F90
            )
 

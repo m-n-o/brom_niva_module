@@ -389,17 +389,17 @@ contains
         _GET_(self%id_H2S,H2S)
 
         !Mn2 oxidation: 4Mn(2+)+O2+4H(+)->4Mn(3+)+2H2O (Canfield,2005)
-        mn_ox1 = pos(thr_h(self%s_mnox_mn2,Mn2,1._rk)*&
-                 self%K_mn_ox1*Mn2*o2*o2/(o2+self%K_mnox_o2))
+        mn_ox1 = pos(thr_h(self%s_mnox_mn2,Mn2,1._rk)*thr_h(self%K_mnox_o2,O2,1._rk) &     
+                *self%K_mn_ox1*Mn2)
         !Mn3 oxidation: 2Mn3+ + 0.5O2 + 3H20 -> 2MnO2 + 6H+ (Tebo,1997)
-        mn_ox2 = pos(thr_h(self%s_mnox_mn3,Mn3,1._rk)*&     
-                self%K_mn_ox2*Mn3*o2/(o2+self%K_mnox_o2))
+        mn_ox2 = pos(thr_h(self%s_mnox_mn3,Mn3,1._rk)*thr_h(self%K_mnox_o2,O2,1._rk) &     
+                *self%K_mn_ox2*Mn3)
         !Mn4 reduction: 2MnO2 + 7H+ + HS- -> 2Mn3+ + 4H2O + S0
-        mn_rd1 = pos(thr_h(self%s_mnrd_mn4,Mn4,1._rk)*&     
-                self%K_mn_rd1*Mn4*h2s/(h2s+self%K_mnrd_hs))
+        mn_rd1 = pos(thr_h(self%s_mnrd_mn4,Mn4,1._rk)*thr_h(0.1_rk,H2S,1._rk) &     
+                *self%K_mn_rd1*Mn4) !*H2S !) !/(h2s+self%K_mnrd_hs))
         !Mn3 reduction: 2Mn3+ + HS- -> 2Mn2+ + S0 + H+
-        mn_rd2 = pos(thr_h(self%s_mnrd_mn3,Mn3,1._rk)*&
-                self%K_mn_rd2*Mn3*h2s/(h2s+self%K_mnrd_hs))
+        mn_rd2 = pos(thr_h(self%s_mnrd_mn3,Mn3,1._rk)*thr_h(0.1_rk,H2S,1._rk) &     
+                *self%K_mn_rd2*Mn3) !/(h2s+self%K_mnrd_hs))
         !MnS formation/dissollution (dSED) Mn2+ + HS- = MnS(s) + H+
         Om_MnS = H2S*Mn2/(self%K_MnS*Hplus*1000000._rk)
         !Mn2+ + HS- -> MnS(s) + H+
@@ -419,38 +419,38 @@ contains
         !(CH2O)106(NH3)16(H3PO4) + 212MnO2 + 318CO2 + 106H2O ->
         !424HCO3- + 212Mn2+ +16NH3 +H3PO4  (Boudreau, 1996) !in N units        
         DcDOML_Mn3 = pos(self%K_DOML_mn3*DOML &   
-                     *Mn3/(Mn3+0.5_rk)&
+                     *Mn3/(Mn3+0.005_rk)&
                      *thr_l(self%O2s_dn,o2,1._rk))
         
         DcPOML_Mn3 = pos(self%K_POML_mn3*POML &
-                     *Mn3/(Mn3+0.5_rk)&
+                     *Mn3/(Mn3+0.005_rk)&
                      *thr_l(self%O2s_dn,o2,1._rk))
 
         DcDOMR_Mn3 = pos(self%K_DOMR_mn3*DOMR &
-                     *Mn3/(Mn3+0.5_rk)&
+                     *Mn3/(Mn3+0.005_rk)&
                      *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
                      *thr_l(self%O2s_dn,o2,1._rk))
                         
         DcPOMR_Mn3 = pos(self%K_POMR_mn3*POMR &
-                    *Mn3/(Mn3+0.5_rk) &
+                    *Mn3/(Mn3+0.005_rk) &
                     *thr_h(self%s_OM_refr,POMR,0.1_rk) &
                     *thr_l(self%O2s_dn,o2,1._rk))
         
         DcDOML_Mn4 = pos(self%K_DOML_mn4*DOML &
-                     *Mn4/(Mn4+0.5_rk) &
+                     *Mn4/(Mn4+0.005_rk) &
                      *thr_l(self%O2s_dn,o2,1._rk))
         
         DcPOML_Mn4 = pos(self%K_POML_mn4*POML &
-                     *Mn4/(Mn4+0.5_rk)&
+                     *Mn4/(Mn4+0.005_rk)&
                      *thr_l(self%O2s_dn,o2,1._rk))
 
         DcPOMR_Mn4 = pos(self%K_POMR_mn4*POMR &
-                    *Mn4/(Mn4+0.5_rk) &
+                    *Mn4/(Mn4+0.005_rk) &
                     *thr_h(self%s_OM_refr,POMR,0.1_rk) &
                     *thr_l(self%O2s_dn,o2,1._rk))
         
         DcDOMR_Mn4 = pos(self%K_DOMR_mn4*DOMR &
-                    *Mn4/(Mn4+0.5_rk) &
+                    *Mn4/(Mn4+0.005_rk) &
                     *thr_h(self%s_OM_refr,DOMR,0.1_rk) &
                     *thr_l(self%O2s_dn,o2,1._rk))
         
@@ -460,7 +460,7 @@ contains
         d_Mn2 = -mn_ox1+mn_rd2-mns_form+mns_diss-mnco3_form+mns_ox+&
                 mnco3_diss+(DcDOMR_Mn3+DcPOMR_Mn3)*self%r_mn_n
         _SET_ODE_(self%id_Mn2,d_Mn2)
-        d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2-&
+        d_Mn3 = mn_ox1-mn_ox2+mn_rd1-mn_rd2+&
                 (DcDOMR_Mn4+DcPOMR_Mn4-DcDOMR_Mn3-DcPOMR_Mn3)*self%r_mn_n
         _SET_ODE_(self%id_Mn3,d_Mn3)
             !complexation of PO4 with Mn(III)
@@ -469,7 +469,7 @@ contains
         if (d_PO4_Mn3.ge.PO4) d_PO4_Mn3 = PO4
         _SET_ODE_(self%id_PO4_Mn3,d_PO4_Mn3)
         d_Mn4 = mn_ox2-mn_rd1+mnco3_ox &
-                +(-DcDOMR_Mn4-DcPOMR_Mn4)*self%r_mn_n
+                -(DcDOMR_Mn4+DcPOMR_Mn4)*self%r_mn_n
         _SET_ODE_(self%id_Mn4,d_Mn4)
         d_MnS = mns_form-mns_diss-mns_ox
         _SET_ODE_(self%id_MnS,d_MnS)
