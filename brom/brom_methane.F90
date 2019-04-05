@@ -222,6 +222,7 @@ module fabm_niva_brom_methane
     real(rk):: O2,CH4
     real(rk):: POML,POMR,DOML,DOMR
     real(rk):: temp, salt, abs_temp, pres
+    real(rk):: temp_coef, salt_coef, ch4_sol,kh_theta
     !processes
     real(rk):: DcDOML_ch4,DcPOML_ch4,DcPOMR_ch4,DcDOMR_ch4
     real(rk):: DcTOM_CH4, ch4_o2,ch4_so4
@@ -294,11 +295,21 @@ module fabm_niva_brom_methane
       d_Si = (dpoml_ch4_in_m+ddoml_ch4_in_m)/self%c_to_si
       _SET_ODE_(self%id_Si,d_Si)
 
+      ! Calculate methane solubility
+      abs_temp = temp + 273._rk ![k]
 
+      kh_theta = 1.4e-5 !Henry constant for methane [Sander 15]
+      ! Mol/m3 Pa
+      temp_coef = 1900 ![K] coef for temp correction 
+      salt_coef = 10**(-(salt/58)*0.127) !58 is molar mass of NaCl
+      ch4_sol = kh_theta * exp(temp_coef * (1/abs_temp - 1/298.15))*1.e6*pres*salt_coef
       !Correct for methane max solubility value
-      if (CH4 > 1340._rk) then
-          d_CH4 = (-CH4+1340._rk)*self%dt/300._rk
-      end if
+      ! if (CH4 > 1340._rk) then
+      !    d_CH4 = (-CH4+1340._rk)*self%dt/300._rk
+      ! end if
+      ! if (CH4 > ch4_sol) then
+      !    d_CH4 = (ch4_sol-CH4)*self%df/300._rk
+      !end if    
       
       !Set increments
       _SET_ODE_(self%id_DOML,d_DOML)
