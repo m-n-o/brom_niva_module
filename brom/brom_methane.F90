@@ -298,18 +298,17 @@ module fabm_niva_brom_methane
       ! Calculate methane solubility
       abs_temp = temp + 273._rk ![k]
 
-      kh_theta = 1.4e-5 !Henry constant for methane [Sander 15]
-      ! Mol/m3 Pa
+      kh_theta = 1.4e-5 *10 ! after multiplying by 10 units are M/decibar
+      ! Henry constant for methane [Sander 15]
+      !Mol/m3 Pa
       temp_coef = 1900 ![K] coef for temp correction 
       salt_coef = 10**(-(salt/58)*0.127) !58 is molar mass of NaCl
-      ch4_sol = kh_theta * exp(temp_coef * (1/abs_temp - 1/298.15))*1.e6*pres*salt_coef
+      !10.13 is 1 atm in decibar 
+      ch4_sol = kh_theta*(exp(temp_coef * (1/abs_temp - 1/298.15)))*1.e6*salt_coef*(pres)
       !Correct for methane max solubility value
-      ! if (CH4 > 1340._rk) then
-      !    d_CH4 = (-CH4+1340._rk)*self%dt/300._rk
-      ! end if
-      ! if (CH4 > ch4_sol) then
-      !    d_CH4 = (ch4_sol-CH4)*self%df/300._rk
-      !end if    
+      if (CH4 > ch4_sol) then
+         d_CH4 = (ch4_sol-CH4)*self%dt/300._rk
+      end if    
       
       !Set increments
       _SET_ODE_(self%id_DOML,d_DOML)
