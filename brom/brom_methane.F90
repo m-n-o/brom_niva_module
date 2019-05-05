@@ -62,7 +62,7 @@ module fabm_niva_brom_methane
     call self%get_parameter(&
         self%s_omch_so4, 's_omch_so4', '[uM S]',&
         'threshold of SO4 for methane production from OM',&
-        default=15000.0_rk)
+        default=30.0_rk)
     call self%get_parameter(&
         self%s_OM_refr, 's_OM_refr', '[uM N]',&
         'threshold of decay of refractory OM',&
