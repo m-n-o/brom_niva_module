@@ -39,40 +39,40 @@ contains
 
     ! CO2 solubility
     call self%register_diagnostic_variable(&
-         self%id_Kc0,'Kc0','-','Henry''s constant',output=output_none)
+         self%id_Kc0,'Kc0','mol/kg-sol','Henry''s constant',output=output_none)
     ! Carbonic acid
     call self%register_diagnostic_variable(&
-         self%id_Kc1,'Kc1','-','[H+][HCO3-]/[H2CO3]',output=output_none)
+         self%id_Kc1,'Kc1','mol/kg-sol','[H+][HCO3-]/[H2CO3]',output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_Kc2,'Kc2','-','[H+][CO3--]/[HCO3-]',output=output_none)
+         self%id_Kc2,'Kc2','mol/kg-sol','[H+][CO3--]/[HCO3-]',output=output_none)
     ! Water
     call self%register_diagnostic_variable(&
-         self%id_Kw, 'Kw','-','[H+][OH-]/H2O',output=output_none)
+         self%id_Kw, 'Kw','mol/kg-sol','[H+][OH-]/H2O',output=output_none)
     ! Boric acid
     call self%register_diagnostic_variable(&
-         self%id_Kb, 'Kb','-','[H+][B(OH)4-]/[B(OH)3]',output=output_none)
+         self%id_Kb, 'Kb','mol/kg-sol','[H+][B(OH)4-]/[B(OH)3]',output=output_none)
     ! Phosphoric acid
     call self%register_diagnostic_variable(&
-         self%id_Kp1,'Kp1','-','[H+][H2PO4-]/[H3PO4]',output=output_none)
+         self%id_Kp1,'Kp1','mol/kg-sol','[H+][H2PO4-]/[H3PO4]',output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_Kp2,'Kp2','-','[H+][HPO4--]/[H2PO4-]',output=output_none)
+         self%id_Kp2,'Kp2','mol/kg-sol','[H+][HPO4--]/[H2PO4-]',output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_Kp3,'Kp3','-','[H+][PO4---]/[HPO4--]',output=output_none)
+         self%id_Kp3,'Kp3','mol/kg-sol','[H+][PO4---]/[HPO4--]',output=output_none)
     ! Silicic acid
     call self%register_diagnostic_variable(&
-         self%id_KSi,'KSi','-','[H+][H3SiO4-]/[Si(OH)4]',output=output_none)
+         self%id_KSi,'KSi','mol/kg-sol','[H+][H3SiO4-]/[Si(OH)4]',output=output_none)
     ! Ammonia
     call self%register_diagnostic_variable(&
-         self%id_Knh4,'Knh4','-','[H+][NH3]/[NH4+]',output=output_none)
+         self%id_Knh4,'Knh4','mol/kg-sol','[H+][NH3]/[NH4+]',output=output_none)
     ! Hydrogen sulfide
     call self%register_diagnostic_variable(&
-         self%id_Kh2s,'Kh2s','-','[H+][HS-]/[H2S]',output=output_none)
+         self%id_Kh2s,'Kh2s','mol/kg-sol','[H+][HS-]/[H2S]',output=output_none)
     ! Hydrogen sulfate
     call self%register_diagnostic_variable(&
-         self%id_kso4,'kso4','-','[H+][HSO4-]/[H2SO4]',output=output_none)
+         self%id_kso4,'kso4','mol/kg-sol','[H+][HSO4-]/[H2SO4]',output=output_none)
     ! Hydrogen fluoride
     call self%register_diagnostic_variable(&
-         self%id_kflu,'kflu','-','[H+][F-]/[HF]',output=output_none)
+         self%id_kflu,'kflu','mol/kg-sol','[H+][F-]/[HF]',output=output_none)
     ! Ratio H_Tot/H_free
     call self%register_diagnostic_variable(&
          self%id_tot_free,'tot_free','-','ratio H_Tot/H_free',output=output_none)
