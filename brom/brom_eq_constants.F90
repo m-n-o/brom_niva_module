@@ -39,7 +39,7 @@ contains
 
     ! CO2 solubility
     call self%register_diagnostic_variable(&
-         self%id_Kc0,'Kc0','mol/kg-sol','Henry''s constant',output=output_none)
+         self%id_Kc0,'Kc0','mol kg-sol^-1 atm^-1','Henry''s constant',output=output_none)
     ! Carbonic acid
     call self%register_diagnostic_variable(&
          self%id_Kc1,'Kc1','mol/kg-sol','[H+][HCO3-]/[H2CO3]',output=output_none)
