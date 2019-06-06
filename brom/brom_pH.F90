@@ -268,14 +268,14 @@ contains
       h_prev = h
       !return value (r) of main equation for given [H+]
       !and its derivative (dr)
-      call r_calc(h, alktot, dictot, bortot, po4tot, &
-          siltot, nh4tot, hstot, so4tot, flutot, &
-          kc1, kc2, kb, kp1, kp2, kp3, ksi, kn, khs, &
-          kw,kso4, kflu, ph_scale, r, dr)
-      !call r_calc_old(h, alktot, dictot, bortot, po4tot, &
-      !                siltot, nh4tot, hstot, &
-      !                kc1, kc2, kb, kp1, kp2, kp3, ksi, kn, khs, &
-      !                kw, r, dr)
+      !call r_calc(h, alktot, dictot, bortot, po4tot, &
+      !    siltot, nh4tot, hstot, so4tot, flutot, &
+      !    kc1, kc2, kb, kp1, kp2, kp3, ksi, kn, khs, &
+      !    kw,kso4, kflu, ph_scale, r, dr)
+      call r_calc_old(h, alktot, dictot, bortot, po4tot, &
+                      siltot, nh4tot, hstot, &
+                      kc1, kc2, kb, kp1, kp2, kp3, ksi, kn, khs, &
+                      kw, r, dr)
       !adapt bracketing interval
       if (r > 0._rk) then
         h_min = h_prev
