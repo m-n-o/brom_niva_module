@@ -18,7 +18,11 @@ module fabm_niva_brom_bio
   type,extends(type_base_model),public :: type_niva_brom_bio
     !variables allocated here
     type(type_state_variable_id):: id_Phy,id_Het
-    type(type_state_variable_id):: id_O2,id_POM,id_POC,id_DOM,id_DOC
+    type(type_state_variable_id):: id_O2
+    type(type_state_variable_id):: id_POM !part., sinks, cnps
+    type(type_state_variable_id):: id_POC !dis., sinks, after hydr., c - sl
+    type(type_state_variable_id):: id_DOM !dis., befor hydr., cnps - labile
+    type(type_state_variable_id):: id_DOC !dis, after hydr., c - semilabile(sl)
     !state dependencies
     type(type_state_variable_id):: id_NO2,id_NO3,id_NH4,id_PO4
     type(type_state_variable_id):: id_DIC,id_Si,id_Alk
