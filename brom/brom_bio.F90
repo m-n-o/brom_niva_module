@@ -336,7 +336,7 @@ contains
          self%id_growthrate,'Growth_rate','1 d^-1','Daily Phy growth rate',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrowthPhy,'GrowthPhy','mM N m^-3','Daily growth of Phy',&
+         self%id_GrowthPhy,'GrowthPhy','mg C m^-3 d^-1','Daily growth of Phy',&
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_ChlCratio,'ChlCratio','mg Chl a (mg C)^-1','Chl to C ratio',&
