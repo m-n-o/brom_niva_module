@@ -19,6 +19,7 @@ module fabm_niva_brom_carbon
     type(type_state_variable_id):: id_DIC,id_Alk
 
     type(type_diagnostic_variable_id):: id_pCO2
+    type(type_diagnostic_variable_id):: id_CO3
     type(type_diagnostic_variable_id):: id_dAlk
     !diagnostic dependencies
     type(type_dependency_id):: id_Hplus,id_Kc0,id_Kc1,id_Kc2
@@ -49,6 +50,8 @@ contains
     !mol mol-1 and atm are the same
     call self%register_diagnostic_variable(&
          self%id_pCO2,'pCO2','mol mol-1','CO2, mole fraction')
+    call self%register_diagnostic_variable(&
+         self%id_CO3,'CO3','mol kg-1','CO3 concentration')
 
     !Register standard dependencies
     call self%register_dependency(&
@@ -157,6 +160,7 @@ contains
       pco2 = co2/Kc0 !atm
 
       _SET_DIAGNOSTIC_(self%id_pCO2,pCO2)
+      _SET_DIAGNOSTIC_(self%id_CO3,co3)
     _LOOP_END_
   end subroutine do
 end module

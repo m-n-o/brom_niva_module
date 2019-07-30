@@ -93,7 +93,7 @@ contains
     call self%register_dependency(self%id_pres,&
          standard_variables%pressure)
     !diagnostic
-    call self%register_dependency(self%id_CO3,'CO3','mmol/m**3','CO3--')
+    call self%register_dependency(self%id_CO3,'CO3','mol/kg','CO3--')
 
     !self%dt = 86400 states that all rates and cross-boundary fluxes
     !(arguments to _SET_ODE_, _SET_SURFACE_EXCHANGE_, etc.) will need
@@ -135,8 +135,8 @@ contains
       !
       call CaCO3solub(temp,salt,0.1_rk*pres,&
                       Ca,K_Cal,K_Ara)
-      Om_Ca=(co3/1000000._rk)*Ca/K_Cal !Saturation (Omega) for calcite
-      Om_Ar=(co3/1000000._rk)*Ca/K_Ara !Saturation (Omega) for aragonite
+      Om_Ca=co3*Ca/K_Cal !Saturation (Omega) for calcite
+      Om_Ar=co3*Ca/K_Ara !Saturation (Omega) for aragonite
       !Ca
       !CaCO3 precipitation/dissolution (Luff et al., 2001)
       caco3_form = self%K_caco3_form*max(0._rk & !Ca2+ + CO32- -> CaCO3
