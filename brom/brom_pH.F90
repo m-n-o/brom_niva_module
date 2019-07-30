@@ -22,6 +22,7 @@ module fabm_niva_brom_ph
     type(type_diagnostic_variable_id) :: id_pH,id_Hplus
     !standard variables dependencies
     type(type_dependency_id):: id_salt
+    type(type_dependency_id):: id_dens
     !diagnosric variables dependencies
     type(type_dependency_id):: id_Kc1,id_Kc2,id_Kb
     type(type_dependency_id):: id_Kp1,id_Kp2,id_Kp3,id_KSi
@@ -41,31 +42,32 @@ contains
 
     !Register state dependencies
     call self%register_state_dependency(&
-         self%id_DIC,'DIC','mmol/m**3',&
-         'total dissolved inorganic carbon',required=.false.)
+         self%id_DIC,'DIC','mM m^-3','Total dissolved inorganic carbon')
     call self%register_state_dependency(&
          self%id_Alk,'Alk','mM m^-3','Alk')
     call self%register_state_dependency(&
-         self%id_po4,'PO4','mmol/m**3','phosphate',required=.false.)
+         self%id_po4,'PO4','mM m^-3','Phosphate')
     call self%register_state_dependency(&
-         self%id_Si, 'Si', 'mmol/m**3','silicate',required=.false.)
+         self%id_Si, 'Si', 'mM m^-3','Silicate')
     call self%register_state_dependency(&
-         self%id_NH4,'NH4','mmol/m**3','ammonium',required=.false.)
+         self%id_NH4,'NH4','mM m^-3','Ammonium')
     call self%register_state_dependency(&
-         self%id_H2S,'H2S','mmol/m**3','hydrogen sulfide',required=.false.)
+         self%id_H2S,'H2S','mM m^-3','Hydrogen sulfide',required=.false.)
     call self%register_state_dependency(&
-         self%id_SO4,'SO4','mmol/m**3','sulphate',required=.false.)
+         self%id_SO4,'SO4','mM m^-3','Sulphate',required=.false.)
 
     !Register diagnostic variables
     call self%register_diagnostic_variable(self%id_ph,&
          'pH','-','pH',standard_variable=&
          standard_variables%ph_reported_on_total_scale)
     call self%register_diagnostic_variable(&
-         self%id_Hplus, 'Hplus', 'mmol/m**3','H+ Hydrogen')
+         self%id_Hplus, 'Hplus', 'mol kg-soln^-1','H+ Hydrogen')
 
     !Register standard dependencies
     call self%register_dependency(&
          self%id_salt,standard_variables%practical_salinity)
+    call self%register_dependency(&
+         self%id_dens,standard_variables%density)
 
     !Register diagnostic dependencies
     call self%register_dependency(&
@@ -100,7 +102,7 @@ contains
     class (type_niva_brom_ph),intent(in) :: self
 
     _DECLARE_ARGUMENTS_DO_
-    real(rk):: salt
+    real(rk):: salt,dens
     real(rk):: DIC,Alk,PO4,Si,NH4,H2S,SO4
     real(rk):: Kc1,Kc2,Kb,Kp1,Kp2,Kp3,KSi
     real(rk):: Knh4,Kh2s,kso4,kflu,Kw,tot_free
@@ -110,25 +112,33 @@ contains
     _LOOP_BEGIN_
       ! Environment
       _GET_(self%id_salt,salt) !salinity
+      _GET_(self%id_dens,dens) !density
       ! state variables
       _GET_(self%id_Alk,Alk)
+      ! here and further - turn units to mol/kg
+      Alk = Alk*(1000._rk/dens)*1.e-6_rk
       _GET_(self%id_DIC,DIC)
+      DIC = DIC*(1000._rk/dens)*1.e-6_rk
       _GET_(self%id_PO4,PO4)
+      PO4 = PO4*(1000._rk/dens)*1.e-6_rk
       _GET_(self%id_Si,Si)
+      Si = Si*(1000._rk/dens)*1.e-6_rk
       if (_AVAILABLE_(self%id_SO4)) then
         _GET_(self%id_SO4,SO4)
+         SO4 = SO4*(1000._rk/dens)*1.e-6_rk
       else
         !returns total sulfate concentration in mol/kg-SW
         !References:
         ! Morris A.W. and Riley, J.P. (1966) quoted in Dickson et al. (2007)
         ! pH scale  : N/A
         SO4 = (0.1400_rk/96.062_rk)*(salt/1.80655_rk)
-        SO4 = SO4*(1027._rk/1000._rk)*1.e6_rk !mmol/m3
       end if
       !gases
       _GET_(self%id_NH4,NH4)
+      NH4 = NH4*(1000._rk/dens)*1.e-6_rk
       if (_AVAILABLE_(self%id_H2S)) then
         _GET_(self%id_H2S,H2S)
+        H2S = H2S*(1000._rk/dens)*1.e-6_rk
       else
         H2S = 0._rk
       end if
@@ -153,13 +163,12 @@ contains
       ! Millero (1982) cited in Millero (1995)
       !pH scale  : N/A
       Bt = 0.000416_rk*(salt/35._rk)
-      Bt = Bt*(1027._rk/1000._rk)*1.e6_rk !mmol/m3
 
       !returns total fluoride concentration in mol/kg-SW
       !References: Culkin (1965) (???)
       !pH scale  : N/A
       flutot = 0.000068_rk*(salt/35._rk)
-      flutot = flutot*(1027._rk/1000._rk)*1.e6_rk !mmol/m3
+      !
       H_ = ph_solver(Alk, DIC, Bt, &
                      PO4, Si, NH4, H2S, SO4, flutot, &
                      kc1, kc2, kb, kp1, kp2, kp3, ksi, Knh4, Kh2s, &
@@ -182,6 +191,8 @@ contains
     ! pathway to robust and universal solution algorithms:
     ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367
     ! 1388, doi:10.5194/gmd-6-1367-2013, 2013.
+    !
+    !all in mol/kg-SW
     real(rk), intent(in):: alktot !total alkalinity
     real(rk), intent(in):: dictot !total dissolved
                                   !inorganic carbon
@@ -284,10 +295,10 @@ contains
       else
         h_fac = -r/(dr*h_prev)
         if(abs(h_fac) > 1.0_rk) then
-        !Newton-Raphson at pH-Alk space
+        !Newton-Raphson in pH-Alk space
           h = h_prev*exp(h_fac)
         else
-        !Newton-Raphson at H-Alk space
+        !Newton-Raphson in H-Alk space
           h = h_prev+h_fac*h_prev
         end if
         !boundaries check
@@ -382,7 +393,8 @@ contains
     ! pathway to robust and universal solution algorithms:
     ! the SolveSAPHE package v1.0.1, Geosci. Model Dev., 6, 1367
     ! 1388, doi:10.5194/gmd-6-1367-2013, 2013.
-    !return value of main equation for given [H+]
+    !
+    !returns a value of the alkalinity-H equation for given [H+]
     !and value of its derivative
     real(rk), intent(in):: h ![H+]
     real(rk), intent(in):: alktot !total alkalinity

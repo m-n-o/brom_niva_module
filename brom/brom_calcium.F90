@@ -46,7 +46,7 @@ contains
         !Sinking
     call self%get_parameter(&
          self%Wsed,'Wsed','[1/day]',&
-         'Rate of sinking of detritus (POP, POM)',&
+         'Rate of sinking of detritus (POM, POC)',&
          default=5.00_rk)
     !Calcium
     call self%get_parameter(&

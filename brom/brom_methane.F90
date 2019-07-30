@@ -20,18 +20,18 @@ module fabm_niva_brom_methane
     type(type_state_variable_id):: id_CH4
     !state dependencies
     type(type_state_variable_id):: id_DIC,id_NH4,id_PO4,id_Si
-    type(type_state_variable_id):: id_DOML,id_POML,id_POMR,id_DOMR
+    type(type_state_variable_id):: id_DOM,id_POM,id_POC,id_DOC
     type(type_state_variable_id):: id_O2,id_NO3,id_SO4
     !diagnostic variables by bacteria needed
-    type(type_diagnostic_variable_id):: id_DcPOML_ch4,id_DcDOML_ch4
-    type(type_diagnostic_variable_id):: id_DcPOMR_ch4,id_DcDOMR_ch4
-    !for do_surface and methane_sat_solubility
+    type(type_diagnostic_variable_id):: id_DcPOM_ch4,id_DcDOM_ch4
+    type(type_diagnostic_variable_id):: id_DcPOC_ch4,id_DcDOC_ch4
+    !for do_surface
     type(type_dependency_id):: id_temp,id_salt,id_pres
     type(type_horizontal_dependency_id):: id_windspeed
     !Model parameters
     !specific rates of biogeochemical processes
     real(rk):: s_omso_o2,s_omso_no3,s_omch_so4,s_OM_refr
-    real(rk):: K_DOML_ch4,K_POML_ch4,K_POMR_ch4,K_DOMR_ch4
+    real(rk):: K_DOM_ch4,K_POM_ch4,K_POC_ch4,K_DOC_ch4
     real(rk):: K_ch4_o2,K_ch4_so4
     !---- Stoichiometric coefficients ----!
     real(rk):: c_to_n, c_to_si, c_to_p
@@ -68,20 +68,20 @@ module fabm_niva_brom_methane
         'threshold of decay of refractory OM',&
         default=5.0_rk)
     call self%get_parameter(&
-        self%K_DOML_ch4, 'K_DOML_ch4', '[1/day]',&
-        'Specific rate of methane production from DOML',&
+        self%K_DOM_ch4, 'K_DOM_ch4', '[1/day]',&
+        'Specific rate of methane production from DOM',&
         default=0.00014_rk)
     call self%get_parameter(&
-        self%K_POML_ch4, 'K_POML_ch4', '[1/day]',&
-        'Specific rate of methane production from POML',&
+        self%K_POM_ch4, 'K_POM_ch4', '[1/day]',&
+        'Specific rate of methane production from POM',&
         default=0.00014_rk)
     call self%get_parameter(&
-        self%K_POMR_ch4, 'K_POMR_ch4', '[1/day]',&
-        'Specific rate of methane production from POMR',&
+        self%K_POC_ch4, 'K_POC_ch4', '[1/day]',&
+        'Specific rate of methane production from POC',&
         default=0.00014_rk)
     call self%get_parameter(&
-        self%K_DOMR_ch4, 'K_DOMR_ch4', '[1/day]',&
-        'Specific rate of methane production from DOMR',&
+        self%K_DOC_ch4, 'K_DOC_ch4', '[1/day]',&
+        'Specific rate of methane production from DOC',&
         default=0.00014_rk)
     call self%get_parameter(&
         self%K_ch4_o2, 'K_ch4_o2', '[1/day]',&
@@ -122,16 +122,16 @@ module fabm_niva_brom_methane
         self%id_NH4,'NH4','mmol/m**3',&
         'ammonium')
     call self%register_state_dependency(&
-        self%id_POML,'POML','mg m^3',&
+        self%id_POM,'POM','mg m^3',&
         'particulate organic nitrogen')
     call self%register_state_dependency(&
-        self%id_POMR,'POMR','mg m^3',&
+        self%id_POC,'POC','mg m^3',&
         'particulate organic nitrogen')
     call self%register_state_dependency(&
-        self%id_DOMR,'DOMR','mg m^3',&
-        'DOMR')
+        self%id_DOC,'DOC','mg m^3',&
+        'DOC')
     call self%register_state_dependency(&
-        self%id_DOML,'DOML','mg m^3',&
+        self%id_DOM,'DOM','mg m^3',&
         'dissolved organic nitrogen')
     call self%register_state_dependency(&
         self%id_SO4,'SO4','mmol/m**3','sulphate')
@@ -147,17 +147,17 @@ module fabm_niva_brom_methane
         self%id_windspeed,standard_variables%wind_speed)
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-        self%id_DcPOML_ch4,'DcPOML_ch4','mmol/m**3',&
-        'CH4 production from POML',output=output_time_step_integrated)
+        self%id_DcPOM_ch4,'DcPOM_ch4','mmol/m**3',&
+        'CH4 production from POM',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-        self%id_DcDOML_ch4,'DcDOML_ch4','mmol/m**3',&
-        'CH4 production from DOML',output=output_time_step_integrated)
+        self%id_DcDOM_ch4,'DcDOM_ch4','mmol/m**3',&
+        'CH4 production from DOM',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-        self%id_DcPOMR_ch4,'DcPOMR_ch4','mmol/m**3',&
-        'CH4 production from POMR ',output=output_time_step_integrated)
+        self%id_DcPOC_ch4,'DcPOC_ch4','mmol/m**3',&
+        'CH4 production from POC ',output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-        self%id_DcDOMR_ch4,'DcDOMR_ch4','mmol/m**3',&
-        'CH4 production from DOMR ',output=output_time_step_integrated)
+        self%id_DcDOC_ch4,'DcDOC_ch4','mmol/m**3',&
+        'CH4 production from DOC ',output=output_time_step_integrated)
 
     !Specify that rates are per day
     !(default: per second)
@@ -220,17 +220,17 @@ module fabm_niva_brom_methane
     !state variables
     real(rk):: DIC,SO4,NO3,NH4
     real(rk):: O2,CH4
-    real(rk):: POML,POMR,DOML,DOMR
+    real(rk):: POM,POC,DOM,DOC
     real(rk):: temp, salt, abs_temp, pres
     real(rk):: temp_coef, salt_coef, ch4_sol,kh_theta
     !processes
-    real(rk):: DcDOML_ch4,DcPOML_ch4,DcPOMR_ch4,DcDOMR_ch4
+    real(rk):: DcDOM_ch4,DcPOM_ch4,DcPOC_ch4,DcDOC_ch4
     real(rk):: DcTOM_CH4, ch4_o2,ch4_so4
-    real(rk):: dpoml_ch4_in_m, ddoml_ch4_in_m
-    real(rk):: dpomr_ch4_in_m, ddomr_ch4_in_m
+    real(rk):: dPOM_ch4_in_m, dDOM_ch4_in_m
+    real(rk):: dPOC_ch4_in_m, dDOC_ch4_in_m
     !increments
     real(rk):: d_SO4,d_O2,d_CH4,d_NH4,d_DIC,d_PO4,d_Si
-    real(rk):: d_DOML,d_POML,d_POMR,d_DOMR
+    real(rk):: d_DOM,d_POM,d_POC,d_DOC
     real(rk):: thr_o2_l,thr_no3,thr_so4
 
     _LOOP_BEGIN_
@@ -238,8 +238,8 @@ module fabm_niva_brom_methane
       _GET_(self%id_temp,temp) !temperature
       _GET_(self%id_salt,salt) !salinity
       _GET_(self%id_pres,pres) !pressure
-      _GET_(self%id_DOML,DOML)
-      _GET_(self%id_DOMR,DOMR)
+      _GET_(self%id_DOM,DOM)
+      _GET_(self%id_DOC,DOC)
       _GET_(self%id_SO4,SO4)
       _GET_(self%id_NO3,NO3)
       _GET_(self%id_NH4,NH4)
@@ -247,8 +247,8 @@ module fabm_niva_brom_methane
       _GET_(self%id_O2,O2)
       _GET_(self%id_CH4,CH4)
       !solids
-      _GET_(self%id_POML,POML)
-      _GET_(self%id_POMR,POMR)
+      _GET_(self%id_POM,POM)
+      _GET_(self%id_POC,POC)
 
       !CH4 production from POML and DOML
       !(CH2O)106(NH3)16H3PO4 -> 53 CO2 + 53 CH4 + 16 NH3 + H3PO4
@@ -257,19 +257,19 @@ module fabm_niva_brom_methane
       thr_so4  = hyper_inhibitor(self%s_omch_so4,so4,1._rk)
 
       !OM [mg C m^-3]
-      DcDOML_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_DOML_ch4*DOML
-      DcPOML_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_POML_ch4*POML
-      DcDOMR_ch4 = thr_o2_l*thr_no3*thr_so4 &
-                  *hyper_limiter(self%s_OM_refr,DOMR,0.1_rk) &
-                  *self%K_DOMR_ch4*DOMR
-      DcPOMR_ch4 = thr_o2_l*thr_no3*thr_so4 &
-                  *hyper_limiter(self%s_OM_refr,POMR,0.1_rk) &
-                  *self%K_POMR_ch4*POMR
+      DcDOM_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_DOM_ch4*DOM
+      DcPOM_ch4 = thr_o2_l*thr_no3*thr_so4*self%K_POM_ch4*POM
+      DcDOC_ch4 = thr_o2_l*thr_no3*thr_so4 &
+                  *hyper_limiter(self%s_OM_refr,DOC,0.1_rk) &
+                  *self%K_DOC_ch4*DOC
+      DcPOC_ch4 = thr_o2_l*thr_no3*thr_so4 &
+                  *hyper_limiter(self%s_OM_refr,POC,0.1_rk) &
+                  *self%K_POC_ch4*POC
       !recalculate to moles
-      dpoml_ch4_in_m = carbon_g_to_mole(DcPOML_ch4)
-      ddoml_ch4_in_m = carbon_g_to_mole(DcDOML_ch4)
-      dpomr_ch4_in_m = carbon_g_to_mole(DcPOMR_ch4)
-      ddomr_ch4_in_m = carbon_g_to_mole(DcDOMR_ch4)
+      dPOM_ch4_in_m = carbon_g_to_mole(DcPOM_ch4)
+      dDOM_ch4_in_m = carbon_g_to_mole(DcDOM_ch4)
+      dPOC_ch4_in_m = carbon_g_to_mole(DcPOC_ch4)
+      dDOC_ch4_in_m = carbon_g_to_mole(DcDOC_ch4)
 
       !CH4 oxidation with O2
       !CH4 + 2O2 = CO2 + 2H2O
@@ -278,21 +278,21 @@ module fabm_niva_brom_methane
       ch4_so4 = self%K_ch4_so4*CH4*SO4*thr_o2_l
 
       !Calculate increments
-      d_DOML = -DcDOML_ch4
-      d_POML = -DcPOML_ch4
-      d_DOMR = DcDOML_ch4-DcDOMR_ch4
-      d_POMR = DcPOML_ch4-DcPOMR_ch4
+      d_DOM = -DcDOM_ch4
+      d_POM = -DcPOM_ch4
+      d_DOC = DcDOM_ch4-DcDOC_ch4
+      d_POC = DcPOM_ch4-DcPOC_ch4
       d_O2  = -2._rk*ch4_o2
       d_SO4 = -ch4_so4
-      d_DIC = 0.5_rk*(ddomr_ch4_in_m+dpomr_ch4_in_m) &
+      d_DIC = 0.5_rk*(dDOC_ch4_in_m+dPOC_ch4_in_m) &
              +ch4_o2+ch4_so4
-      d_CH4 = 0.5_rk*(ddomr_ch4_in_m+dpomr_ch4_in_m) &
+      d_CH4 = 0.5_rk*(dDOC_ch4_in_m+dPOC_ch4_in_m) &
              -ch4_o2-ch4_so4
-      d_NH4 = (dpoml_ch4_in_m+ddoml_ch4_in_m)/self%c_to_n
+      d_NH4 = (dPOM_ch4_in_m+dDOM_ch4_in_m)/self%c_to_n
       _SET_ODE_(self%id_NH4,d_NH4)
-      d_PO4 = (dpoml_ch4_in_m+ddoml_ch4_in_m)/self%c_to_p
+      d_PO4 = (dPOM_ch4_in_m+dDOM_ch4_in_m)/self%c_to_p
       _SET_ODE_(self%id_PO4,d_PO4)
-      d_Si = (dpoml_ch4_in_m+ddoml_ch4_in_m)/self%c_to_si
+      d_Si = (dPOM_ch4_in_m+dDOM_ch4_in_m)/self%c_to_si
       _SET_ODE_(self%id_Si,d_Si)
 
       ! Calculate methane solubility
@@ -301,20 +301,20 @@ module fabm_niva_brom_methane
       kh_theta = 1.4e-5 *10 ! after multiplying by 10 units are M/decibar
       ! Henry constant for methane [Sander 15]
       !Mol/m3 Pa
-      temp_coef = 1900 ![K] coef for temp correction 
+      temp_coef = 1900 ![K] coef for temp correction
       salt_coef = 10**(-(salt/58)*0.127) !58 is molar mass of NaCl
-      !10.13 is 1 atm in decibar 
+      !10.13 is 1 atm in decibar
       ch4_sol = kh_theta*(exp(temp_coef * (1/abs_temp - 1/298.15)))*1.e6*salt_coef*(pres)
       !Correct for methane max solubility value
       if (CH4 > ch4_sol) then
          d_CH4 = (ch4_sol-CH4)*self%dt/300._rk
-      end if    
-      
+      end if
+
       !Set increments
-      _SET_ODE_(self%id_DOML,d_DOML)
-      _SET_ODE_(self%id_POML,d_POML)
-      _SET_ODE_(self%id_DOMR,d_DOMR)
-      _SET_ODE_(self%id_POMR,d_POMR)
+      _SET_ODE_(self%id_DOM,d_DOM)
+      _SET_ODE_(self%id_POM,d_POM)
+      _SET_ODE_(self%id_DOC,d_DOC)
+      _SET_ODE_(self%id_POC,d_POC)
       _SET_ODE_(self%id_O2,d_O2)
       _SET_ODE_(self%id_SO4,d_SO4)
       _SET_ODE_(self%id_DIC,d_DIC)
@@ -323,10 +323,10 @@ module fabm_niva_brom_methane
       _SET_ODE_(self%id_PO4,d_PO4)
       _SET_ODE_(self%id_Si,d_Si)
 
-      _SET_DIAGNOSTIC_(self%id_DcPOML_ch4,DcPOML_ch4)
-      _SET_DIAGNOSTIC_(self%id_DcDOML_ch4,DcDOML_ch4)
-      _SET_DIAGNOSTIC_(self%id_DcPOMR_ch4,DcPOMR_ch4)
-      _SET_DIAGNOSTIC_(self%id_DcDOMR_ch4,DcDOMR_ch4)
+      _SET_DIAGNOSTIC_(self%id_DcPOM_ch4,DcPOM_ch4)
+      _SET_DIAGNOSTIC_(self%id_DcDOM_ch4,DcDOM_ch4)
+      _SET_DIAGNOSTIC_(self%id_DcPOC_ch4,DcPOC_ch4)
+      _SET_DIAGNOSTIC_(self%id_DcDOC_ch4,DcDOC_ch4)
     _LOOP_END_
   end subroutine do
 end module fabm_niva_brom_methane
