@@ -44,6 +44,7 @@ module fabm_niva_brom_bio
     type(type_diagnostic_variable_id):: id_Biorate,id_growthrate
     type(type_diagnostic_variable_id):: id_GrowthPhy,id_MortPhy,id_ExcrPhy
     type(type_diagnostic_variable_id):: id_ChlCratio,id_N_fixation
+    type(type_diagnostic_variable_id):: id_Chl
     !heterotrophs
     type(type_diagnostic_variable_id):: id_GrazPhy,id_GrazPOP!,id_GrazBact
     !type(type_diagnostic_variable_id):: id_GrazBaae,id_GrazBaan
@@ -340,7 +341,10 @@ contains
          output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
          self%id_ChlCratio,'ChlCratio','mg Chl a (mg C)^-1','Chl to C ratio',&
-         output=output_time_step_integrated)
+         output=output_instantaneous)
+    call self%register_diagnostic_variable(&
+         self%id_Chl,'Chl','mg Chl a','Chl a',&
+         output=output_instantaneous)
     call self%register_diagnostic_variable(&
          self%id_N_fixation,'N_fixation','mM N m^-3','Daily N2 fixation',&
          output=output_time_step_integrated)
@@ -386,7 +390,7 @@ contains
     real(rk):: LimT,LimP,LimNO3,LimNH4,LimN,LimSi,LimNut
     !biology
     !real(rk):: Baae,Baan,Bhae,Bhan
-    real(rk):: Phy,ChlC,biorate,growthrate
+    real(rk):: Phy,Chl,ChlC,biorate,growthrate
     real(rk):: GrowthPhy,ExcrPhy,MortPhy,N_fixation
     real(rk):: Het,GrazPhy,GrazPOP
     !real(rk):: GrazBaae,GrazBaan,GrazBhae,GrazBhan,GrazBact
@@ -459,6 +463,8 @@ contains
       !photosynthetic rate
       biorate = photosynthetic_rate(bright_hours,&
                                     self%pbm, self%alpha, PAR)
+      !Chl of the previous step
+      Chl = ChlC*Phy
       !daily growth rate
       growthrate = daily_growth(biorate, ChlC)
       if (LimNut < 0.01_rk) then
@@ -622,6 +628,7 @@ contains
       _SET_DIAGNOSTIC_(self%id_LimNO3,LimNO3)
       _SET_DIAGNOSTIC_(self%id_LimSi,LimSi)
       _SET_DIAGNOSTIC_(self%id_ChlCratio,ChlC)
+      _SET_DIAGNOSTIC_(self%id_Chl,Chl)
       _SET_DIAGNOSTIC_(self%id_Biorate,biorate)
       _SET_DIAGNOSTIC_(self%id_growthrate,growthrate)
       _SET_DIAGNOSTIC_(self%id_GrowthPhy,GrowthPhy)
