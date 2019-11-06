@@ -21,12 +21,11 @@ module fabm_niva_brom_sulfur
     type(type_state_variable_id):: id_S0,id_S2O3,id_SO4
     !state variables dependencies
     type(type_state_variable_id):: id_O2,id_NO3,id_NH4,id_PO4,id_Si
-    type(type_state_variable_id):: id_POM,id_POC,id_DOM,id_DOC
+    type(type_state_variable_id):: id_POM,id_DOM
     type(type_state_variable_id):: id_DIC,id_Alk
     !standard variables
     type(type_dependency_id):: id_temp
     !diagnostic variables - processes
-    type(type_diagnostic_variable_id):: id_DcPOC_so4, id_DcDOC_so4
     type(type_diagnostic_variable_id):: id_DcPOM_so4, id_DcDOM_so4
     type(type_diagnostic_variable_id):: id_s2o3_no3,id_s0_no3
     type(type_diagnostic_variable_id):: id_s0_ox,id_s2o3_ox
@@ -36,8 +35,8 @@ module fabm_niva_brom_sulfur
     !Model parameters
     !specific rates of biogeochemical processes
     real(rk):: K_s0_disp,K_hs_ox,K_s0_ox,K_s0_no3
-    real(rk):: K_POC_so4,K_POM_so4
-    real(rk):: K_DOC_so4,K_DOM_so4
+    real(rk):: K_POM_so4
+    real(rk):: K_DOM_so4
     real(rk):: K_s2o3_ox,K_s2o3_no3,K_hs_no3
     real(rk):: tref
     !---- Switches-------!
@@ -92,16 +91,8 @@ module fabm_niva_brom_sulfur
             'Specific rate of OM sulfate reduction with sulfate',&
             default=0.000005_rk)
     call self%get_parameter(&
-            self%K_POC_so4,'K_POC_so4','[1/day]',&
-            'Specific rate of POC sulfate reduction with sulfate',&
-            default=0.000005_rk)
-    call self%get_parameter(&
             self%K_DOM_so4,'K_DOM_so4','[1/day]',&
             'Specific rate of DOM sulfate reduction with sulfate',&
-            default=0.000005_rk)
-    call self%get_parameter(&
-            self%K_DOC_so4,'K_DOC_so4','[1/day]',&
-            'Specific rate of DOC sulfate reduction with sulfate',&
             default=0.000005_rk)
     call self%get_parameter(&
          self%tref,'tref','degrees Celsius',&
@@ -177,27 +168,13 @@ module fabm_niva_brom_sulfur
             self%id_POM,'POM','mmol/m**3',&
             'particulate organic nitrogen')
     call self%register_state_dependency(&
-            self%id_POC,'POC','mmol/m**3',&
-            'POM refractory')
-    call self%register_state_dependency(&
             self%id_DOM,'DOM','mmol/m**3',&
             'dissolved organic nitrogen')
-    call self%register_state_dependency(&
-            self%id_DOC,'DOC','mmol/m**3',&
-            'POM refractory')
     !Register standard variables
     call self%register_dependency(&
          self%id_temp,standard_variables%temperature)
 
     !Register diagnostic variables
-    call self%register_diagnostic_variable(&
-            self%id_DcPOC_SO4,'DcPOC_SO4','mg C m^-3',&
-            'POC sulfatereduction',&
-            output=output_time_step_integrated)
-    call self%register_diagnostic_variable(&
-            self%id_DcDOC_SO4,'DcDOC_SO4','mg C m^-3',&
-            'DOC sulfatereduction',&
-            output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
             self%id_DcPOM_SO4,'DcPOM_SO4','mg C m^-3',&
             'POM sulfatereduction',&
@@ -256,18 +233,17 @@ module fabm_niva_brom_sulfur
     real(rk):: H2S,S0,S2O3,SO4
     !state dependencies
     real(rk):: o2
-    real(rk):: POM,POC,DOM,DOC
+    real(rk):: POM,DOM
     real(rk):: NO3
     !increments
     real(rk):: d_S2O3,d_SO4,d_S0,d_H2S
-    real(rk):: d_O2,d_DOM,d_POM,d_POC,d_DOC
+    real(rk):: d_O2,d_DOM,d_POM
     real(rk):: d_NH4,d_NO3,d_DIC,d_PO4,d_Si
     real(rk):: d_alk
     !processess
     real(rk):: s0_disp,hs_ox,s0_ox,s0_no3,s2o3_ox,s2o3_no3,hs_no3
-    real(rk):: DcPOM_so4,DcDOM_so4,DcPOC_so4,DcDOC_so4
+    real(rk):: DcPOM_so4,DcDOM_so4
     real(rk):: dPOM_so4_in_m, dDOM_so4_in_m
-    real(rk):: dPOC_so4_in_m, dDOC_so4_in_m
     !parameters
     real(rk):: thr_no3,thr_o2
     real(rk):: kf
@@ -277,13 +253,11 @@ module fabm_niva_brom_sulfur
       _GET_(self%id_temp,temp) ! temperature
       !state
       _GET_(self%id_DOM,DOM)
-      _GET_(self%id_DOC,DOC)
       _GET_(self%id_S2O3,S2O3)
       _GET_(self%id_SO4,SO4)
       _GET_(self%id_NO3,NO3)
       !solids
       _GET_(self%id_POM,POM)
-      _GET_(self%id_POC,POC)
       _GET_(self%id_S0,S0)
       !gases
       _GET_(self%id_O2,O2)
@@ -321,7 +295,7 @@ module fabm_niva_brom_sulfur
       !OM sulfatereduction (Boudreau, 1996)
       !(CH2O)106(NH3)16H3PO4 + 53SO42- = 106HCO3- + 16NH3 + H3PO4 + 53H2S
       !It should be in the units of OM, so mg C m^-3
-      !hydrolysis
+      !sulfatereduction
       DcDOM_so4 = thr_O2*thr_no3 &
                   *self%K_DOM_so4*DOM*kf
       DcPOM_so4 = thr_O2*thr_no3 &
@@ -330,21 +304,10 @@ module fabm_niva_brom_sulfur
       dPOM_so4_in_m = carbon_g_to_mole(DcPOM_so4)
       dDOM_so4_in_m = carbon_g_to_mole(DcDOM_so4)
 
-      !sulfatereduction
-      DcDOC_so4  = thr_O2*thr_no3 &
-                   *self%K_DOC_so4*DOC*kf
-      DcPOC_so4  = thr_O2*thr_no3 &
-                   *self%K_POC_so4*POC*kf
-      !recalculate to moles
-      dPOC_so4_in_m = carbon_g_to_mole(DcPOC_so4)
-      dDOC_so4_in_m = carbon_g_to_mole(DcDOC_so4)
-
-      if (SO4 < 0.5_rk*(dPOC_so4_in_m+dDOC_so4_in_m)/self%dt*300._rk) then
-        dPOC_so4_in_m = 0._rk; DcPOC_so4 = 0._rk
-        dDOC_so4_in_m = 0._rk; DcDOC_so4 = 0._rk
-        dPOM_so4_in_m = 0._rk; DcPOM_so4 = 0._rk
-        dDOM_so4_in_m = 0._rk; DcDOM_so4 = 0._rk
-      end if
+      !if (SO4 < 0.5_rk*(dPOM_so4_in_m+dDOM_so4_in_m)/self%dt*300._rk) then
+      !  dPOM_so4_in_m = 0._rk; DcPOM_so4 = 0._rk
+      !  dDOM_so4_in_m = 0._rk; DcDOM_so4 = 0._rk
+      !end if
 
       d_NO3 = -(8._rk/5._rk)*hs_no3-0.75_rk*s0_no3-s2o3_no3
       if (NO3+d_NO3/self%dt*300._rk <= 0._rk) then
@@ -365,17 +328,17 @@ module fabm_niva_brom_sulfur
       _SET_ODE_(self%id_Si,d_Si)
 
       d_SO4 = hs_no3+2._rk*s2o3_ox+s0_no3+2._rk*s2o3_no3 &
-             -0.5_rk*(dPOC_so4_in_m+dDOC_so4_in_m)
+             -0.5_rk*(dPOM_so4_in_m+dDOM_so4_in_m)
       _SET_ODE_(self%id_SO4,d_SO4)
       d_S2O3 = 0.5_rk*s0_ox-s2o3_ox+0.25_rk*s0_disp-s2o3_no3
       _SET_ODE_(self%id_S2O3,d_S2O3)
       d_S0 = hs_ox-s0_ox-s0_disp-s0_no3
       _SET_ODE_(self%id_S0,d_S0)
       d_H2S = -hs_ox+0.5_rk*s0_disp-hs_no3 &
-              +0.5_rk*(dPOC_so4_in_m+dDOC_so4_in_m)
+              +0.5_rk*(dPOM_so4_in_m+dDOM_so4_in_m)
       _SET_ODE_(self%id_H2S,d_H2S)
 
-      d_DIC = dPOC_so4_in_m+dDOC_so4_in_m
+      d_DIC = dPOM_so4_in_m+dDOM_so4_in_m
       _SET_ODE_(self%id_DIC,d_DIC)
       d_O2 = -0.5_rk*hs_ox-0.5_rk*s0_ox-2._rk*s2o3_ox
       _SET_ODE_(self%id_O2,d_O2)
@@ -384,10 +347,6 @@ module fabm_niva_brom_sulfur
       _SET_ODE_(self%id_DOM,d_DOM)
       d_POM = -DcPOM_so4
       _SET_ODE_(self%id_POM,d_POM)
-      d_POC = DcPOM_so4-DcPOC_so4
-      _SET_ODE_(self%id_POC,d_POC)
-      d_DOC = DcPOM_so4-DcDOC_so4
-      _SET_ODE_(self%id_DOC,d_DOC)
 
       d_alk = d_NH4-d_NO3-d_PO4-2._rk*d_SO4
       _SET_ODE_(self%id_Alk,d_alk)
@@ -398,8 +357,6 @@ module fabm_niva_brom_sulfur
       _SET_DIAGNOSTIC_(self%id_s0_ox,s0_ox)
       _SET_DIAGNOSTIC_(self%id_DcPOM_so4,DcPOM_so4)
       _SET_DIAGNOSTIC_(self%id_DcDOM_so4,DcDOM_so4)
-      _SET_DIAGNOSTIC_(self%id_DcPOC_so4,DcPOC_so4)
-      _SET_DIAGNOSTIC_(self%id_DcDOC_so4,DcDOC_so4)
       _SET_DIAGNOSTIC_(self%id_s0_disp,s0_disp)
       _SET_DIAGNOSTIC_(self%id_hs_ox,hs_ox)
       _SET_DIAGNOSTIC_(self%id_hs_no3,hs_no3)
