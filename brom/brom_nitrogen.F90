@@ -137,28 +137,20 @@ contains
          'DOM')
 
     !Register diagnostic variables
-    call self%register_diagnostic_variable(self%id_Nitrif1,'Nitrif1','mmol/m**3 N',&
-         'Nitrification 1 stage',output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_Nitrif2,'Nitrif2','mmol/m**3 N',&
-         'Nitrification 2 stage',output=output_time_step_integrated)
-    call self%register_diagnostic_variable(self%id_anammox,'Anammox','mmol/m**3 N',&
-         'Anammox',output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_Nitrif1,'Nitrif1','mmol/m**3 N d^-1','Nitrification 1 stage')
+    call self%register_diagnostic_variable(self%id_Nitrif2,'Nitrif2','mmol/m**3 N d^-1','Nitrification 2 stage')
+    call self%register_diagnostic_variable(self%id_anammox,'Anammox','mmol/m**3 N d^-1','Anammox')
     call self%register_diagnostic_variable(&
-         self%id_DcPOM_NO2,'DcPOM_NO2','mg C m^-3',&
-         'POM with O2 mineralization',output=output_time_step_integrated)
+         self%id_DcPOM_NO2,'DcPOM_NO2','mg C m^-3 d^-1','POM with NO2 mineralization')
     call self%register_diagnostic_variable(&
-         self%id_DcDOM_NO2,'DcDOM_NO2','mg C m^-3',&
-         'DOM with O2 mineralization',output=output_time_step_integrated)
+         self%id_DcDOM_NO2,'DcDOM_NO2','mg C m^-3 d^-1','DOM with NO2 mineralization')
     call self%register_diagnostic_variable(&
-         self%id_DcPOM_NO3,'DcPOM_NO3','mg C m^-3',&
-         'POM with O2 mineralization',output=output_time_step_integrated)
+         self%id_DcPOM_NO3,'DcPOM_NO3','mg C m^-3 d^-1','POM with NO3 mineralization')
     call self%register_diagnostic_variable(&
-         self%id_DcDOM_NO3,'DcDOM_NO3','mg C m^-3',&
-         'DOM with O2 mineralization',output=output_time_step_integrated)
+         self%id_DcDOM_NO3,'DcDOM_NO3','mg C m^-3 d^-1','DOM with NO3 mineralization')
     call self%register_diagnostic_variable(self%id_dAlk,&
-         'd_alk','mM m^-3',&
-         'Alkalinity generation due to nitrification and denitrification',&
-         output=output_time_step_integrated)
+         'd_alk','mM m^-3 d^-1',&
+         'Alkalinity generation due to nitrification and denitrification')
     !call self%add_to_aggregate_variable(&
     !     standard_variables%alkalinity_expressed_as_mole_equivalent,self%id_dAlk)
 

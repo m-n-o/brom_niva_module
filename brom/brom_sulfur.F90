@@ -177,44 +177,41 @@ module fabm_niva_brom_sulfur
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
             self%id_DcPOM_SO4,'DcPOM_SO4','mg C m^-3',&
-            'POM sulfatereduction',&
-            output=output_time_step_integrated)
+            'POM sulfatereduction')
     call self%register_diagnostic_variable(&
             self%id_DcDOM_SO4,'DcDOM_SO4','mg C m^-3',&
-            'DOM sulfatereduction',&
-            output=output_time_step_integrated)
+            'DOM sulfatereduction')
     call self%register_diagnostic_variable(&
             self%id_s2o3_no3,'s2o3_no3','mmol/m**3',&
             'S2O3 with NO3 oxidation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(&
             self%id_s0_no3,'s0_no3','mmol/m**3',&
             'S0 with NO3 oxidation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(&
             self%id_s2o3_ox,'s2o3_ox','mmol/m**3',&
             'S2O3  with O2oxidation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(&
             self%id_s0_ox,'s0_ox','mmol/m**3',&
             'S0 with O2 oxidation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(&
             self%id_s0_disp,'s0_disp','mmol/m**3',&
             'S0 disproportionation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(&
             self%id_hs_ox,'hs_ox','mmol/m**3',&
             'H2S with O2 oxidation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(&
             self%id_hs_no3,'hs_no3','mmol/m**3',&
             'H2S with NO3 oxidation',&
-            output=output_time_step_integrated)
+            output=output_none)
     call self%register_diagnostic_variable(self%id_dAlk,&
          'd_alk','mM m^-3',&
-         'Alkalinity generation due to sulfur transformation',&
-         output=output_time_step_integrated)
+         'Alkalinity generation due to sulfur transformation')
 
     !Specify that are rates computed in this module are per day
     !(default: per second)

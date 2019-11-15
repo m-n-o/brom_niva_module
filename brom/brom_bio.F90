@@ -127,7 +127,7 @@ contains
          default=2._rk)
     call self%get_parameter(&
          self%K_het_pom_gro,'K_het_pom_gro','1 d^-1',&
-         'Maximum rate of grazing of Het on POM (eats labile particulate organic))',&
+         'Maximum rate of grazing of Het on POM (eats particulate organic))',&
          default=0.4_rk)
     call self%get_parameter(&
          self%K_het_pom_lim,'K_het_pom_lim','dimensionless',&
@@ -164,11 +164,11 @@ contains
          default=0.15_rk)
     call self%get_parameter(&
          self%K_DOM_ox,'K_DOM_ox','1 d^-1',&
-         'Specific rate of hydrolysis of DOM',&
+         'Specific oxidation rate of DOM',&
          default=0.1_rk)
     call self%get_parameter(&
          self%K_POM_ox,'K_POM_ox','1 d^-1',&
-         'Specific rate of hydrolysis of POM',&
+         'Specific oxidation rate of POM',&
          default=0.1_rk)
     call self%get_parameter(&
          self%tref,'tref','degrees Celsius',&
@@ -246,17 +246,15 @@ contains
     !     self%id_Bhan,'Bhan','mmol/m**3','anaerobic heterotrophic bacteria')
     !Register diagnostic variables
     call self%register_diagnostic_variable(&
-         self%id_DcDOM_O2,'DcDOM_O2','mg C m^-3',&
-         'DOM hydrolysis',output=output_time_step_integrated)
+         self%id_DcDOM_O2,'DcDOM_O2','mg C m^-3 d^-1','DOM oxidation')
     call self%register_diagnostic_variable(&
-         self%id_DcPOM_O2,'DcPOM_O2','mg C m^-3',&
-         'POM hydrolysis',output=output_time_step_integrated)
+         self%id_DcPOM_O2,'DcPOM_O2','mg C m^-3 d^-1','POM oxidation')
     call self%register_diagnostic_variable(&
-         self%id_MortHet,'MortHet','mg C m^-3','Mortality of Het',&
-         output=output_time_step_integrated)
+         self%id_MortHet,'MortHet','mg C m^-3 d^-1','Mortality of Het',&
+         output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_RespHet,'RespHet','mg C m^-3','Respiration rate of Het',&
-         output=output_time_step_integrated)
+         self%id_RespHet,'RespHet','mg C m^-3 d^-1','Respiration rate of Het',&
+         output=output_none)
     !call self%register_diagnostic_variable(&
     !     self%id_GrazBhae,'GrazBhae','mmol/m**3','GrazBhae',&
     !     output=output_time_step_integrated)
@@ -270,56 +268,51 @@ contains
     !     self%id_GrazBaan,'GrazBaan','mmol/m**3','GrazBaan',&
     !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_GrazPhy,'GrazPhy','mg C m^-3','Het grazing on Phy',&
-         output=output_time_step_integrated)
+         self%id_GrazPhy,'GrazPhy','mg C m^-3 d^-1','Het grazing on Phy',&
+         output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_GrazPOP,'GrazPOP','mg C m^-3','Het grazing on particulate labile OM',&
-         output=output_time_step_integrated)
+         self%id_GrazPOP,'GrazPOP','mg C m^-3 d^-1','Het grazing on particulate labile OM',&
+         output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_Grazing,'Grazing','mg C m^-3','Het total grazing',&
-         output=output_time_step_integrated)
+         self%id_Grazing,'Grazing','mg C m^-3 d^-1','Het total grazing',&
+         output=output_none)
     !call self%register_diagnostic_variable(&
     !     self%id_GrazBact,'GrazBact','mmol/m**3','GrazBact',&
     !     output=output_time_step_integrated)
     call self%register_diagnostic_variable(&
-         self%id_MortPhy,'MortPhy','mg C m^-3','Mortality of Phy',&
-         output=output_time_step_integrated)
+         self%id_MortPhy,'MortPhy','mg C m^-3 d^-1','Mortality of Phy',&
+         output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_ExcrPhy,'ExcrPhy','mg C m^-3','Excretion of Phy',&
-         output=output_time_step_integrated)
+         self%id_ExcrPhy,'ExcrPhy','mg C m^-3 d^-1','Excretion of Phy',&
+         output=output_none)
     call self%register_diagnostic_variable(&
          self%id_LimNH4,'LimNH4','dimensionless','Limitation of Phy on NH4',&
-         output=output_time_step_integrated)
+         output=output_none)
     call self%register_diagnostic_variable(&
          self%id_LimNO3,'LimNO3','dimensionless','Limitation of Phy on NO3',&
-         output=output_time_step_integrated)
+         output=output_none)
     call self%register_diagnostic_variable(&
          self%id_LimN,'LimN','dimensionless','Limitation of Phy on total N',&
-         output=output_time_step_integrated)
+         output=output_none)
     call self%register_diagnostic_variable(&
          self%id_LimP,'LimP','dimensionless','Limitation of Phy on P',&
-         output=output_time_step_integrated)
+         output=output_none)
     call self%register_diagnostic_variable(&
          self%id_LimSi,'LimSi','dimensionless','Limitation of Phy on Si',&
-         output=output_time_step_integrated)
+         output=output_none)
     call self%register_diagnostic_variable(&
-         self%id_Biorate,'Biorate','mg C(mg Chl a d)^-1','Biomass specific photosynthetic rate',&
-         output=output_time_step_integrated)
+         self%id_Biorate,'Biorate','mg C(mg Chl a d)^-1','Biomass specific photosynthetic rate')
     call self%register_diagnostic_variable(&
-         self%id_growthrate,'Growth_rate','1 d^-1','Daily Phy growth rate',&
-         output=output_time_step_integrated)
+         self%id_growthrate,'Growth_rate','1 d^-1','Daily Phy growth rate')
     call self%register_diagnostic_variable(&
-         self%id_GrowthPhy,'GrowthPhy','mg C m^-3 d^-1','Daily growth of Phy',&
-         output=output_time_step_integrated)
+         self%id_GrowthPhy,'GrowthPhy','mg C m^-3 d^-1','Daily growth of Phy')
     call self%register_diagnostic_variable(&
-         self%id_ChlCratio,'ChlCratio','mg Chl a (mg C)^-1','Chl to C ratio',&
-         output=output_instantaneous)
+         self%id_ChlCratio,'ChlCratio','mg Chl a (mg C)^-1','Chl to C ratio')
     call self%register_diagnostic_variable(&
-         self%id_Chl,'Chl','mg Chl a','Chl a',&
-         output=output_instantaneous)
+         self%id_Chl,'Chl','mg Chl a m^-3','Chl a concentration')
     call self%register_diagnostic_variable(&
-         self%id_N_fixation,'N_fixation','mM N m^-3','Daily N2 fixation',&
-         output=output_time_step_integrated)
+         self%id_N_fixation,'N_fixation','mM N m^-3 d^-1','Daily N2 fixation',&
+         output=output_none)
     call self%register_diagnostic_variable(self%id_O2_rel_sat, &
          'O2_rel_sat','dimensionless','Relative oxygen saturation', &
          standard_variable=standard_variables%fractional_saturation_of_oxygen)
@@ -327,9 +320,8 @@ contains
          'O2_sat','mM O2 m^-3','Oxygen saturation concentration')
     call self%register_diagnostic_variable(self%id_AOU, &
          'AOU','mM O2 m^-3','Apparent oxigen utilization')
-    call self%register_diagnostic_variable(self%id_dAlk,'d_alk','mM m^-3',&
-         'Alkalinity generation due to biological processes',&
-         output=output_time_step_integrated)
+    call self%register_diagnostic_variable(self%id_dAlk,'d_alk','mM m^-3 d^-1',&
+         'Alkalinity generation due to biological processes')
     !call self%add_to_aggregate_variable(&
     !     standard_variables%alkalinity_expressed_as_mole_equivalent,self%id_dAlk)
     !Register environmental dependencies
@@ -487,7 +479,7 @@ contains
       !OM decay for release of DIC and consumption of O2
       !(CH2O)106(NH3)16H3PO4+106O2->106CO2+106H2O+16NH3+H3PO4
       kf = monod_squared(self%K_omox_o2, O2)*f_t(temp,2._rk,self%tref)
-      !These ones supposed to me in C mg units
+      !These ones are in C mg units
       !aerobic oxidation
       DcDOM_O2 = self%K_DOM_ox*DOM*kf
       DcPOM_O2 = self%K_POM_ox*POM*kf
