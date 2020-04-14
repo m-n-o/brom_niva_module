@@ -57,7 +57,7 @@ contains
   !
   subroutine initialize(self,configunit)
     class (type_niva_brom_bact), intent(inout), target :: self
-    integer,                      intent(in)           :: configunit
+    integer,                      intent(in)            :: configunit
 
     !-----Model parameters------
     !Sinking
@@ -343,27 +343,27 @@ contains
       !OXIC CONDITIONS
       !aerobic autotrophs
       ChemBaae = (Nitrif1+Nitrif2+mn_ox1+fe_ox1+s2o3_ox+s0_ox+Anammox)&
-                *self%K_Baae_gro*Baae*yy2(self%limBaae,NH4,PO4,Baae)
-
+                *self%K_Baae_gro*Baae*min(yy(self%limBaae,NH4&
+                /(Baae+0.0001_rk)),yy(self%limBaae,PO4/(Baae+0.0001_rk)))
       MortBaae = (self%K_Baae_mrt+self%K_Baae_mrt_h2s&
-                *thr_h(1._rk,H2S,1._rk))*Baae*Baae
-          
+                *(0.5_rk*(1._rk-tanh(1._rk-H2S))))*Baae*Baae
       !aerobic heterotroph
       HetBhae = DcTOM_O2 &
                *self%K_Bhae_gro*Bhae*yy(self%limBhae,DOML/(Bhae+0.0001_rk))
       MortBhae = (self%K_Bhae_mrt+ self%K_Bhae_mrt_h2s&
-               *thr_h(1._rk,H2S,1._rk))*Bhae
+               *(0.5_rk*(1._rk-tanh(1._rk-H2S))))*Bhae
       !ANOXIC CONDITIONS
       !anaerobic autotrophs
       ChemBaan = (mn_rd1+mn_rd2+fe_rd+hs_ox+hs_no3)&
-                *self%K_Baan_gro*Baan*yy2(self%limBaan,NH4,PO4,Baan)
-      
+                *self%K_Baan_gro*Baan*min(yy(self%limBaan,NH4&
+                /(Baan+0.0001_rk)),yy(self%limBaan,PO4/(Baan+0.0001_rk)),&
+                yy(self%limBaan,DIC/(Baan+0.0001_rk)))
       MortBaan = self%K_Baan_mrt*Baan*Baan
       !anaerobic heterotroph
       HetBhan = (DcTOM_NOX+DcTOM_MnX+DcTOM_Fe+DcTOM_SOX+DcTOM_CH4) &
                *self%K_Bhan_gro*Bhan*yy(self%limBhan,DOML/(Bhan+0.0001_rk))
       MortBhan = (self%K_Bhan_mrt+ self%K_Bhan_mrt_o2&
-                *thr_l(1._rk,O2,1._rk))*Bhan
+                *(0.5_rk+0.5_rk*(tanh(1._rk-O2))))*Bhan
 
       !Alkalinity changes due to redox reactions:
 !      d_Alk = -ChemBaae-ChemBaan !+/- NH3
@@ -395,35 +395,14 @@ contains
       _SET_ODE_(self%id_POMR,0.0_rk)
       _SET_ODE_(self%id_DOMR,0.0_rk)
     _LOOP_END_
-    end subroutine do
-  
-    real(rk) function thr_h(threshold_value,var_conc,koef)
-        ! Threshold value for the reaction 
-        ! koef 1 gives regular tgh function 
-        ! 0.1 - smooth function 
-        real(rk), intent(in) :: threshold_value,var_conc,koef
-        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
-    end function 
-          
-    real(rk) function thr_l(threshold_value,var_conc,koef)
-        ! Threshold value for the reaction 
-        real(rk), intent(in) :: threshold_value,var_conc,koef
-        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
-    end function 
-    
-    real(rk) function yy(a,x)
-        !Original author(s): Hans Burchard, Karsten Bolding
-        !This is a squared Michaelis-Menten type of limiter
-        real(rk),intent(in):: a,x
-        yy=x**2/(a**2+x**2)
-    end function yy
-  
-    real(rk) function yy2(limVar,var1,var2,var_to_lim)
-        real(rk), intent(in) :: limVar,var1,var2,var_to_lim
-        real(rk) :: var1_yy,var2_yy
-        var1_yy = yy(limVar,var1/(var_to_lim+0.0001_rk))
-        var2_yy = yy(limVar,var2/(var_to_lim+0.0001_rk))
-        yy2 = min(var1_yy,var2_yy)  
-    end function yy2
+  end subroutine do
+  !
+  !Original author(s): Hans Burchard, Karsten Bolding
+  !This is a squared Michaelis-Menten type of limiter
+  !
+  real(rk) function yy(a,x)
+    real(rk),intent(in):: a,x
 
+    yy=x**2/(a**2+x**2)
+  end function yy
 end module fabm_niva_brom_bact

@@ -57,7 +57,7 @@
 !
 ! !INPUT PARAMETERS:
    class (type_niva_brom_ba), intent(inout), target :: self
-   integer,                     intent(in)          :: configunit
+   integer,                     intent(in)            :: configunit
 !
 ! !REVISION HISTORY:
 !  Original author(s): Evgeniy Yakushev, Svetlana Pakhomova
@@ -69,8 +69,10 @@
    call self%get_parameter(self%Wsed, 'Wsed', '[m/day]',  'Rate of sinking of detritus (POP, PON)',       default=5.00_rk)     
    call self%register_state_variable(self%id_Ba, 'Ba', 'mol/m**3','barium', minimum=0.0_rk)
    call self%register_state_variable(self%id_BaSO4, 'BaSO4', 'mol/m**3','barium sulphate', minimum=0.0_rk,vertical_movement=-self%Wsed/86400._rk)
-   call self%register_state_dependency(self%id_SO4, 'SO4', 'mmol/m**3','SO4')
-   self%dt = 86400.
+   
+     call self%register_state_dependency(self%id_SO4, 'SO4', 'mmol/m**3','SO4')
+
+     self%dt = 86400.
    
    end subroutine initialize
 !EOC
@@ -108,18 +110,18 @@
    _GET_(self%id_BaSO4,BaSO4)    
    _GET_(self%id_SO4, SO4)
 
-    !BaSO¤ formation/dissollution (Arndt,09)
-    Om_BaSO4=SO4*Ba/(self%K_BaSO4) 
-    !% BaSO4 formation Ba2+ + SO42- -> BaSO4  (Arndt,09)
+!BaSO¤ formation/dissollution (Arndt,09)
+          Om_BaSO4=SO4*Ba/(self%K_BaSO4) 
+!% BaSO4 formation Ba2+ + SO42- -> BaSO4  (Arndt,09)
     baso4_prec = 0.0_rk !self%K_BaSO4_form*max(0._rk,(Om_BaSO4-1._rk))
-    !% BaSO4 dissollution  BaSO4  -> Ba2+ + SO42-   (Arndt,09)
+!% BaSO4 dissollution  BaSO4  -> Ba2+ + SO42-   (Arndt,09)
     baso4_diss = 0.0_rk !self%K_BaSO4_diss*BaSO4*max(0._rk,(1._rk-Om_BaSO4))       
 
     _SET_ODE_(self%id_Ba,baso4_diss-baso4_prec+ba_flux)
     _SET_ODE_(self%id_BaSO4,-baso4_diss+baso4_prec)   
     _SET_ODE_(self%id_SO4,baso4_diss-baso4_prec)    
 
-    ! Leave spatial loops (if any)
+! Leave spatial loops (if any)
    _LOOP_END_
 
    end subroutine do

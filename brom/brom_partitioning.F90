@@ -17,7 +17,7 @@
 !   is assumed to be fast process compared with the typical 
 !   model timestep
 !
-! !USES:
+! !USES:PON
 
    use fabm_types
 
@@ -33,9 +33,9 @@
 ! !PUBLIC DERIVED TYPES:
    type,extends(type_base_model),public :: type_niva_brom_partitioning
 !     Variable identifiers
-      type (type_state_variable_id)        :: id_Subst_dis, id_Subst_biota, id_Subst_POM, id_Subst_DOM, id_Subst_miner , id_Subst_tot 
-      type (type_state_variable_id)        :: id_Phy, id_Het, id_Baae, id_Bhae, id_Baan, id_Bhan, id_NH4, id_PON, id_DON, id_Sipart
-      type (type_state_variable_id)        :: id_Mn4, id_FeS, id_FeS2
+      type (type_state_variable_id)        :: id_Subst_dis, id_Subst_biota, id_Subst_POM, id_Subst_DOM, id_Subst_miner! , id_Subst_tot 
+      type (type_state_variable_id)        :: id_Phy, id_Het, id_Baae, id_Bhae, id_Baan, id_Bhan, id_NH4, id_Sipart
+      type (type_state_variable_id)        :: id_Mn4, id_FeS, id_FeS2, id_POML, id_DOML, id_POMR, id_DOMR
       type (type_dependency_id)            :: id_temp, id_par
       type (type_diagnostic_variable_id)   :: id_Subst_tot_diss, id_Subst_tot_part        
 
@@ -78,15 +78,17 @@
    call self%register_state_dependency(self%id_Bhae, 'Bhae', 'mmol/m**3','aerobic heterotrophic bacteria')
    call self%register_state_dependency(self%id_Baan, 'Baan', 'mmol/m**3','anaerobic aurotrophic bacteria')
    call self%register_state_dependency(self%id_Bhan, 'Bhan', 'mmol/m**3','anaerobic heterotrophic bacteria')
-   call self%register_state_dependency(self%id_PON,'PON','mmol/m**3','particulate organic nitrogen')
-   call self%register_state_dependency(self%id_DON,'DON','mmol/m**3','dissolved organic nitrogen')
+   call self%register_state_dependency(self%id_POML,'POML','mmol/m**3','labile POM')
+   call self%register_state_dependency(self%id_DOML,'DOML','mmol/m**3','labile DOM')
+   call self%register_state_dependency(self%id_POMR,'POMR','mmol/m**3','refractory POM')
+   call self%register_state_dependency(self%id_DOMR,'DOMR','mmol/m**3','refractory DOM')
    call self%register_state_dependency(self%id_Subst_dis,  'Subst_dis', 'mol/m**3', 'Subst_dis') !,'Subst dissolved', minimum=0.0_rk)
    call self%register_state_dependency(self%id_Subst_biota, 'Subst_biota', 'mol/m**3','Subst_biota') !, minimum=0.0_rk,vertical_movement=-self%Wphy/86400._rk)
    call self%register_state_dependency(self%id_Subst_POM, 'Subst_POM', 'mol/m**3','Subst_POM') !, minimum=0.0_rk,vertical_movement=-self%Wsed/86400._rk)
    call self%register_state_dependency(self%id_Subst_DOM, 'Subst_DOM', 'mol/m**3','Subst_DOM') !, minimum=0.0_rk)
    call self%register_state_dependency(self%id_Subst_miner, 'Subst_miner', 'mol/m**3','Subst_miner') !, minimum=0.0_rk,vertical_movement=-self%Wm/86400._rk)
 
-   
+    !Register diagnostic variables 
    call self%register_diagnostic_variable(self%id_Subst_tot_diss,'Subst_tot_diss','mol/m**3','Subst_tot_diss')
    call self%register_diagnostic_variable(self%id_Subst_tot_part,'Subst_tot_part','mol/m**3','Subst_tot_part')   
 
@@ -115,10 +117,10 @@
 !  Original author(s): 
 !
 ! !LOCAL VARIABLES:
-   real(rk) :: Subst_dis, Subst_biota, Subst_POM, Subst_DOM, Subst_miner , Subst_tot 
+   real(rk) :: Subst_dis, Subst_biota, Subst_POM, Subst_DOM, Subst_miner ! , Subst_tot 
    real(rk) :: Subst_tot_diss,Subst_tot_part
-   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, PON, DON
-   real(rk) :: dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, dSubst_miner, dSubst_tot
+   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, POMR, DOMR, POML, DOML
+   real(rk) :: dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, dSubst_miner !, dSubst_tot
    real(rk) :: dSubst_tot_diss, dSubst_tot_part
    real(rk) :: pol_bio  ! pollutant in BIOTA,"ng?"/l
    real(rk) :: pol_dom  ! pollutant in DOM, "ng?"/l
@@ -156,7 +158,7 @@
    _GET_(self%id_Subst_biota,Subst_biota)   
    _GET_(self%id_Subst_POM,Subst_POM)   
    _GET_(self%id_Subst_DOM,Subst_DOM)   
- !  _GET_(self%id_Subst_miner,Subst_miner)   
+   _GET_(self%id_Subst_miner,Subst_miner)   
  !  _GET_(self%id_Subst_tot,Subst_tot)
    
    _GET_(self%id_Phy,Phy)    
@@ -166,11 +168,13 @@
    _GET_(self%id_Baan,Baan)    
    _GET_(self%id_Bhan,Bhan)    
 !   _GET_(self%id_NH4,NH4)    
-   _GET_(self%id_PON,PON)    
-   _GET_(self%id_DON,DON)
+   _GET_(self%id_POML,POML)    
+   _GET_(self%id_DOML,DOML)
+   _GET_(self%id_POMR,POMR)    
+   _GET_(self%id_DOMR,DOMR)
    
 ! Let's first assume that all the polutant is dissolved INORGANIC...
-        Subst_total = Subst_dis+ Subst_biota+ Subst_POM+ Subst_DOM !+ Subst_miner  !total amount of pollutant 
+        Subst_total = Subst_dis+ Subst_biota+ Subst_POM+ Subst_DOM + Subst_miner  !total amount of pollutant 
 
 ! We assume that density of organic matter is the same as that of 
 !  water, i.e. 1 g=1 ml and operate with weight units to caluclate 
@@ -181,16 +185,16 @@
         sha_bio=uMn2lip/1000.*(Phy+Het+Baae+Bhae+Baan+Bhan)  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif 
        
-       if(PON<=0.) then 
+       if((POML+POMR)<=0.) then 
         sha_pom=0. 
        else
-        sha_pom=uMn2lip/1000.*PON  ! Volume(weight in kg, g->kg=/1000) of BIO
+        sha_pom=uMn2lip/1000.*(POML+POMR)  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif     
        
-       if(DON<=0.) then 
+       if((DOML+DOMR)<=0.) then 
         sha_dom=0. 
        else
-        sha_dom=uMn2lip/1000.*DON  ! Volume(weight in kg, g->kg=/1000) of BIO
+        sha_dom=uMn2lip/1000.*(DOML+DOMR)  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif    
 
       sha_free = 1.-sha_bio-sha_pom-sha_dom ! i.e Volume(weight in [kg]) of 1l of water minus volumes of org. and part. forms 
@@ -209,6 +213,7 @@
     dSubst_biota = -Subst_biota +pol_bio
     dSubst_POM   = -Subst_POM   +pol_pom
     dSubst_DOM   = -Subst_DOM   +pol_dom
+    dSubst_miner = 0.0_rk
 
     dSubst_tot_diss  = dSubst_dis+dSubst_DOM
     dSubst_tot_part  = dSubst_POM+dSubst_miner

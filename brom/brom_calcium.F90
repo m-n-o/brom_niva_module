@@ -20,8 +20,10 @@ module fabm_niva_brom_calcium
     type(type_state_variable_id):: id_CaCO3
     !state variables dependencies
     type(type_state_variable_id):: id_DIC,id_Alk
+
     type(type_diagnostic_variable_id):: id_Om_Ca,id_Om_Ar,id_Ca
     type(type_diagnostic_variable_id):: id_CaCO3_form,id_CaCO3_diss
+
     !standard variables dependencies
     type(type_dependency_id):: id_temp,id_salt,id_pres
     !diagnostic variables dependencies
@@ -29,7 +31,7 @@ module fabm_niva_brom_calcium
 
     !Model parameters
     real(rk):: Wsed,K_caco3_diss,K_caco3_form
-    contains
+  contains
     procedure :: initialize
     procedure :: do
   end type
@@ -42,7 +44,7 @@ contains
     integer,                      intent(in)           :: configunit
 
     !-----Model parameters------
-    !Sinking
+        !Sinking
     call self%get_parameter(&
          self%Wsed,'Wsed','[1/day]',&
          'Rate of sinking of detritus (POP, POM)',&
@@ -56,11 +58,13 @@ contains
          self%K_caco3_form, 'K_caco3_form', '[1/day]',&
          'CaCO3 precipitation rate constant',&
          default=0.0001_rk)
+
     !registering variables
     !state variables
     call self%register_state_variable(&
          self%id_CaCO3, 'CaCO3', 'mmol/m**3','CaCO3',&
          minimum=0.0_rk,vertical_movement=-self%Wsed/86400._rk)
+
     !registering dependencies
     !state
     call self%register_state_dependency(&
@@ -68,6 +72,7 @@ contains
          'total dissolved inorganic carbon',required=.false.)
     call self%register_state_dependency(self%id_Alk,&
          standard_variables%alkalinity_expressed_as_mole_equivalent)
+
     !diagnostic variables
     call self%register_diagnostic_variable(&
          self%id_Ca,'Ca','mmol/m**3','Ca++')
@@ -80,7 +85,7 @@ contains
          self%id_CaCO3_form,'CaCO3_form','-','CaCO3 formation')
     call self%register_diagnostic_variable(&
          self%id_CaCO3_diss,'CaCO3_diss','-','CaCO3 formation')
-
+    
     !Register environmental dependencies
     call self%register_dependency(self%id_temp,&
          standard_variables%temperature)
@@ -135,11 +140,9 @@ contains
       Om_Ar=(co3/1000000._rk)*Ca/K_Ara !Saturation (Omega) for aragonite
       !Ca
       !CaCO3 precipitation/dissolution (Luff et al., 2001)
-      !Ca2+ + CO32- -> CaCO3
-      caco3_form = self%K_caco3_form*max(0._rk & 
+      caco3_form = self%K_caco3_form*max(0._rk & !Ca2+ + CO32- -> CaCO3
                   ,(Om_Ar-1._rk))
-      !CaCO3 -> Ca2+ + CO32-
-      caco3_diss = CaCO3*self%K_caco3_diss & 
+      caco3_diss = CaCO3*self%K_caco3_diss & !CaCO3 -> Ca2+ + CO32-
                   *(max(0._rk,(1._rk-Om_Ar)))**4.5_rk
       !DIC
       d_DIC = -caco3_form+caco3_diss
@@ -148,11 +151,12 @@ contains
       d_CaCO3 = caco3_form-caco3_diss
       _SET_ODE_(self%id_CaCO3,d_CaCO3)
       !Alkalinity changes due to redox reactions:
-      d_Alk = 0._rk &
-            -2._rk*caco3_form & !Ca2+ + CO32- -> CaCO3
-            +2._rk*caco3_diss  !CaCO3 -> Ca2+ + CO32-
-
+      d_Alk = (&
+             -2._rk*caco3_form & !Ca2+ + CO32- -> CaCO3
+             +2._rk*caco3_diss & !CaCO3 -> Ca2+ + CO32-
+             )
       _SET_ODE_(self%id_Alk,d_Alk)
+      
       _SET_DIAGNOSTIC_(self%id_Ca,Ca)
       _SET_DIAGNOSTIC_(self%id_Om_Ca,Om_Ca)
       _SET_DIAGNOSTIC_(self%id_Om_Ar,Om_Ar)

@@ -28,7 +28,7 @@
 !     Variable identifiers
 ! variables defined in other modules
    type (type_state_variable_id)        :: id_H2S, id_O2, id_Mn4, id_Fe3, id_Baae,id_Bhae,id_Baan,id_Bhan
-   type (type_state_variable_id)        :: id_Phy, id_Het, id_POML,id_DOML, id_SO4
+   type (type_state_variable_id)        :: id_Phy, id_Het, id_POML,id_POMR, id_DON, id_SO4
 ! global dependencies
    type (type_dependency_id)            :: id_temp,id_par,id_depth
 ! diagnostic dependences defined in other modules
@@ -147,8 +147,10 @@
    call self%register_state_dependency(self%id_Bhae, 'Bhae', 'mmol/m**3','Aerobic Heterotrophic Bacteria')
    call self%register_state_dependency(self%id_Baan, 'Baan', 'mmol/m**3','Anaerobic Autotrophic Bacteria')
    call self%register_state_dependency(self%id_Bhan, 'Bhan', 'mmol/m**3','Anaerobic Heterotrophic Bacteria')
-   call self%register_state_dependency(self%id_POML,'POML','mmol/m**3','POM labile')
-   call self%register_state_dependency(self%id_DOML,'DOML','mmol/m**3','DOM refractory')
+   call self%register_state_dependency(self%id_POML,'POML','mmol/m**3','particulate organic nitrogen')
+   call self%register_state_dependency(self%id_POMR,'POMR','mmol/m**3','POM refractory')
+   call self%register_state_dependency(self%id_DON,'DON','mmol/m**3','dissolved organic nitrogen')
+   
 
     !call self%register_diagnostic_variable(&
     !     self%id_Hg2_free,'Hg2_free','mmol/m**3',&
@@ -194,11 +196,11 @@
     call self%register_diagnostic_variable(&
          self%id_Kad_Hg2,'Kad_Hg2','-',&
          'Kad_Hg2',&
-         output=output_time_step_integrated) ! sorption coeff. on Fe3
+         output=output_time_step_integrated) ! conditional partitioning coef
     call self%register_diagnostic_variable(&
          self%id_Kad_MeHg,'Kad_MeHg','-',&
          'Kad_MeHg',&
-         output=output_time_step_integrated) ! sorption coeff. on Fe3
+         output=output_time_step_integrated) ! conditional partitioning coef
     call self%register_diagnostic_variable(&
          self%id_hg2_fe3_compl,'hg2_fe3_compl','mmol/m**3',&
          'hg2_fe3_compl',&
@@ -249,7 +251,7 @@
 ! !LOCAL VARIABLES:
    real(rk) ::  temp, O2, Mn4, Fe3, depth
    real(rk) ::  Hg0, Hg2, MeHg, HgS, Iz, H2S, Om_HgS, Hg2_flux, SO4 
-   real(rk) ::  Phy, Het, Bhae, Baae, Bhan, Baan, POML, DOML
+   real(rk) ::  Phy, Het, Bhae, Baae, Bhan, Baan, DON, POML, POMR
    real(rk) ::  Hg2_biota, Hg2_POM, Hg2_DOM
    real(rk) ::  Hg2_Mn4, Hg2_Fe3, Hg2_free, Hg2_tot, Hg2_tot_diss
    real(rk) ::  MeHg_biota, MeHg_POM, MeHg_DOM
@@ -259,7 +261,7 @@
    real(rk) ::  hg0_irr_ox, hg2_irr_red, mehg_irr_degr, hg2_mehg, mehg_hg2
    real(rk) ::  hg2_fe3_compl, hg2_mn4_compl, mehg_fe3_compl, mehg_mn4_compl
    real(rk) ::  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM
-   real(rk) ::  dHg2, dHg0, dMeHg, Kad_Hg2, Kad_MeHg, Iz_coef
+   real(rk) ::  dHg2, dHg0, dMeHg, Kad_Hg2, Kad_MeHg
   !diagnostic variables dependencies
    real(rk):: Hplus
    
@@ -295,59 +297,56 @@
     _GET_(self%id_Phy,Phy) 
     _GET_(self%id_Het,Het)
     _GET_(self%id_POML,POML)
-    _GET_(self%id_DOML,DOML)
-    _GET_(self%id_Baae,Baae)
+    _GET_(self%id_POMR,POMR)
+    _GET_(self%id_DON,DON)
+    _GET_(self%id_Baae,Baae)   
     _GET_(self%id_Bhae,Bhae)
-    _GET_(self%id_Baan,Baan)
+    _GET_(self%id_Baan,Baan)   
     _GET_(self%id_Bhan,Bhan)
     _GET_(self%id_H2S,H2S)
     _GET_(self%id_SO4,SO4)
     _GET_(self%id_Mn4,Mn4)
     _GET_(self%id_Fe3,Fe3)
     _GET_(self%id_O2,O2)  
-    !other modules diagnostics
+    !diagnostic
     _GET_(self%id_Hplus,Hplus)
 !-----------------------------------------------------------------
     ! Hg species (Knigthes 2008)
-    !% Hg0 bioreduction  Hg0 -> Hg2+  ()
+!% Hg0 bioreduction  Hg0 -> Hg2+  ()
     hg0_hg2=self%K_hg0_hg2*Hg0         
-    !% Hg2 biooxydation  Hg2+ + 0.5O2 + 2H+-> Hg0 + H2O   ()
-    hg2_hg0=self%K_hg2_hg0*Hg2*thr_h(self%O2s_nf,o2,1._rk)
-    !0.5*(1.+tanh(o2-self%O2s_nf))  
-    !% Hg2 methylation Hg2+  -> MeHg   ()
-    hg2_mehg=self%K_hg2_mehg*Hg2*thr_h(50.0_rk,Bhan,1._rk)
-    !0.5*(1.+tanh(Bhan-50.0_rk))
-    !% MeHg demethylation MeHg  -> Hg2+   ()
-    mehg_hg2=(self%K_mehg_hg2/10.0_rk + self%K_mehg_hg2*thr_h(5.0_rk,Bhan,1._rk))*MeHg 
-    !0.5*(1.+tanh(Bhan-5.0_rk))
-    !% MeHg reduction MeHg + H2S -> Hg2+ + ???   ()
-    mehg_h2s=self%K_mehg_h2s*MeHg*thr_h(50.0_rk,H2S,1._rk)
-    !% HgS saturarion state
+!% Hg2 biooxydation  Hg2+ + 0.5O2 + 2H+-> Hg0 + H2O   ()
+    hg2_hg0=self%K_hg2_hg0*Hg2*0.5*(1.+tanh(o2-self%O2s_nf))  
+!% Hg2 methylation Hg2+  -> MeHg   ()
+    hg2_mehg=self%K_hg2_mehg*Hg2*0.5*(1.+tanh(Bhan-50.0_rk))
+!% MeHg demethylation MeHg  -> Hg2+   ()
+    mehg_hg2=(self%K_mehg_hg2/10.0_rk + self%K_mehg_hg2*0.5*(1.+tanh(Bhan-5.0_rk)))*MeHg 
+!% MeHg reduction MeHg + H2S -> Hg2+ + ???   ()
+    mehg_h2s=self%K_mehg_h2s*MeHg*(0.5_rk+0.5_rk*tanh(H2S+50.0_rk))
+!% HgS saturarion state
     Om_HgS=H2S*Hg2/(self%K_HgS) 
-    !% HgS formation Hg2+ + H2S -> HgS + 2H+ ()
+!% HgS formation Hg2+ + H2S -> HgS + 2H+ ()
     hgs_form=max(0._rk,self%K_hgs_form*max(0._rk,(Om_HgS-1._rk)))
     if (Hg2<0.000001.or.H2S<0.01) hgs_form=0._rk
-    !% HgS dissolution  HgS + 2H+ -> Hg2+ + H2S   ()
+!% HgS dissolution  HgS + 2H+ -> Hg2+ + H2S   ()
     hgs_diss=self%K_hgs_diss*HgS*max(0._rk,(1._rk-Om_HgS))
-    !    if (HgS<0.000001) hgs_diss=0._rk 
-    !% HgS oxydation  HgS + 2O2 -> Hg2+ + SO42-  ()
-    hgs_ox=self%K_hgs_ox*HgS*thr_h(1.0_rk,O2,1._rk)
+!    if (HgS<0.000001) hgs_diss=0._rk 
+!% HgS oxydation  HgS + 2O2 -> Hg2+ + SO42-  ()
+    hgs_ox=self%K_hgs_ox*HgS*(0.5_rk+0.5_rk*tanh(O2+1.0_rk))     
     !hgs_form = 0.0_rk
     !hgs_diss = 0.0_rk
     !hgs_ox = 0.0_rk
-    Iz_coef = Iz/25.*exp(1._rk-Iz/25.)
-    !% Hg2 photo reduction  Hg2+ -> Hg0   ()
-    hg2_irr_red=self%K_hg2_irr_red*Hg2*Iz_coef
-    !% Hg0 photo oxydation  Hg0 -> Hg2+   ()
-    hg0_irr_ox=self%K_hg0_irr_ox*Hg0*Iz_coef
-    !% MeHg photo degradation MeHg  -> Hg0   
-    mehg_irr_degr=self%K_mehg_irr_degr*MeHg*Iz_coef
+!% Hg2 photo reduction  Hg2+ -> Hg0   ()
+    hg2_irr_red=self%K_hg2_irr_red*Hg2*Iz/25.*exp(1._rk-Iz/25.)
+!% Hg0 photo oxydation  Hg0 -> Hg2+   ()
+    hg0_irr_ox=self%K_hg0_irr_ox*Hg0*Iz/25.*exp(1._rk-Iz/25.)
+!% MeHg photo degradation MeHg  -> Hg0   
+    mehg_irr_degr=self%K_mehg_irr_degr*MeHg*Iz/25.*exp(1._rk-Iz/25.)
   !_______
   ! Hg(II)
   !
   ! partitioning betweeen dissolved Hg(II) and OM
     call partit (Hg2, Hg2_biota, Hg2_POM, Hg2_DOM, &
-                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML, &
+                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
                  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                  self%Kow_bio_Hg2,self%Kow_POM_Hg2,self%Kow_DOM_Hg2)
     
@@ -361,7 +360,7 @@
    _SET_ODE_(self%id_Hg2_DOM,dSubst_DOM)
    _SET_ODE_(self%id_Hg2_free,0.0)
 
-     !! Sorption of Hg(II) on Mn oxides
+ !! Sorption of Hg(II) on Mn oxides
      hg2_mn4_compl = 0.0_rk 
    _SET_ODE_(self%id_Hg2_Mn4,hg2_mn4_compl)
 
@@ -384,10 +383,10 @@
    
   !________
   ! MeHg
-  !
+   !
   ! partitioning betweeen dissolved MeHg and OM
     call partit (MeHg, MeHg_biota, MeHg_POM, MeHg_DOM, &
-                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML, &
+                 Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
                  dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                  self%Kow_bio_MeHg,self%Kow_POM_MeHg,self%Kow_DOM_MeHg)
         
@@ -509,12 +508,12 @@
 
 !-----------------------------------------------------------------------
    subroutine partit (Subst_dis,Subst_biota, Subst_POM, Subst_DOM, &
-                      Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML, &
+                      Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON, &
                       dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, &
                       Kow_bio, Kow_pom, Kow_dom)
    ! !LOCAL VARIABLES:
    real(rk) :: Subst_dis, Subst_biota, Subst_POM, Subst_DOM,  Subst_tot 
-   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, POML, DOML
+   real(rk) :: Phy, Het, Baae, Bhae, Baan, Bhan, POML, DON
    real(rk) :: dSubst_dis, dSubst_biota, dSubst_POM, dSubst_DOM, dSubst_tot
    real(rk) :: dSubst_tot_diss, dSubst_tot_part
    real(rk) :: pol_bio  ! pollutant in BIOTA,"ng?"/l
@@ -563,10 +562,10 @@
         sha_pom=uMn2lip/1000.*POML  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif     
        
-       if(DOML<=0.) then 
+       if(DON<=0.) then 
         sha_dom=0. 
        else
-        sha_dom=uMn2lip/1000.*DOML  ! Volume(weight in kg, g->kg=/1000) of BIO
+        sha_dom=uMn2lip/1000.*DON  ! Volume(weight in kg, g->kg=/1000) of BIO
        endif    
 
       sha_free = 1.-sha_bio-sha_pom-sha_dom ! i.e Volume(weight in [kg]) of 1l of water minus volumes of org. and part. forms 
@@ -586,20 +585,6 @@
     dSubst_POM   = -Subst_POM   +pol_pom
     dSubst_DOM   = -Subst_DOM   +pol_dom
 
-    end subroutine partit
-
-    real(rk) function thr_h(threshold_value,var_conc,koef)
-        ! Threshold value for the reaction 
-        ! koef 1 gives regular tgh function 
-        ! 0.1 - smooth function 
-        real(rk), intent(in) :: threshold_value,var_conc,koef
-        thr_h = 0.5+0.5*tanh((var_conc-threshold_value)*koef)
-    end function 
-          
-    real(rk) function thr_l(threshold_value,var_conc,koef)
-        ! Threshold value for the reaction 
-        real(rk), intent(in) :: threshold_value,var_conc,koef
-        thr_l = 0.5-0.5*tanh((var_conc-threshold_value)*koef)
-    end function     
-
+   
+   end subroutine partit
 end module
