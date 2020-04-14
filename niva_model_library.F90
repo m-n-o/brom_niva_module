@@ -37,10 +37,8 @@ contains
       use fabm_niva_brom_silicon
       use fabm_niva_brom_sulfur
       use fabm_niva_brom_ba
-      !use fabm_niva_brom_halite
-      !use fabm_niva_brom_minerals
-      !use fabm_niva_brom_volumes
       use fabm_niva_oxydep
+      use fabm_niva_brom_injection
       ! Add new NIVA models here
 
       class (type_factory),intent(in) :: self
@@ -68,10 +66,8 @@ contains
          case ('brom_silicon');       allocate(type_niva_brom_silicon::model)
          case ('brom_sulfur');        allocate(type_niva_brom_sulfur::model)
          case ('brom_ba');            allocate(type_niva_brom_ba::model)
-         !case ('brom_halite');        allocate(type_niva_brom_halite::model)
-         !case ('brom_minerals');      allocate(type_niva_brom_minerals::model)
-         !case ('brom_volumes');      allocate(type_niva_brom_volumes::model)
          case ('oxydep');             allocate(type_niva_oxydep::model)
+         case ('brom_injection');     allocate(type_niva_brom_injection::model)
          ! Add new NIVA models here
       end select
 
