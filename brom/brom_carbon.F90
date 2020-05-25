@@ -98,6 +98,7 @@ contains
       ! Environment
       _GET_(self%id_dens,dens) !density
       _GET_(self%id_temp,temp) !temperature
+      ! temp = 10.7_rk
       _GET_(self%id_salt,salt) !salinity
       !previouss pCO2 which calculates here in the subroutine do
       _GET_(self%id_pCO2w,pCO2w) !in atm = (mol mol-1)

@@ -97,6 +97,7 @@ contains
                Kh2s, kso4, kflu, tot_free
     _LOOP_BEGIN_
       _GET_(self%id_temp,temp)              ! temperature
+      ! temp = 10.7_rk
       _GET_(self%id_salt,salt)              ! salinity
       _GET_(self%id_pres,pres)              ! pressure in dbar
 
