@@ -108,9 +108,9 @@
    call self%register_state_dependency(self%id_pom,'POM','mmol/m**3','POM')
    call self%register_state_dependency(self%id_nut,'NUT','mmol/m**3','NUT')
    call self%register_state_dependency(self%id_dom,'DOM','mmol/m**3','DOM')
-   call self%register_state_dependency(self%id_po4,'PO4','mmol/m**3','PO4')
-   call self%register_state_dependency(self%id_nh4,'NH4','mmol/m**3','NH4')
-   call self%register_state_dependency(self%id_dic,'DIC','mmol/m**3','DIC')
+   !call self%register_state_dependency(self%id_po4,'PO4','mmol/m**3','PO4')
+   !call self%register_state_dependency(self%id_nh4,'NH4','mmol/m**3','NH4')
+   !call self%register_state_dependency(self%id_dic,'DIC','mmol/m**3','DIC')
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_waste_decomp,'waste_decomp', &
            'mmol/m**3/d',  'waste_decomp,  Decomposition of waste',&
@@ -178,9 +178,9 @@
    _GET_(self%id_pom,pom)
    _GET_(self%id_nut,nut)
    _GET_(self%id_dom,dom)
-   _GET_(self%id_po4,po4)
-   _GET_(self%id_nh4,nh4)
-   _GET_(self%id_dic,dic)
+   !_GET_(self%id_po4,po4)
+   !_GET_(self%id_nh4,nh4)
+   !_GET_(self%id_dic,dic)
 
    ! Retrieve current environmental conditions.
    _GET_(self%id_temp,t)                ! temperature
@@ -216,10 +216,10 @@
    _SET_ODE_(self%id_waste,dwaste)
    _SET_ODE_(self%id_pom,  dpom)
    _SET_ODE_(self%id_dom,  ddom)
-!   _SET_ODE_(self%id_nut,  waste_miner) ! case OXYDEP
-   _SET_ODE_(self%id_nh4,  waste_miner)
-   _SET_ODE_(self%id_po4,  waste_miner/16.0_rk)
-   _SET_ODE_(self%id_dic,  waste_miner*6.625_rk)
+   _SET_ODE_(self%id_nut,  waste_miner) ! case OXYDEP
+!   _SET_ODE_(self%id_nh4,  waste_miner)! case FABM
+!   _SET_ODE_(self%id_po4,  waste_miner/16.0_rk)! case FABM
+!   _SET_ODE_(self%id_dic,  waste_miner*6.625_rk)! case FABM
    _SET_ODE_(self%id_oxy,  -6.625*waste_miner)
 
 

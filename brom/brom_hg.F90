@@ -32,7 +32,7 @@
 ! global dependencies
    type (type_dependency_id)            :: id_temp,id_par,id_depth
 ! diagnostic dependences defined in other modules
-   type (type_dependency_id):: id_Hplus
+   type (type_dependency_id) :: id_Hplus
 ! variables defined in this modules
    type (type_state_variable_id)        :: id_Hg0, id_Hg2,id_MeHg,id_HgS
    type (type_state_variable_id)        :: id_MeHg_biota, id_MeHg_POM, id_MeHg_DOM, id_MeHg_Fe3, id_MeHg_Mn4, id_MeHg_free
