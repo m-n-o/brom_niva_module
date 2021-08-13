@@ -39,6 +39,7 @@ contains
       use fabm_niva_brom_ba
       use fabm_niva_oxydep
       use fabm_niva_brom_injection
+      use fabm_niva_brom_bioplast
       ! Add new NIVA models here
 
       class (type_factory),intent(in) :: self
@@ -68,6 +69,7 @@ contains
          case ('brom_ba');            allocate(type_niva_brom_ba::model)
          case ('oxydep');             allocate(type_niva_oxydep::model)
          case ('brom_injection');     allocate(type_niva_brom_injection::model)
+         case ('brom_bioplast');      allocate(type_niva_brom_bioplast::model) 
          ! Add new NIVA models here
       end select
 
